@@ -14,9 +14,11 @@ Jarvis Voz — escuta contínua + habilidades (skills.py).
 
 from __future__ import annotations
 
+import ctypes
 import queue
 import re
 import subprocess
+import sys
 import time
 from collections import deque
 from difflib import SequenceMatcher
@@ -42,6 +44,14 @@ CNW = 0x08000000
 AFFIRM = ("sim", "confirma", "confirmado", "pode", "pode sim", "isso", "claro",
           "afirmativo", "positivo", "manda", "faz", "vai", "ok", "beleza", "quero")
 NEGATE = ("nao", "negativo", "cancela", "para", "deixa", "esquece", "melhor nao")
+
+
+def ensure_single_instance() -> None:
+    """Evita dois Jarvis ouvindo ao mesmo tempo (ex: autostart + clique manual)."""
+    ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\JarvisVozSingleton")
+    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        log("Jarvis Voz já está rodando — encerrando esta instância.")
+        sys.exit(0)
 
 
 def load_cfg() -> dict:
@@ -331,6 +341,7 @@ def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
 
 # --------------------------------------------------------------------------
 def main() -> None:
+    ensure_single_instance()
     cfg = load_cfg()
     log("=" * 50)
     log("Jarvis Voz iniciando (escuta contínua + skills)")
