@@ -82,8 +82,9 @@ set PY=E:\OpenJarvis\src\.venv\Scripts\python.exe
 %PY% E:\OpenJarvis\voice\test_audio.py index                     REM  lista jogos + atalhos achados
 %PY% E:\OpenJarvis\voice\test_audio.py skill "jogar palworld"    REM  testa o roteador de comando
 %PY% E:\OpenJarvis\voice\test_audio.py voice
-%PY% E:\OpenJarvis\voice\test_audio.py whisper
+%PY% E:\OpenJarvis\voice\test_audio.py whisper   REM  mostra os 2 estágios + tempo de cada
 %PY% E:\OpenJarvis\voice\test_audio.py meter
+%PY% E:\OpenJarvis\voice\test_audio.py llm
 ```
 
 ## Ajustes rápidos (`config.toml`)
@@ -92,15 +93,27 @@ set PY=E:\OpenJarvis\src\.venv\Scripts\python.exe
 |---|---|
 | Não entende a frase de chegada | baixe `[arrival] match_threshold` p/ `0.6` |
 | Dispara chegada sem querer | suba `match_threshold` p/ `0.8` |
-| Lento pra responder | `[wake] whisper_model = "base"` |
+| Não pega o "jarvis" às vezes | `[wake] wake_model = "base"` (1ª passada mais precisa, um pouco mais lenta) |
+| Comando entendido errado | `[wake] command_model = "medium"` + `beam_size = 5` (mais lento) |
 | Corta o início da fala | `[audio] speech_level = 0.012`, `pre_roll_seconds = 0.9` |
+| Corta o fim da fala | `[audio] silence_timeout = 1.3` |
+| Resposta demora na 1ª vez do dia | `[assistant] keepwarm_minutes = 5` (ping mais frequente no Ollama) |
+| IA muito prolixa | `[assistant] reply_num_predict = 80` |
 | Não quero que desligue por voz | `[danger] allow_shutdown = false` |
 | Trocar música de chegada | `[arrival] sequence` → outro `spotify:track:ID` |
 | Adicionar app fixo | seção `[apps]` |
 
+## Como funciona (resumo)
+
+STT em **2 estágios**: TODA fala passa por um Whisper `tiny` (rápido); só se ele
+detectar "jarvis" ou a frase de chegada é que o `small` (preciso) roda. Isso deixa
+o Jarvis quase sem custo de CPU quando você não está falando com ele.
+Ver `..\ARCHITECTURE.md` para o quadro completo.
+
 ## Limitações
 
-- Whisper + IA na CPU → "jarvis, pergunta" leva ~6–8 s.
+- "jarvis, pergunta" → ~4–6 s (Whisper `small` + qwen3.5:2b, ambos em CPU).
+- A voz Maria (SAPI) fala em ~0,3× tempo real — frases longas demoram. Suba `[tts] sapi_rate`.
 - "tocar \<música\>" abre a busca no Spotify, não dá play sozinho (limite do Spotify sem API).
 - `qwen3.5:2b` é um modelo pequeno — respostas curtas e às vezes imprecisas.
 - Detecção de palma é heurística.
