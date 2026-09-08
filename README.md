@@ -1,84 +1,106 @@
 # Jarvis Voz
 
-Assistente de voz local sobre o OpenJarvis. **Escuta contínua** — não precisa de terminal aberto nem de apertar nada.
+Assistente de voz local (roda sobre o OpenJarvis). **Escuta contínua.**
 
-## Como usar
+## Ativar (rotina de chegada)
 
-### Ativar (rotina de chegada)
-Fale (com ou sem bater 2 palmas antes):
+Fale (com ou sem 2 palmas antes):
 
 > **"bom dia neném o papai chegou"**
 
-Ele responde *"Bom dia, senhor. Com o que posso te ajudar?"*, **abre a Steam** e **toca *Highway to Hell* no Spotify**.
+→ *"Bom dia, senhor. Com o que posso te ajudar?"* + abre **Steam** + toca **Highway to Hell**.
 
-Bater **2 palmas** também ativa na hora (atalho).
+## Falar com o Jarvis
 
-### Comandos e perguntas
-Só responde se a fala **começar com "jarvis"**. Qualquer outra fala é ignorada em silêncio.
+Só age se a fala **começar com "jarvis"**. Fora isso, silêncio.
 
-| Você fala | Ele faz |
+- **"jarvis"** (sozinho) → *"Olá senhor, com o que posso ajudar?"* (não roda a rotina de chegada)
+- **"jarvis, \<comando ou pergunta\>"** → executa / responde. Ele te trata sempre por **Senhor**.
+
+### Comandos
+
+| Fala | Ação |
 |---|---|
-| "jarvis, abrir steam / spotify / youtube / calculadora / gmail / whatsapp / explorador" | abre o app/site |
-| "jarvis, pesquisar no google \<termo\>" | abre a busca no Google |
+| "jarvis, abrir \<app\>" | Steam, Spotify, YouTube, Gmail, calculadora, configurações… (+ qualquer atalho do Menu Iniciar) |
+| "jarvis, jogar \<jogo\>" / "abrir \<jogo\>" | abre o jogo da **Steam** pelo nome (Palworld, Hollow Knight, Spider-Man…) |
+| "jarvis, pesquisar no google \<termo\>" | busca no Google |
 | "jarvis, tocar \<música\>" | abre a busca no Spotify |
-| "jarvis, \<qualquer pergunta\>" | responde pela IA local (te tratando por **Senhor**) |
-| "jarvis" (sozinho) | *"Pois não, senhor?"* |
-| "jarvis, pode ir / obrigado / para" | *"Às ordens, senhor."* |
+| "jarvis, escrever um texto sobre \<assunto\>" | a IA redige e joga no Bloco de Notas |
+| "jarvis, digitar \<texto\>" | digita o texto no campo que estiver em foco |
+| "jarvis, anota \<algo\>" | salva em `NOTAS.md` |
+| "jarvis, aumenta/abaixa o volume", "muta" | teclas de mídia |
+| "jarvis, próxima música", "pausa", "toca" | controle de mídia |
+| "jarvis, bloqueia a tela" | trava o Windows |
+| "jarvis, que horas são" / "que dia é hoje" | responde na hora |
+| "jarvis, \<qualquer pergunta\>" | responde pela IA local |
+| "jarvis, pedido: \<melhoria\>" | anota um pedido de mudança no próprio Jarvis em `PEDIDOS.md` |
 
-Ele te chama **sempre de "Senhor"**. Sabe que seu nome é **Arthur** (se você perguntar, ele diz — mas continua te chamando de Senhor).
+### Ações que pedem confirmação falada ("sim" / "confirma" / "pode")
+
+| Fala | Ação |
+|---|---|
+| "jarvis, desligar o computador" | `shutdown` com 30 s de margem |
+| "jarvis, reiniciar" | reinicia |
+| "jarvis, suspender" | suspende |
+| "jarvis, fechar \<app\>" | encerra o programa |
+
+Para abortar um desligamento em andamento: **"jarvis, cancelar"**.
+"jarvis, fecha isso" fecha a janela em foco (Alt+F4) **sem** confirmação.
 
 ## Arquivos
 
-| Arquivo | Função |
+| Arquivo | |
 |---|---|
-| `config.toml` | **tudo que você ajusta** |
-| `jarvis_voice.py` | o programa |
+| `config.toml` | tudo que você ajusta |
+| `jarvis_voice.py` | loop principal (mic, voz, ativação, confirmação) |
+| `skills.py` | os comandos / habilidades |
+| `common.py` | utilitários (teclado, clipboard) |
 | `run_jarvis_voice.vbs` | inicia sem janela |
 | `test_audio.py` | diagnósticos |
-| `jarvis_voice.log` | histórico |
+| `NOTAS.md` / `PEDIDOS.md` | criados pelo Jarvis |
+
+Versionado com **git** — qualquer mudança é reversível (`git log`, `git revert`).
+
+## Segurança
+
+- Toda ação exige o prefixo **"jarvis"**.
+- Desligar / reiniciar / suspender / fechar app → **confirmação falada**.
+- `[danger]` no `config.toml` desliga cada categoria (`allow_shutdown = false` etc.).
+- O modelo local (`qwen3.5:2b`) não executa shell nem código — as ações são um conjunto fixo e revisado neste `skills.py`.
 
 ## Rodar
 
 ```bat
 E:\OpenJarvis\src\.venv\Scripts\python.exe E:\OpenJarvis\voice\jarvis_voice.py
 ```
-ou 2 cliques em `run_jarvis_voice.vbs` (roda escondido; feche pelo Gerenciador de Tarefas → `pythonw.exe`).
-
-### Iniciar com o Windows
-`Win+R` → `shell:startup` → cole um **atalho** para `run_jarvis_voice.vbs`.
+ou 2 cliques em `run_jarvis_voice.vbs`. Início com o Windows: `Win+R` → `shell:startup` → atalho pro `.vbs`.
 
 ## Testes
 
 ```bat
-cd /d E:\OpenJarvis\voice
 set PY=E:\OpenJarvis\src\.venv\Scripts\python.exe
-
-%PY% test_audio.py voice            REM  a voz do Windows fala
-%PY% test_audio.py llm              REM  testa as respostas da IA
-%PY% test_audio.py meter            REM  volume do mic (fale / bata palma e veja a barra)
-%PY% test_audio.py whisper          REM  fale 5s -> mostra o que ele entendeu
-%PY% test_audio.py wake "bom dia nenei o papai chegou"   REM  testa se um texto ativaria
-%PY% test_audio.py actions          REM  dispara Steam + Spotify
+%PY% E:\OpenJarvis\voice\test_audio.py index                     REM  lista jogos + atalhos achados
+%PY% E:\OpenJarvis\voice\test_audio.py skill "jogar palworld"    REM  testa o roteador de comando
+%PY% E:\OpenJarvis\voice\test_audio.py voice
+%PY% E:\OpenJarvis\voice\test_audio.py whisper
+%PY% E:\OpenJarvis\voice\test_audio.py meter
 ```
 
-## Ajustes no `config.toml`
+## Ajustes rápidos (`config.toml`)
 
 | Sintoma | Ajuste |
 |---|---|
-| Não entende a frase de ativação | já está bem tolerante; se ainda falhar, baixe `[wake] match_threshold` para `0.45` |
-| Ativa sozinho | suba `match_threshold` para `0.65` |
-| Demora pra responder | `[wake] whisper_model = "base"` (mais rápido, menos preciso) |
-| Não te ouve / corta o começo da fala | baixe `[audio] speech_level` (ex: `0.012`) e suba `pre_roll_seconds` (ex: `0.8`) |
-| Palmas não pegam | baixe `clap_sensitivity` (ex: `5.0`) e `clap_min_level` (ex: `0.02`) |
-| Palmas disparam sozinhas | suba os dois; ou `clap_enabled = false` |
-| Ele se ouve falando e reage | use fone, ou baixe o volume da caixa |
-| Trocar a voz / velocidade | `[tts] sapi_voice` / `sapi_rate` |
-| Mudar a música de chegada | `[arrival] sequence` — troque o `spotify:track:ID` |
-| Mudar como ele te chama / seu nome | `[assistant] address` / `user_name` |
+| Não entende a frase de chegada | baixe `[arrival] match_threshold` p/ `0.6` |
+| Dispara chegada sem querer | suba `match_threshold` p/ `0.8` |
+| Lento pra responder | `[wake] whisper_model = "base"` |
+| Corta o início da fala | `[audio] speech_level = 0.012`, `pre_roll_seconds = 0.9` |
+| Não quero que desligue por voz | `[danger] allow_shutdown = false` |
+| Trocar música de chegada | `[arrival] sequence` → outro `spotify:track:ID` |
+| Adicionar app fixo | seção `[apps]` |
 
 ## Limitações
 
-- **Whisper + LLM rodam na CPU** → "jarvis, pergunta" leva ~6–8 s. A GTX 1650 tem só 4 GB; dá pra tentar `whisper_device = "cuda"` mas pode precisar de libs CUDA extras.
-- **"tocar \<música\>"** abre a *busca* no Spotify, não dá play sozinho (o Spotify não permite isso sem login de API). A música de chegada funciona 100% porque é uma faixa fixa.
+- Whisper + IA na CPU → "jarvis, pergunta" leva ~6–8 s.
+- "tocar \<música\>" abre a busca no Spotify, não dá play sozinho (limite do Spotify sem API).
+- `qwen3.5:2b` é um modelo pequeno — respostas curtas e às vezes imprecisas.
 - Detecção de palma é heurística.
-- O modelo local (`qwen3.5:2b`) é pequeno — respostas curtas e às vezes imprecisas. É o que cabe nos 16 GB de RAM / GPU de 4 GB.
