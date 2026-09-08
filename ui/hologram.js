@@ -93,6 +93,7 @@
     );
     ring.rotation.x = Math.PI / 2 + tilt;
     ring.userData.speed = 0.15 + i * 0.12;
+    ring.userData.baseOpacity = 0.5 - i * 0.12;
     rings.push(ring);
     core.add(ring);
   });
@@ -115,6 +116,8 @@
     speakLevel: 0,       // suavizado 0..1
     amplitude: 0.5,      // profundidade do pulso quando falando
     status: "SISTEMA ONLINE",
+    paused: false,
+    pausedLevel: 0,      // suavizado 0..1
   };
 
   window.jarvis = {
@@ -122,6 +125,22 @@
     setAmplitude: (a) => { state.amplitude = Math.max(0, Math.min(1, +a || 0)); },
     setStatus: (s) => { state.status = String(s || ""); },
   };
+
+  // ---------- botão liga/pausa ----------
+  const powerBtn = document.getElementById("power");
+  const powerLbl = document.getElementById("power-label");
+  const fxEl = document.getElementById("fx");
+  powerBtn.addEventListener("click", () => {
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.toggle_pause) api.toggle_pause().then((c) => applyPaused(!!(c && c.paused)));
+    else applyPaused(!state.paused);   // fallback offline
+  });
+  function applyPaused(p) {
+    state.paused = p;
+    document.body.classList.toggle("paused", p);
+    fxEl.classList.toggle("paused", p);
+    powerLbl.textContent = p ? "Pausado — clique p/ ativar" : "Ouvindo";
+  }
 
   // ---------- ponte com o Python (state.json) ----------
   let _dbgReady = false, _lastSpeaking = null;
@@ -141,6 +160,12 @@
       if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
       if (s.status) state.status = s.status;
     }).catch((e) => dbg("erro get_state: " + e));
+    if (api.get_control) {
+      api.get_control().then((c) => {
+        const p = !!(c && c.paused);
+        if (p !== state.paused) applyPaused(p);   // sincroniza com o atalho global
+      }).catch(() => {});
+    }
   }
   setInterval(pollState, 200);
 
@@ -158,8 +183,12 @@
   function tick() {
     const t = clock.getElapsedTime();
 
-    // rampa suave (~1s) pra entrar/sair do "falando"
-    state.speakLevel += ((state.speaking ? 1 : 0) - state.speakLevel) * 0.045;
+    state.pausedLevel += ((state.paused ? 1 : 0) - state.pausedLevel) * 0.06;
+    const pz = state.pausedLevel;               // 0 ativo -> 1 pausado
+    const live = 1 - pz;
+
+    // rampa suave (~1s) pra entrar/sair do "falando" (zerado quando pausado)
+    state.speakLevel += (((state.speaking && !state.paused) ? 1 : 0) - state.speakLevel) * 0.045;
     const spk = state.speakLevel;
     const depth = 0.5 + state.amplitude;               // 0.5 .. 1.5
 
@@ -171,33 +200,34 @@
     const scale = idleBreath + spk * depth * (0.05 + 0.06 * slow);
     core.scale.setScalar(scale);
 
-    // rotação — quase igual; um tiquinho mais viva falando
-    const rot = 0.0022 + spk * 0.0035;
+    // rotação — quase para quando pausado
+    const rot = (0.0022 + spk * 0.0035) * (1 - pz * 0.92);
     core.rotation.y += rot;
     core.rotation.x = Math.sin(t * 0.22) * 0.14;
     blob.rotation.y -= rot * 1.5;
     points.rotation.y += rot * 0.4;
-    rings.forEach((r) => { r.rotation.z += r.userData.speed * (0.008 + spk * 0.012); });
+    rings.forEach((r) => { r.rotation.z += r.userData.speed * (0.008 + spk * 0.012) * (1 - pz * 0.9); });
 
-    // brilhos "piscando" devagar, cada casca em sua própria fase
+    // brilhos "piscando" devagar; escurece bastante quando pausado
+    const dim = 1 - pz * 0.62;
     shells.forEach((s) => {
       const d = s.userData;
-      const wave = 0.5 + 0.5 * Math.sin(t * TAU * d.freq + d.phase);   // 0..1 lento
-      s.material.opacity = d.opacity * (1 + spk * depth * (0.7 + 1.4 * wave));
+      const wave = 0.5 + 0.5 * Math.sin(t * TAU * d.freq + d.phase);
+      s.material.opacity = d.opacity * dim * (1 + spk * depth * (0.7 + 1.4 * wave));
     });
-    blobMat.opacity = 0.06 + spk * depth * (0.10 + 0.14 * slow);
+    points.material.opacity = 0.9 * dim;
+    rings.forEach((r) => { r.material.opacity = r.userData.baseOpacity * dim; });
+    blobMat.opacity = (0.06 + spk * depth * (0.10 + 0.14 * slow)) * dim;
 
-    // glow de fundo — infla e clareia junto com o pulso lento
-    glow.scale.setScalar(9 + spk * depth * (2.2 + 2.0 * slow));
-    glow.material.opacity = 0.85 + spk * 0.15 * slow;
+    glow.scale.setScalar((9 + spk * depth * (2.2 + 2.0 * slow)) * (1 - pz * 0.25));
+    glow.material.opacity = (0.85 + spk * 0.15 * slow) * (1 - pz * 0.5);
 
-    // câmera: zoom in/out LENTO, sem tremida
-    camera.position.z = 4.2 - spk * depth * (0.30 + 0.22 * slow);
+    camera.position.z = 4.2 - spk * depth * (0.30 + 0.22 * slow) + pz * 0.35;
     camera.lookAt(0, 0, 0);
 
     stars.rotation.z += 0.0003;
 
-    statusEl.textContent = state.speaking ? "FALANDO" : state.status;
+    statusEl.textContent = state.paused ? "PAUSADO" : (state.speaking ? "FALANDO" : state.status);
 
     renderer.render(scene, camera);
     requestAnimationFrame(tick);

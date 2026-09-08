@@ -30,6 +30,32 @@
   #status { bottom: 22px; left: 26px; }
   #hint   { bottom: 22px; right: 26px; opacity: 0.35; letter-spacing: 2px; }
 
+  /* botão liga/pausa a escuta do Jarvis */
+  #power {
+    position: fixed; z-index: 4; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 18px 9px 14px; cursor: pointer; user-select: none;
+    border: 1px solid var(--neon-dim); border-radius: 999px;
+    background: rgba(70,214,255,0.06);
+    color: var(--neon); font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+    text-shadow: 0 0 8px var(--neon);
+    transition: border-color .2s, background .2s, color .2s;
+  }
+  #power:hover { background: rgba(70,214,255,0.14); }
+  #power .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--neon); box-shadow: 0 0 12px var(--neon);
+  }
+  body.paused { --neon: #ffb24d; --neon-dim: #7a5320; }
+  body.paused #power { background: rgba(255,178,77,0.10); }
+  body.paused #power .dot { animation: none; box-shadow: 0 0 12px #ffb24d; }
+  body.paused #status::before { background: #ffb24d; box-shadow: 0 0 10px #ffb24d; animation: none; }
+  #fx.paused {
+    background:
+      radial-gradient(ellipse at center, rgba(255,150,40,0.05) 0%, transparent 45%, rgba(0,0,0,0.82) 100%),
+      repeating-linear-gradient(0deg, rgba(255,178,77,0.03) 0 1px, transparent 1px 3px);
+  }
+
   #status::before {
     content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 9px;
     border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon);
@@ -52,7 +78,10 @@
   <div id="fx"></div>
   <div id="brand" class="hud">J.A.R.V.I.S</div>
   <div id="status" class="hud">Iniciando</div>
-  <div id="hint" class="hud">esc: fechar</div>
+  <div id="hint" class="hud">ctrl+alt+j &nbsp;·&nbsp; esc: fechar</div>
+  <div id="power" title="Ligar / pausar a escuta do Jarvis">
+    <span class="dot"></span><span id="power-label">Ouvindo</span>
+  </div>
   <div id="close" title="Fechar">&times;</div>
 
   <script src="lib/three.min.js"></script>

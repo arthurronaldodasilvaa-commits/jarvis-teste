@@ -39,6 +39,7 @@ def _resolve_state_file() -> Path:
 
 
 STATE_FILE = _resolve_state_file()
+CONTROL_FILE = STATE_FILE.parent / "control.json"
 BASE_DIR_DEBUG = STATE_FILE.parent / "app_debug.log"
 UI = APP_DIR / "ui" / "index.html"
 
@@ -66,6 +67,24 @@ class Api:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
+
+    def get_control(self) -> dict:
+        try:
+            return json.loads(CONTROL_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {"paused": False}
+
+    def set_paused(self, paused: bool) -> dict:
+        data = self.get_control()
+        data["paused"] = bool(paused)
+        try:
+            CONTROL_FILE.write_text(json.dumps(data), encoding="utf-8")
+        except OSError:
+            pass
+        return data
+
+    def toggle_pause(self) -> dict:
+        return self.set_paused(not self.get_control().get("paused", False))
 
     def debug(self, msg: str) -> None:
         try:
