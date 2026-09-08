@@ -1,0 +1,108 @@
+# ============================================================
+#  Jarvis Voz — configuração
+#  Edite e reinicie o Jarvis para aplicar.
+# ============================================================
+
+[audio]
+# Trecho do nome do microfone. "" = microfone padrão do Windows.
+input_device_match = "Brio"
+
+# --- detecção de fala (VAD) ---
+# Energia mínima pra considerar que você começou a falar.
+speech_level = 0.018
+# Silêncio (segundos) que encerra uma fala.
+silence_timeout = 0.9
+# Duração máxima de uma fala.
+max_utterance_seconds = 9.0
+# Pré-buffer: quantos segundos de áudio ANTES do disparo entram na gravação
+# (evita cortar a primeira sílaba).
+pre_roll_seconds = 0.5
+
+# --- palmas (atalho opcional; a frase sozinha já ativa) ---
+clap_enabled = true
+clap_instant_activate = true   # 2 palmas = ativa na hora, sem precisar falar a frase
+clap_sensitivity = 7.0
+clap_min_level = 0.030
+clap_window_seconds = 1.6
+clap_min_gap_seconds = 0.12
+claps_required = 2
+
+[wake]
+# Qualquer uma destas frases ativa o Jarvis (comparação tolerante a
+# acento, pontuação e erros do reconhecimento de voz).
+phrases = [
+  "bom dia neném o papai chegou",
+  "bom dia jarvis",
+  "jarvis bom dia",
+  "acorda jarvis",
+]
+# Também ativa se a fala contiver "bom dia" + qualquer um destes:
+keywords_with_bomdia = ["papai", "chegou", "chego", "neném", "nenem", "nene"]
+# 0.0–1.0 — quão parecida a fala precisa ser de alguma frase acima.
+match_threshold = 0.55
+# Não reativa a rotina de chegada se ela rodou nos últimos N segundos.
+reactivate_cooldown_seconds = 45
+# Modelo Whisper: tiny | base | small | medium  (small = bem melhor p/ PT)
+whisper_model = "small"
+whisper_language = "pt"
+whisper_device = "cpu"          # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
+# Dá contexto ao Whisper — melhora o acerto da frase e da palavra "jarvis".
+whisper_initial_prompt = "Bom dia, neném, o papai chegou. Jarvis, abrir Steam. Jarvis, que horas são?"
+
+[assistant]
+# Como o Jarvis chama você, e o que ele sabe sobre você.
+address = "Senhor"
+user_name = "Arthur"
+# Palavra que precisa vir no INÍCIO da fala pra ele responder um comando/pergunta.
+wake_word = "jarvis"
+# Se você só disser "jarvis" sem mais nada:
+attention_reply = "Pois não, senhor?"
+# LLM local (Ollama) usado quando não é um comando direto.
+ollama_url = "http://localhost:11434"
+model = "qwen3.5:2b"
+reply_num_predict = 160
+system_prompt = """
+Você é o Jarvis, mordomo e assistente pessoal do Arthur.
+Regras invioláveis:
+- Dirija-se a ele SEMPRE como "Senhor". Nunca use o primeiro nome dele para chamá-lo.
+- Se ele perguntar qual é o nome dele, responda que o nome dele é Arthur, mas continue tratando-o por "Senhor".
+- Responda em português do Brasil.
+- Suas respostas são faladas em voz alta: no máximo 2 frases curtas, sem listas, sem markdown, sem emojis.
+- Tom cordial, respeitoso e levemente formal, como um mordomo britânico.
+"""
+
+[tts]
+provider = "sapi"
+sapi_voice = "Microsoft Maria Desktop"
+sapi_rate = 0
+# Falado quando a frase de ativação (ou as 2 palmas) é reconhecida.
+greeting = "Bom dia, senhor. Com o que posso te ajudar?"
+ready_line = ""
+
+[arrival]
+# Ações da rotina de chegada, em ordem.
+#   "app:<nome>" | "spotify:track:ID" | "url:<end>" | "run:<cmd>"
+sequence = [
+  "app:steam",
+  "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
+]
+spotify_force_play = true
+spotify_wait_seconds = 4.0
+
+[behavior]
+# Se a fala NÃO começar com "jarvis" e NÃO for a frase de ativação,
+# o Jarvis simplesmente ignora (não fala "não entendi").
+answer_open_questions = true    # "jarvis, <qualquer pergunta>" -> responde pelo LLM
+
+[apps]
+steam       = "run:C:\\Program Files (x86)\\Steam\\steam.exe"
+spotify     = "run:spotify:"
+youtube     = "url:https://www.youtube.com"
+google      = "url:https://www.google.com"
+gmail       = "url:https://mail.google.com"
+whatsapp    = "url:https://web.whatsapp.com"
+navegador   = "url:https://www.google.com"
+calculadora = "run:calc:"
+"bloco de notas" = "run:notepad"
+notepad     = "run:notepad"
+explorador  = "run:explorer"
