@@ -1,31 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Jarvis Voz — escuta contínua.
+Jarvis Voz — escuta contínua + habilidades (skills.py).
 
-- Fala a FRASE DE ATIVACAO (ou bate 2 palmas) -> saudacao + rotina de chegada.
-- Diga "JARVIS ..." no inicio da fala -> ele executa o comando ou responde
-  a pergunta (LLM local via Ollama). Ele te trata sempre por "Senhor".
-- Qualquer outra fala é ignorada em silêncio (nunca diz "não entendi").
-
-Roda em cima do que o OpenJarvis instalou (faster-whisper, sounddevice, numpy,
-httpx). Nenhuma dependência nova.
+- FRASE DE CHEGADA ("bom dia neném o papai chegou") ou 2 palmas
+      -> saudação + abre Steam + toca Highway to Hell.
+- "JARVIS" sozinho  -> "Olá senhor, com o que posso ajudar?" (só isso).
+- "JARVIS <comando/pergunta>" -> executa ou responde (te trata por "Senhor").
+- Qualquer outra fala -> silêncio.
+- Ações sensíveis (desligar, reiniciar, suspender, fechar app) pedem
+  confirmação falada ("sim" / "confirma" / "pode").
 """
 
 from __future__ import annotations
 
-import ctypes
-import os
 import queue
 import re
 import subprocess
 import time
-import unicodedata
-import webbrowser
 from collections import deque
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.parse import quote_plus
 
 import numpy as np
 import sounddevice as sd
@@ -35,21 +30,18 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
+from common import log, norm
+import skills
+
 HERE = Path(__file__).resolve().parent
 CFG_PATH = HERE / "config.toml"
 SR = 16000
 BLOCK = 1600  # ~100 ms
+CNW = 0x08000000
 
-
-# --------------------------------------------------------------------------
-def log(msg: str) -> None:
-    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
-    print(line, flush=True)
-    try:
-        with open(HERE / "jarvis_voice.log", "a", encoding="utf-8") as fh:
-            fh.write(line + "\n")
-    except OSError:
-        pass
+AFFIRM = ("sim", "confirma", "confirmado", "pode", "pode sim", "isso", "claro",
+          "afirmativo", "positivo", "manda", "faz", "vai", "ok", "beleza", "quero")
+NEGATE = ("nao", "negativo", "cancela", "para", "deixa", "esquece", "melhor nao")
 
 
 def load_cfg() -> dict:
@@ -57,18 +49,10 @@ def load_cfg() -> dict:
         return tomllib.load(fh)
 
 
-def norm(s: str) -> str:
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
-    s = re.sub(r"[^a-z0-9 ]", " ", s.lower())
-    return re.sub(r"\s+", " ", s).strip()
+def rms(b: np.ndarray) -> float:
+    return float(np.sqrt(np.mean(b.astype(np.float64) ** 2)) + 1e-9)
 
 
-def rms(block: np.ndarray) -> float:
-    return float(np.sqrt(np.mean(block.astype(np.float64) ** 2)) + 1e-9)
-
-
-# --------------------------------------------------------------------------
-# microfone
 # --------------------------------------------------------------------------
 class Mic:
     def __init__(self, device):
@@ -110,8 +94,6 @@ def resolve_device(match: str):
 
 
 # --------------------------------------------------------------------------
-# palmas
-# --------------------------------------------------------------------------
 class ClapDetector:
     def __init__(self, cfg: dict):
         a = cfg["audio"]
@@ -121,7 +103,7 @@ class ClapDetector:
         self.window = float(a["clap_window_seconds"])
         self.min_gap = float(a["clap_min_gap_seconds"])
         self.need = int(a["claps_required"])
-        self.floor = deque(maxlen=40)
+        self.floor: deque[float] = deque(maxlen=40)
         self.claps: deque[float] = deque()
         self.armed = True
 
@@ -152,8 +134,6 @@ class ClapDetector:
 
 
 # --------------------------------------------------------------------------
-# ouvidos (Whisper)
-# --------------------------------------------------------------------------
 class Ears:
     def __init__(self, cfg: dict):
         from faster_whisper import WhisperModel
@@ -174,14 +154,11 @@ class Ears:
     def transcribe(self, audio: np.ndarray) -> str:
         segs, _ = self.model.transcribe(
             audio, language=self.lang, vad_filter=True,
-            condition_on_previous_text=False,
-            initial_prompt=self.initial_prompt,
+            condition_on_previous_text=False, initial_prompt=self.initial_prompt,
         )
         return " ".join(s.text for s in segs).strip()
 
 
-# --------------------------------------------------------------------------
-# boca (voz do Windows)
 # --------------------------------------------------------------------------
 class Mouth:
     def __init__(self, cfg: dict):
@@ -193,22 +170,20 @@ class Mouth:
     def say(self, text: str) -> None:
         if not text:
             return
-        text = re.sub(r"\s+", " ", text).strip()
+        text = re.sub(r"\s+", " ", str(text)).strip()
         log(f"Jarvis: {text}")
         ps = (
             "$ErrorActionPreference='SilentlyContinue';"
             "Add-Type -AssemblyName System.Speech;"
             "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
             + (f"try{{$s.SelectVoice('{self.voice}')}}catch{{}};" if self.voice else "")
-            + f"$s.Rate={self.rate};"
-            "$s.Speak([Console]::In.ReadToEnd());"
+            + f"$s.Rate={self.rate};$s.Speak([Console]::In.ReadToEnd());"
         )
         self.speaking = True
         try:
             subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-                input=text, text=True, timeout=45,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                input=text, text=True, timeout=60, creationflags=CNW,
             )
         except Exception as exc:  # noqa: BLE001
             log(f"falha na fala: {exc}")
@@ -216,8 +191,6 @@ class Mouth:
             self.speaking = False
 
 
-# --------------------------------------------------------------------------
-# cérebro (LLM local via Ollama)
 # --------------------------------------------------------------------------
 class Brain:
     def __init__(self, cfg: dict):
@@ -230,237 +203,116 @@ class Brain:
         self.system = a["system_prompt"].strip()
         self.num_predict = int(a.get("reply_num_predict", 160))
 
+    def _post(self, messages, num_predict, temperature=0.4):
+        r = self._httpx.post(
+            self.url,
+            json={"model": self.model, "messages": messages, "stream": False,
+                  "think": False, "keep_alive": "30m",
+                  "options": {"temperature": temperature, "num_predict": num_predict}},
+            timeout=90,
+        )
+        msg = r.json().get("message", {}).get("content", "")
+        return re.sub(r"<think>.*?</think>", "", msg, flags=re.S).strip()
+
     def warmup(self) -> None:
         try:
-            self._httpx.post(
-                self.url,
-                json={"model": self.model, "messages": [{"role": "user", "content": "oi"}],
-                      "stream": False, "think": False, "keep_alive": "30m",
-                      "options": {"num_predict": 8}},
-                timeout=120,
-            )
+            self._post([{"role": "user", "content": "oi"}], 8)
             log("LLM aquecido.")
         except Exception as exc:  # noqa: BLE001
-            log(f"warmup LLM falhou (segue mesmo assim): {exc}")
+            log(f"warmup LLM falhou: {exc}")
 
     def ask(self, question: str) -> str:
         try:
-            r = self._httpx.post(
-                self.url,
-                json={
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": self.system},
-                        {"role": "user", "content": question},
-                    ],
-                    "stream": False,
-                    "think": False,
-                    "keep_alive": "30m",
-                    "options": {"temperature": 0.4, "num_predict": self.num_predict},
-                },
-                timeout=60,
-            )
-            msg = r.json().get("message", {}).get("content", "")
-            msg = re.sub(r"<think>.*?</think>", "", msg, flags=re.S).strip()
-            return msg or "Perdão, senhor, não consegui elaborar uma resposta agora."
+            return self._post(
+                [{"role": "system", "content": self.system},
+                 {"role": "user", "content": question}],
+                self.num_predict,
+            ) or "Perdão, senhor, não consegui elaborar uma resposta."
         except Exception as exc:  # noqa: BLE001
             log(f"erro LLM: {exc}")
-            return "Desculpe, senhor, meu assistente de raciocínio não respondeu."
+            return "Desculpe, senhor, meu raciocínio não respondeu agora."
+
+    def compose(self, instruction: str, num_predict: int = 600) -> str:
+        try:
+            return self._post(
+                [{"role": "system", "content":
+                  "Você é um redator. Escreva em português do Brasil, claro e correto. "
+                  "Entregue só o texto pedido, sem comentários seus."},
+                 {"role": "user", "content": instruction}],
+                num_predict, temperature=0.7,
+            ) or "(não consegui gerar o texto)"
+        except Exception as exc:  # noqa: BLE001
+            log(f"erro compose: {exc}")
+            return "(erro ao gerar o texto)"
 
 
 # --------------------------------------------------------------------------
-# ações
+# ativação (frase de chegada)
 # --------------------------------------------------------------------------
-VK_MEDIA_PLAY_PAUSE = 0xB3
-
-
-def media_key(vk: int) -> None:
-    ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
-    ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
-
-
-def _spotify_running() -> bool:
-    try:
-        out = subprocess.run(
-            ["tasklist", "/fi", "imagename eq Spotify.exe"],
-            capture_output=True, text=True, timeout=10,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        ).stdout.lower()
-        return "spotify.exe" in out
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def open_spec(spec: str) -> None:
-    spec = spec.strip()
-    if spec.startswith(("http://", "https://")):
-        webbrowser.open(spec)
-    else:
-        os.startfile(spec)  # noqa: S606
-
-
-def _run_app_value(value: str) -> None:
-    kind, _, rest = value.partition(":")
-    if kind.lower() in ("url", "run"):
-        open_spec(rest.strip())
-    else:
-        open_spec(value.strip())
-
-
-def best_app_key(spoken: str, cfg: dict) -> str | None:
-    target = norm(spoken)
-    if not target:
-        return None
-    best, best_score = None, 0.0
-    for key in cfg["apps"]:
-        k = norm(key)
-        if k and (k in target or target in k):
-            return key
-        score = SequenceMatcher(None, target, k).ratio()
-        if score > best_score:
-            best, best_score = key, score
-    return best if best_score >= 0.6 else None
-
-
-def _play_spotify_track(uri: str, cfg: dict) -> None:
-    was_running = _spotify_running()
-    log(f"abrindo {uri} (spotify {'aberto' if was_running else 'fechado'})")
-    os.startfile(uri)  # noqa: S606
-    arr = cfg["arrival"]
-    if was_running and arr.get("spotify_force_play", True):
-        time.sleep(float(arr.get("spotify_wait_seconds", 4.0)))
-        media_key(VK_MEDIA_PLAY_PAUSE)
-
-
-def run_action(action: str, cfg: dict) -> None:
-    kind, _, rest = action.partition(":")
-    kind, rest = kind.strip().lower(), rest.strip()
-    try:
-        if action.startswith("spotify:track:"):
-            _play_spotify_track(action.strip(), cfg)
-        elif kind == "app":
-            key = best_app_key(rest, cfg)
-            if key:
-                _run_app_value(cfg["apps"][key])
-            else:
-                log(f"app desconhecido: {rest}")
-        elif kind == "url":
-            webbrowser.open(rest)
-        elif kind == "run":
-            open_spec(rest)
-        else:
-            open_spec(action.strip())
-    except Exception as exc:  # noqa: BLE001
-        log(f"erro executando '{action}': {exc}")
-
-
-# --------------------------------------------------------------------------
-# interpretação de comandos (só entra aqui se começou com "jarvis")
-# --------------------------------------------------------------------------
-STOP_WORDS = {"para", "parar", "chega", "obrigado", "obrigada", "valeu",
-              "tchau", "pode ir", "encerra", "silencio", "cala a boca"}
-
-
-def strip_wake_word(n: str, wake: str) -> str | None:
-    """Retorna o texto após 'jarvis' (tolera erros), ou None se não foi chamado."""
-    toks = n.split()
-    if not toks:
-        return None
-    variants = {wake, "jarves", "jarvez", "javis", "jarv", "charves", "harvest",
-                "jarvis", "darveis", "jarvis", "jasmis"}
-    if toks[0] in variants or SequenceMatcher(None, toks[0], wake).ratio() >= 0.6:
-        return " ".join(toks[1:]).strip()
-    # às vezes o Whisper cola: "jarvisabrir" / vírgula etc — pega prefixo
-    m = re.match(rf"{wake[:4]}\w*[, ]+(.+)", n)
-    if m:
-        return m.group(1).strip()
-    return None
-
-
-def handle_command(payload: str, cfg: dict, mouth: Mouth, brain: Brain) -> str:
-    t = norm(payload)
-    if not t:
-        mouth.say(cfg["assistant"].get("attention_reply", "Pois não, senhor?"))
-        return "CONT"
-
-    if t in STOP_WORDS or (len(t.split()) <= 3 and any(w in t for w in STOP_WORDS)):
-        mouth.say("Às ordens, senhor.")
-        return "STOP"
-
-    m = re.search(r"(?:pesquis\w+|busca\w*|procur\w+|googl\w+)"
-                  r"(?:\s+(?:no|na|por|pelo|pela|sobre|o|a))*\s+(.+)", t)
-    if m:
-        q = m.group(1).strip()
-        webbrowser.open("https://www.google.com/search?q=" + quote_plus(q))
-        mouth.say(f"Pesquisando {q}, senhor.")
-        return "CONT"
-
-    m = re.search(r"(?:abr\w+|abre|inicia\w*|liga\w*|roda\w*|executa\w*|chama\w*|poe|abrir)\s+"
-                  r"(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?(.+)", t)
-    if m:
-        target = m.group(1).strip()
-        key = best_app_key(target, cfg)
-        if key:
-            _run_app_value(cfg["apps"][key])
-            mouth.say(f"Abrindo {key}, senhor.")
-        else:
-            webbrowser.open("https://www.google.com/search?q=" + quote_plus(target))
-            mouth.say(f"Não tenho {target} na lista, senhor. Procurei na web.")
-        return "CONT"
-
-    m = re.search(r"(?:toc\w+|coloc\w+|bota\w*)\s+(?:a\s+musica\s+|a\s+|o\s+)?(.+?)"
-                  r"(?:\s+no\s+spotify)?$", t)
-    if m:
-        song = m.group(1).strip()
-        os.startfile("spotify:search:" + quote_plus(song))  # noqa: S606
-        mouth.say(f"Abri a busca por {song} no Spotify, senhor.")
-        return "CONT"
-
-    # pergunta aberta -> LLM
-    if cfg.get("behavior", {}).get("answer_open_questions", True):
-        mouth.say(brain.ask(payload))
-    return "CONT"
-
-
-# --------------------------------------------------------------------------
-# ativação (frase de chegada ou 2 palmas)
-# --------------------------------------------------------------------------
-def is_wake_phrase(n: str, cfg: dict) -> bool:
+def is_arrival_phrase(n: str, cfg: dict) -> bool:
     if not n:
         return False
-    w = cfg["wake"]
-    thr = float(w["match_threshold"])
-    for p in w["phrases"]:
-        pt = norm(p)
-        if SequenceMatcher(None, n, pt).ratio() >= thr:
-            return True
-        tset, nset = set(pt.split()), set(n.split())
-        if tset and len(tset & nset) / len(tset) >= 0.55:
-            return True
-    if "bom dia" in n and any(k in n for k in w.get("keywords_with_bomdia", [])):
+    arr = cfg["arrival"]
+    target = norm(arr.get("phrase", "bom dia nenem o papai chegou"))
+    if SequenceMatcher(None, n, target).ratio() >= float(arr.get("match_threshold", 0.7)):
         return True
-    if "papai chegou" in n or "papai chego" in n:
-        return True
-    return False
+    has_papai = "papai" in n or "pape" in n or "papi" in n
+    has_chegou = "chegou" in n or "chego" in n or "chegô" in n or "chego" in n
+    has_bomdia = "bom dia" in n
+    return (has_papai and has_chegou) or (has_bomdia and has_papai)
 
 
-def activate(cfg: dict, mouth: Mouth, reason: str) -> None:
-    log(f"** ATIVADO ({reason}) **")
+def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
+    log(f"** CHEGADA ({reason}) **")
     mouth.say(cfg["tts"]["greeting"])
     for action in cfg["arrival"].get("sequence", []):
-        run_action(action, cfg)
+        _run_action(action, cfg)
         time.sleep(0.6)
 
 
+def _run_action(action: str, cfg: dict) -> None:
+    import os
+    import webbrowser
+    try:
+        if action.startswith("spotify:track:"):
+            was = "spotify.exe" in subprocess.run(
+                ["tasklist", "/fi", "imagename eq Spotify.exe"],
+                capture_output=True, text=True, creationflags=CNW).stdout.lower()
+            os.startfile(action)  # noqa: S606
+            if was and cfg["arrival"].get("spotify_force_play", True):
+                time.sleep(float(cfg["arrival"].get("spotify_wait_seconds", 4.0)))
+                __import__("ctypes").windll.user32.keybd_event(0xB3, 0, 0, 0)
+                __import__("ctypes").windll.user32.keybd_event(0xB3, 0, 2, 0)
+        else:
+            kind, _, rest = action.partition(":")
+            if kind == "app":
+                skills.open_target(rest.strip(), cfg)
+            elif kind == "url":
+                webbrowser.open(rest.strip())
+            elif kind == "run":
+                (webbrowser.open if rest.strip().startswith("http") else os.startfile)(rest.strip())  # noqa: S606
+    except Exception as exc:  # noqa: BLE001
+        log(f"erro na acao de chegada '{action}': {exc}")
+
+
 # --------------------------------------------------------------------------
-# captura de uma fala (VAD)
-# --------------------------------------------------------------------------
-def capture_utterance(mic: Mic, cfg: dict, pre_roll: list[np.ndarray]) -> np.ndarray | None:
+def strip_wake_word(raw: str, n: str, wake: str) -> str | None:
+    toks = n.split()
+    if not toks:
+        return None
+    first = toks[0]
+    hit = (first == wake or SequenceMatcher(None, first, wake).ratio() >= 0.6
+           or first.startswith(wake[:4]))
+    if not hit:
+        return None
+    return re.sub(rf"(?i)^\s*{wake[:4]}\w*[\s,.:;!?-]*", "", raw).strip()
+
+
+def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
     a = cfg["audio"]
     thr = float(a["speech_level"])
     sil_need = float(a["silence_timeout"])
     max_len = float(a["max_utterance_seconds"])
-
     chunks = list(pre_roll)
     last_voice = time.monotonic()
     start = time.monotonic()
@@ -472,20 +324,16 @@ def capture_utterance(mic: Mic, cfg: dict, pre_roll: list[np.ndarray]) -> np.nda
         chunks.append(b)
         if rms(b) > thr:
             last_voice = time.monotonic()
-        if time.monotonic() - last_voice > sil_need:
-            break
-        if time.monotonic() - start > max_len:
+        if time.monotonic() - last_voice > sil_need or time.monotonic() - start > max_len:
             break
     return np.concatenate(chunks)
 
 
 # --------------------------------------------------------------------------
-# main
-# --------------------------------------------------------------------------
 def main() -> None:
     cfg = load_cfg()
     log("=" * 50)
-    log("Jarvis Voz iniciando (escuta contínua)")
+    log("Jarvis Voz iniciando (escuta contínua + skills)")
 
     device = resolve_device(cfg["audio"].get("input_device_match", ""))
     ears = Ears(cfg)
@@ -494,71 +342,104 @@ def main() -> None:
     mic = Mic(device)
     mic.start()
     clap = ClapDetector(cfg)
+    skills.build_indexes()
     brain.warmup()
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
-    pre_roll_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
+    pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
     speech_thr = float(cfg["audio"]["speech_level"])
-    cooldown = float(cfg["wake"].get("reactivate_cooldown_seconds", 45))
-    last_activation = 0.0
+    cooldown = float(cfg["arrival"].get("reactivate_cooldown_seconds", 30))
+    last_arrival = 0.0
+    pending: tuple | None = None      # (pergunta, do_callable, deadline)
 
     if cfg["tts"].get("ready_line"):
         mouth.say(cfg["tts"]["ready_line"])
-    log(f'pronto — diga a frase de ativação, "{wake_word} ..." ou bata 2 palmas')
+    log(f'pronto — frase de chegada, "{wake_word} ..." ou 2 palmas')
 
-    ring: deque[np.ndarray] = deque(maxlen=pre_roll_n)
+    ring: deque[np.ndarray] = deque(maxlen=pre_n)
     while True:
         try:
             block = mic.read(timeout=2.0)
         except queue.Empty:
+            if pending and time.monotonic() > pending[2]:
+                log("confirmação expirou"); pending = None
             continue
 
-        # ignora o próprio áudio enquanto/logo após o Jarvis falar
         if mouth.speaking:
-            ring.clear()
-            clap.reset()
-            continue
+            ring.clear(); clap.reset(); continue
 
         ring.append(block)
 
-        # 2 palmas -> ativa na hora
         if clap.feed(block) and cfg["audio"].get("clap_instant_activate", True):
-            if time.monotonic() - last_activation > cooldown:
-                activate(cfg, mouth, "palmas")
-                last_activation = time.monotonic()
-            mic.drain()
-            ring.clear()
+            if time.monotonic() - last_arrival > cooldown:
+                run_arrival(cfg, mouth, "palmas")
+                last_arrival = time.monotonic()
+            mic.drain(); ring.clear(); continue
+
+        if rms(block) <= speech_thr:
             continue
 
-        # começou a falar? captura a frase inteira
-        if rms(block) > speech_thr:
-            audio = capture_utterance(mic, cfg, list(ring))
-            ring.clear()
-            if audio is None or len(audio) < SR * 0.3:
-                continue
-            text = ears.transcribe(audio)
-            n = norm(text)
-            if not n:
-                continue
-            log(f"ouvi: {text!r}")
+        audio = capture_utterance(mic, cfg, list(ring))
+        ring.clear()
+        if audio is None or len(audio) < SR * 0.3:
+            continue
+        raw = ears.transcribe(audio)
+        n = norm(raw)
+        if not n:
+            continue
+        log(f"ouvi: {raw!r}")
 
-            if is_wake_phrase(n, cfg):
-                if time.monotonic() - last_activation > cooldown:
-                    activate(cfg, mouth, "frase")
-                    last_activation = time.monotonic()
-                else:
-                    log("  (em cooldown — ignorado)")
-                mic.drain()
-                continue
+        # -------- resposta a uma confirmação pendente --------
+        if pending:
+            question, do, _ = pending
+            if any(w in n for w in NEGATE):
+                mouth.say("Cancelado, senhor."); pending = None; mic.drain(); continue
+            if any(n == w or n.startswith(w + " ") or w in n.split() for w in AFFIRM):
+                pending = None
+                try:
+                    followup = do()
+                except Exception as exc:  # noqa: BLE001
+                    log(f"erro na ação confirmada: {exc}"); followup = "Deu erro, senhor."
+                mouth.say(followup or "Feito, senhor.")
+                mic.drain(); continue
+            # fala não relacionada durante confirmação -> ignora e segue esperando
+            mic.drain(); continue
 
-            payload = strip_wake_word(n, wake_word)
-            if payload is not None:
-                # recupera a versão não-normalizada após a wake word p/ o LLM
-                raw = re.sub(r"(?i)^\s*jarv\w*[\s,]*", "", text).strip() or payload
-                log(f"  comando: {raw!r}")
-                handle_command(raw, cfg, mouth, brain)
-            # senão: fala não endereçada -> silêncio
-            mic.drain()
+        # -------- frase de chegada --------
+        if is_arrival_phrase(n, cfg):
+            if time.monotonic() - last_arrival > cooldown:
+                run_arrival(cfg, mouth, "frase")
+                last_arrival = time.monotonic()
+            else:
+                log("  (cooldown — ignorado)")
+            mic.drain(); continue
+
+        # -------- comando "jarvis ..." --------
+        payload = strip_wake_word(raw, n, wake_word)
+        if payload is None:
+            mic.drain(); continue     # fala não endereçada -> silêncio
+
+        if not norm(payload):
+            mouth.say(cfg["assistant"].get("attention_reply", "Olá senhor, com o que posso ajudar?"))
+            mic.drain(); continue
+
+        log(f"  comando: {payload!r}")
+        try:
+            res = skills.dispatch(payload, cfg, mouth.say, brain)
+        except Exception as exc:  # noqa: BLE001
+            log(f"erro no dispatch: {exc!r}")
+            mouth.say("Tive um erro ao executar isso, senhor.")
+            mic.drain(); continue
+
+        if res.to_llm:
+            mouth.say(brain.ask(res.to_llm))
+        elif res.confirm:
+            question, do = res.confirm
+            mouth.say(question)
+            pending = (question, do, time.monotonic() + 20)
+        elif res.speak:
+            mouth.say(res.speak)
+        mic.drain()
 
 
 if __name__ == "__main__":

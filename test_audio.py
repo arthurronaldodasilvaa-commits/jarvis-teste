@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Diagnóstico da camada de voz. Rode cada teste separado:
+Diagnóstico. Rode cada teste separado:
 
-    python test_audio.py devices    # lista microfones/saídas
-    python test_audio.py voice      # testa a voz do Windows (SAPI)
-    python test_audio.py llm        # testa a resposta do Jarvis (LLM local)
-    python test_audio.py whisper    # grava 5s do mic e transcreve
-    python test_audio.py meter      # medidor de volume do mic (12s)
-    python test_audio.py clap       # detector de palmas ao vivo (20s)
-    python test_audio.py actions    # dispara a rotina de chegada (Steam + Spotify)
-    python test_audio.py wake "texto"   # testa se um texto ativaria o Jarvis
+    python test_audio.py devices
+    python test_audio.py voice
+    python test_audio.py llm
+    python test_audio.py whisper
+    python test_audio.py meter
+    python test_audio.py clap
+    python test_audio.py actions
+    python test_audio.py skill "abrir palworld"
+    python test_audio.py index
 """
 import sys
 import time
@@ -21,19 +22,17 @@ import sounddevice as sd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import jarvis_voice as jv  # noqa: E402
+import skills  # noqa: E402
 
 
 def _mic(cfg):
-    dev = jv.resolve_device(cfg["audio"].get("input_device_match", ""))
-    m = jv.Mic(dev)
+    m = jv.Mic(jv.resolve_device(cfg["audio"].get("input_device_match", "")))
     m.start()
     return m
 
 
 def devices():
     print(sd.query_devices())
-    print("\npadrão input :", sd.query_devices(kind="input")["name"])
-    print("padrão output:", sd.query_devices(kind="output")["name"])
 
 
 def voice():
@@ -41,38 +40,29 @@ def voice():
 
 
 def llm():
-    cfg = jv.load_cfg()
-    b = jv.Brain(cfg)
+    b = jv.Brain(jv.load_cfg())
     b.warmup()
-    for q in ["qual e o meu nome?", "me diz uma curiosidade rapida sobre o espaco"]:
-        print(f"\n>> {q}")
+    for q in ["qual e o meu nome?", "me diz uma curiosidade rapida sobre o oceano"]:
         t = time.time()
-        print("Jarvis:", b.ask(q), f"({time.time()-t:.1f}s)")
+        print(f"\n>> {q}\nJarvis: {b.ask(q)} ({time.time()-t:.1f}s)")
 
 
 def whisper():
     cfg = jv.load_cfg()
     ears = jv.Ears(cfg)
     mic = _mic(cfg)
-    print(">> fale algo agora (5 s)...")
-    need = 5 * jv.SR
-    buf = []
-    got = 0
-    while got < need:
-        b = mic.read(timeout=7)
-        buf.append(b)
-        got += len(b)
-    audio = np.concatenate(buf)[:need]
-    print(">> transcrevendo...")
-    txt = ears.transcribe(audio)
-    print("resultado:", repr(txt))
-    print("ativaria?  ", jv.is_wake_phrase(jv.norm(txt), cfg))
-    print("comando?   ", jv.strip_wake_word(jv.norm(txt), "jarvis"))
+    print(">> fale 5s...")
+    buf, got = [], 0
+    while got < 5 * jv.SR:
+        b = mic.read(timeout=7); buf.append(b); got += len(b)
+    txt = ears.transcribe(np.concatenate(buf))
+    print("entendi:", repr(txt))
+    print("é frase de chegada? ", jv.is_arrival_phrase(jv.norm(txt), cfg))
+    print("é 'jarvis ...'?      ", jv.strip_wake_word(txt, jv.norm(txt), "jarvis"))
 
 
 def meter():
-    cfg = jv.load_cfg()
-    mic = _mic(cfg)
+    mic = _mic(jv.load_cfg())
     t0 = time.time()
     while time.time() - t0 < 12:
         lvl = jv.rms(mic.read())
@@ -83,31 +73,46 @@ def clap():
     cfg = jv.load_cfg()
     mic = _mic(cfg)
     det = jv.ClapDetector(cfg)
-    print(">> bata 2 palmas (teste de 20s)...")
+    print(">> bata 2 palmas (20s)...")
     t0 = time.time()
     while time.time() - t0 < 20:
         if det.feed(mic.read()):
-            print(f"[{time.time()-t0:5.1f}s] ** 2 PALMAS DETECTADAS **", flush=True)
+            print(f"[{time.time()-t0:5.1f}s] ** 2 PALMAS **", flush=True)
 
 
 def actions():
     cfg = jv.load_cfg()
     for a in cfg["arrival"]["sequence"]:
-        print("executando:", a)
-        jv.run_action(a, cfg)
-        time.sleep(1.0)
+        print("->", a)
+        jv._run_action(a, cfg)
+        time.sleep(1)
 
 
-def wake():
+def index():
+    skills.build_indexes()
+    print("\nJOGOS:")
+    for k, v in sorted(skills._games.items()):
+        print(f"  {v:>10}  {k}")
+    print(f"\n{len(skills._lnks)} atalhos do Menu Iniciar (amostra):")
+    for k in list(skills._lnks)[:25]:
+        print("  ", k)
+
+
+def skill():
     cfg = jv.load_cfg()
-    txt = sys.argv[2] if len(sys.argv) > 2 else "bom dia neném o papai chegou"
-    n = jv.norm(txt)
-    print("texto normalizado:", repr(n))
-    print("ativaria (frase de chegada)?", jv.is_wake_phrase(n, cfg))
-    print("é comando 'jarvis ...'?     ", jv.strip_wake_word(n, "jarvis"))
+    skills.build_indexes()
+    text = sys.argv[2] if len(sys.argv) > 2 else "que horas sao"
+
+    class FakeBrain:
+        def ask(self, q): return f"(LLM responderia: {q})"
+        def compose(self, i, num_predict=600): return f"(texto sobre: {i})"
+
+    res = skills.dispatch(text, cfg, print, FakeBrain())
+    print("Result:", res)
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "devices"
     {"devices": devices, "voice": voice, "llm": llm, "whisper": whisper,
-     "meter": meter, "clap": clap, "actions": actions, "wake": wake}[cmd]()
+     "meter": meter, "clap": clap, "actions": actions, "index": index,
+     "skill": skill}[cmd]()

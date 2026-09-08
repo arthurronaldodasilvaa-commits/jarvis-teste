@@ -4,63 +4,52 @@
 # ============================================================
 
 [audio]
-# Trecho do nome do microfone. "" = microfone padrão do Windows.
-input_device_match = "Brio"
+input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
 
 # --- detecção de fala (VAD) ---
-# Energia mínima pra considerar que você começou a falar.
-speech_level = 0.018
-# Silêncio (segundos) que encerra uma fala.
-silence_timeout = 0.9
-# Duração máxima de uma fala.
+speech_level = 0.018            # energia mínima pra considerar que você falou
+silence_timeout = 0.9          # silêncio (s) que encerra uma fala
 max_utterance_seconds = 9.0
-# Pré-buffer: quantos segundos de áudio ANTES do disparo entram na gravação
-# (evita cortar a primeira sílaba).
-pre_roll_seconds = 0.5
+pre_roll_seconds = 0.6         # segundos de áudio antes do disparo (não cortar sílaba)
 
-# --- palmas (atalho opcional; a frase sozinha já ativa) ---
+# --- palmas (atalho opcional) ---
 clap_enabled = true
-clap_instant_activate = true   # 2 palmas = ativa na hora, sem precisar falar a frase
+clap_instant_activate = true   # 2 palmas = rotina de chegada na hora
 clap_sensitivity = 7.0
 clap_min_level = 0.030
 clap_window_seconds = 1.6
 clap_min_gap_seconds = 0.12
 claps_required = 2
 
-[wake]
-# Qualquer uma destas frases ativa o Jarvis (comparação tolerante a
-# acento, pontuação e erros do reconhecimento de voz).
-phrases = [
-  "bom dia neném o papai chegou",
-  "bom dia jarvis",
-  "jarvis bom dia",
-  "acorda jarvis",
+[arrival]
+# Frase que dispara a ROTINA DE CHEGADA (saudação + Steam + Spotify).
+phrase = "bom dia neném o papai chegou"
+match_threshold = 0.72         # quão parecida a fala precisa ser (sobe = mais rígido)
+reactivate_cooldown_seconds = 30
+sequence = [
+  "app:steam",
+  "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
 ]
-# Também ativa se a fala contiver "bom dia" + qualquer um destes:
-keywords_with_bomdia = ["papai", "chegou", "chego", "neném", "nenem", "nene"]
-# 0.0–1.0 — quão parecida a fala precisa ser de alguma frase acima.
-match_threshold = 0.55
-# Não reativa a rotina de chegada se ela rodou nos últimos N segundos.
-reactivate_cooldown_seconds = 45
-# Modelo Whisper: tiny | base | small | medium  (small = bem melhor p/ PT)
-whisper_model = "small"
+spotify_force_play = true
+spotify_wait_seconds = 4.0
+greeting = "Bom dia, senhor. Com o que posso te ajudar?"
+
+[wake]
+# Reconhecimento de voz (Whisper local). NÃO é a frase de chegada.
+whisper_model = "small"        # tiny | base | small | medium
 whisper_language = "pt"
-whisper_device = "cpu"          # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
-# Dá contexto ao Whisper — melhora o acerto da frase e da palavra "jarvis".
-whisper_initial_prompt = "Bom dia, neném, o papai chegou. Jarvis, abrir Steam. Jarvis, que horas são?"
+whisper_device = "cpu"         # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
+whisper_initial_prompt = "Bom dia, neném, o papai chegou. Jarvis, abrir Steam. Jarvis, jogar Palworld. Jarvis, desligar o computador."
 
 [assistant]
-# Como o Jarvis chama você, e o que ele sabe sobre você.
 address = "Senhor"
 user_name = "Arthur"
-# Palavra que precisa vir no INÍCIO da fala pra ele responder um comando/pergunta.
-wake_word = "jarvis"
-# Se você só disser "jarvis" sem mais nada:
-attention_reply = "Pois não, senhor?"
-# LLM local (Ollama) usado quando não é um comando direto.
+wake_word = "jarvis"           # precisa vir no INÍCIO da fala pra ele agir
+attention_reply = "Olá senhor, com o que posso ajudar?"
 ollama_url = "http://localhost:11434"
 model = "qwen3.5:2b"
 reply_num_predict = 160
+compose_num_predict = 600      # tamanho máx. de textos que ele redige
 system_prompt = """
 Você é o Jarvis, mordomo e assistente pessoal do Arthur.
 Regras invioláveis:
@@ -72,27 +61,19 @@ Regras invioláveis:
 """
 
 [tts]
-provider = "sapi"
 sapi_voice = "Microsoft Maria Desktop"
 sapi_rate = 0
-# Falado quando a frase de ativação (ou as 2 palmas) é reconhecida.
-greeting = "Bom dia, senhor. Com o que posso te ajudar?"
 ready_line = ""
 
-[arrival]
-# Ações da rotina de chegada, em ordem.
-#   "app:<nome>" | "spotify:track:ID" | "url:<end>" | "run:<cmd>"
-sequence = [
-  "app:steam",
-  "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
-]
-spotify_force_play = true
-spotify_wait_seconds = 4.0
-
-[behavior]
-# Se a fala NÃO começar com "jarvis" e NÃO for a frase de ativação,
-# o Jarvis simplesmente ignora (não fala "não entendi").
-answer_open_questions = true    # "jarvis, <qualquer pergunta>" -> responde pelo LLM
+[danger]
+# Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
+# Deixe 'false' para bloquear de vez.
+allow_shutdown = true
+allow_restart = true
+allow_suspend = true
+allow_close = true            # "jarvis, fecha isso" (Alt+F4) / "fecha o <app>"
+allow_typing = true           # "jarvis, digitar ..." e "jarvis, escrever um texto sobre ..."
+shutdown_delay_seconds = 30   # tempo até desligar (dá pra abortar com "jarvis, cancelar")
 
 [apps]
 steam       = "run:C:\\Program Files (x86)\\Steam\\steam.exe"
@@ -106,3 +87,4 @@ calculadora = "run:calc:"
 "bloco de notas" = "run:notepad"
 notepad     = "run:notepad"
 explorador  = "run:explorer"
+configuracoes = "run:ms-settings:"
