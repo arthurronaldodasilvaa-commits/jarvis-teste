@@ -15,11 +15,14 @@ Jarvis Voz — escuta contínua + habilidades (skills.py).
 from __future__ import annotations
 
 import ctypes
+import ctypes.wintypes as wt
 import queue
 import re
 import subprocess
 import sys
+import threading
 import time
+import winsound
 from collections import deque
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -32,7 +35,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from common import log, norm, write_app_state
+from common import log, norm, read_control, write_app_state, write_control
 import skills
 
 HERE = Path(__file__).resolve().parent
@@ -299,6 +302,37 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
     return (has_papai and has_chegou) or (has_bomdia and has_papai)
 
 
+def set_paused(paused: bool, *, beep: bool = True) -> None:
+    write_control(paused=bool(paused))
+    write_app_state(status="PAUSADO" if paused else "OUVINDO", speaking=False)
+    log(f"** escuta {'PAUSADA' if paused else 'ATIVA'} **")
+    if beep:
+        try:
+            if paused:
+                winsound.Beep(760, 90); winsound.Beep(420, 140)
+            else:
+                winsound.Beep(520, 90); winsound.Beep(900, 140)
+        except RuntimeError:
+            pass
+
+
+def hotkey_listener() -> None:
+    """Ctrl+Alt+J (global) pausa/ativa a escuta. Thread própria com message loop."""
+    u32 = ctypes.windll.user32
+    MOD_ALT, MOD_CONTROL, MOD_NOREPEAT = 0x0001, 0x0002, 0x4000
+    if not u32.RegisterHotKey(None, 1, MOD_ALT | MOD_CONTROL | MOD_NOREPEAT, 0x4A):
+        log("não consegui registrar o atalho global Ctrl+Alt+J")
+        return
+    log("atalho global ativo: Ctrl+Alt+J pausa/ativa a escuta")
+    msg = wt.MSG()
+    while u32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+        if msg.message == 0x0312:  # WM_HOTKEY
+            try:
+                set_paused(not read_control().get("paused", False))
+            except Exception as exc:  # noqa: BLE001
+                log(f"erro no atalho: {exc}")
+
+
 def open_jarvis_app(cfg: dict) -> None:
     """Abre o Jarvis App (cérebro holográfico). O .exe tem trava de instância única."""
     ap = cfg.get("app", {})
@@ -403,6 +437,9 @@ def main() -> None:
     skills.build_indexes()
     brain.warmup()
 
+    set_paused(False, beep=False)   # começa sempre ouvindo
+    threading.Thread(target=hotkey_listener, daemon=True).start()
+
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
     speech_thr = float(cfg["audio"]["speech_level"])
@@ -439,6 +476,11 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
                   speech_thr, cooldown, st) -> None:
     if mouth.speaking:
         ring.clear(); clap.reset(); return
+
+    # escuta pausada (botão do app ou Ctrl+Alt+J) -> ignora tudo
+    if read_control().get("paused", False):
+        mic.drain(); ring.clear(); clap.reset(); st["pending"] = None
+        return
 
     # confirmação pendente expirou sem resposta?
     p = st["pending"]

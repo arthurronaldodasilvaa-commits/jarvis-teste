@@ -20,7 +20,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from common import HERE, combo, log, norm, paste_text, tap, VK
+from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
 CNW = 0x08000000  # CREATE_NO_WINDOW
 
@@ -218,6 +218,15 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         # exceção: "cancela ..." de desligamento tratado abaixo
         if "cancel" not in t:
             return Result(speak="Às ordens, senhor.", stop=True)
+
+    # --- pausar a escuta ("modo cinema") ---
+    if re.search(r"\b(modo cinema|modo filme|para de (me )?ouvir|para de escutar|pausa\w* (a )?escuta|"
+                 r"modo soneca|se desliga|desativa\w* (voce|a escuta)|nao me escuta|fica quieto|"
+                 r"modo silencio|para de prestar atencao)\b", t):
+        write_control(paused=True)
+        write_app_state(status="PAUSADO", speaking=False)
+        return Result(speak="Escuta pausada, senhor. Aperte o botão no aplicativo ou "
+                            "Control Alt J para me chamar de volta.")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):

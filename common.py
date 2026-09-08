@@ -13,8 +13,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 LOG_PATH = HERE / "jarvis_voice.log"
 
-# state.json lido pelo Jarvis App (o "cérebro" holográfico) ~5x/s.
-APP_STATE_FILE = HERE.parent / "jarvis-app" / "state.json"
+# Arquivos compartilhados com o Jarvis App (pasta jarvis-app\).
+_SHARED = HERE.parent / "jarvis-app"
+APP_STATE_FILE = _SHARED / "state.json"        # daemon -> app  (o que o Jarvis está fazendo)
+CONTROL_FILE = _SHARED / "control.json"        # app/atalho <-> daemon  (ligado/pausado)
+
 _app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
 
 
@@ -28,6 +31,40 @@ def write_app_state(**changes) -> None:
         APP_STATE_FILE.write_text(json.dumps(_app_state), encoding="utf-8")
     except OSError:
         pass
+
+
+_control_cache = {"data": {"paused": False}, "at": 0.0}
+_CONTROL_TTL = 0.25   # relê o arquivo no máx. 4x/s (é minúsculo)
+
+
+def read_control() -> dict:
+    """Lê control.json. {'paused': bool}. Cache curto de 0,25s."""
+    import json
+    import time as _t
+
+    if _t.monotonic() - _control_cache["at"] >= _CONTROL_TTL:
+        _control_cache["at"] = _t.monotonic()
+        try:
+            _control_cache["data"] = json.loads(CONTROL_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+    return _control_cache["data"]
+
+
+def write_control(**changes) -> dict:
+    import json
+    import time as _t
+
+    data = dict(_control_cache["data"])
+    data.update(changes)
+    try:
+        CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONTROL_FILE.write_text(json.dumps(data), encoding="utf-8")
+    except OSError:
+        pass
+    _control_cache["data"] = data
+    _control_cache["at"] = _t.monotonic()
+    return data
 
 
 def log(msg: str) -> None:
