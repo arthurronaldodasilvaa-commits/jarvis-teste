@@ -142,32 +142,20 @@
     powerLbl.textContent = p ? "Pausado — clique p/ ativar" : "Ouvindo";
   }
 
-  // ---------- ponte com o Python (state.json) ----------
-  let _dbgReady = false, _lastSpeaking = null;
-  function dbg(m) {
-    const api = window.pywebview && window.pywebview.api;
-    if (api && api.debug) api.debug("[" + new Date().toISOString() + "] " + m);
-  }
+  // ---------- ponte com o Python (1 round-trip: state.json + control.json) ----------
   function pollState() {
     const api = window.pywebview && window.pywebview.api;
-    if (!api || !api.get_state) return;
-    if (!_dbgReady) { _dbgReady = true; dbg("ponte pywebview OK"); }
-    api.get_state().then((s) => {
+    if (!api || !api.get_status) return;
+    api.get_status().then((s) => {
       if (!s) return;
-      const sp = !!s.speaking;
-      if (sp !== _lastSpeaking) { _lastSpeaking = sp; dbg("speaking=" + sp + " status=" + s.status); }
-      state.speaking = sp;
+      state.speaking = !!s.speaking;
       if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
       if (s.status) state.status = s.status;
-    }).catch((e) => dbg("erro get_state: " + e));
-    if (api.get_control) {
-      api.get_control().then((c) => {
-        const p = !!(c && c.paused);
-        if (p !== state.paused) applyPaused(p);   // sincroniza com o atalho global
-      }).catch(() => {});
-    }
+      const p = !!s.paused;
+      if (p !== state.paused) applyPaused(p);
+    }).catch(() => {});
   }
-  setInterval(pollState, 200);
+  setInterval(pollState, 250);
 
   // ---------- fechar ----------
   addEventListener("keydown", (e) => { if (e.key === "Escape") closeApp(); });
@@ -178,14 +166,19 @@
     else window.close();
   }
 
-  // ---------- loop ----------
+  // ---------- loop (60fps quando ativo, ~30fps parado — economiza bateria/GPU) ----------
   const clock = new THREE.Clock();
+  let _skip = false;
   function tick() {
+    requestAnimationFrame(tick);
     const t = clock.getElapsedTime();
+
+    const idle = state.speakLevel < 0.01 && !state.speaking
+              && Math.abs(state.pausedLevel - (state.paused ? 1 : 0)) < 0.01;
+    if (idle) { _skip = !_skip; if (_skip) return; }   // pula 1 frame sim, 1 não
 
     state.pausedLevel += ((state.paused ? 1 : 0) - state.pausedLevel) * 0.06;
     const pz = state.pausedLevel;               // 0 ativo -> 1 pausado
-    const live = 1 - pz;
 
     // rampa suave (~1s) pra entrar/sair do "falando" (zerado quando pausado)
     state.speakLevel += (((state.speaking && !state.paused) ? 1 : 0) - state.speakLevel) * 0.045;
@@ -230,7 +223,6 @@
     statusEl.textContent = state.paused ? "PAUSADO" : (state.speaking ? "FALANDO" : state.status);
 
     renderer.render(scene, camera);
-    requestAnimationFrame(tick);
   }
   tick();
 

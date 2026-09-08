@@ -40,7 +40,6 @@ def _resolve_state_file() -> Path:
 
 STATE_FILE = _resolve_state_file()
 CONTROL_FILE = STATE_FILE.parent / "control.json"
-BASE_DIR_DEBUG = STATE_FILE.parent / "app_debug.log"
 UI = APP_DIR / "ui" / "index.html"
 
 MUTEX_NAME = "Global\\JarvisAppSingleton"
@@ -59,39 +58,29 @@ def focus_existing() -> None:
         ctypes.windll.user32.SetForegroundWindow(hwnd)
 
 
+def _read_json(path: Path, default: dict) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return dict(default)
+
+
 class Api:
-    """Ponte JS <-> Python. O cérebro chama get_state() ~5x/s."""
+    """Ponte JS <-> Python. O cérebro chama get_status() ~4x/s (1 só round-trip)."""
 
-    def get_state(self) -> dict:
-        try:
-            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
-
-    def get_control(self) -> dict:
-        try:
-            return json.loads(CONTROL_FILE.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return {"paused": False}
-
-    def set_paused(self, paused: bool) -> dict:
-        data = self.get_control()
-        data["paused"] = bool(paused)
-        try:
-            CONTROL_FILE.write_text(json.dumps(data), encoding="utf-8")
-        except OSError:
-            pass
-        return data
+    def get_status(self) -> dict:
+        s = _read_json(STATE_FILE, {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"})
+        s["paused"] = bool(_read_json(CONTROL_FILE, {"paused": False}).get("paused", False))
+        return s
 
     def toggle_pause(self) -> dict:
-        return self.set_paused(not self.get_control().get("paused", False))
-
-    def debug(self, msg: str) -> None:
+        cur = _read_json(CONTROL_FILE, {"paused": False})
+        cur["paused"] = not cur.get("paused", False)
         try:
-            with open(BASE_DIR_DEBUG, "a", encoding="utf-8") as fh:
-                fh.write(f"{msg}\n")
+            CONTROL_FILE.write_text(json.dumps(cur), encoding="utf-8")
         except OSError:
             pass
+        return cur
 
     def close(self) -> None:
         for w in webview.windows:

@@ -10,6 +10,16 @@ set PY=.venv\Scripts\python.exe
   --add-data "ui;ui" ^
   --collect-all webview ^
   --hidden-import webview.platforms.edgechromium ^
+  --exclude-module tkinter ^
+  --exclude-module numpy ^
+  --exclude-module pandas ^
+  --exclude-module PIL ^
+  --exclude-module test ^
+  --exclude-module unittest ^
+  --exclude-module pydoc ^
+  --exclude-module doctest ^
+  --exclude-module setuptools ^
+  --exclude-module pip ^
   app.py
 
 echo.
