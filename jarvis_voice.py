@@ -274,7 +274,10 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
 
 def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
     log(f"** CHEGADA ({reason}) **")
-    mouth.say(cfg["tts"]["greeting"])
+    greeting = (cfg.get("arrival", {}).get("greeting")
+               or cfg.get("tts", {}).get("greeting")
+               or "Bom dia, senhor.")
+    mouth.say(greeting)
     for action in cfg["arrival"].get("sequence", []):
         _run_action(action, cfg)
         time.sleep(0.6)
@@ -360,97 +363,110 @@ def main() -> None:
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
     speech_thr = float(cfg["audio"]["speech_level"])
     cooldown = float(cfg["arrival"].get("reactivate_cooldown_seconds", 30))
-    last_arrival = 0.0
-    pending: tuple | None = None      # (pergunta, do_callable, deadline)
 
     if cfg["tts"].get("ready_line"):
         mouth.say(cfg["tts"]["ready_line"])
     log(f'pronto — frase de chegada, "{wake_word} ..." ou 2 palmas')
+
+    st = {"last_arrival": 0.0, "pending": None}   # pending = (pergunta, do, deadline)
 
     ring: deque[np.ndarray] = deque(maxlen=pre_n)
     while True:
         try:
             block = mic.read(timeout=2.0)
         except queue.Empty:
-            if pending and time.monotonic() > pending[2]:
-                log("confirmação expirou"); pending = None
+            p = st["pending"]
+            if p and time.monotonic() > p[2]:
+                log("confirmação expirou"); st["pending"] = None
             continue
-
-        if mouth.speaking:
-            ring.clear(); clap.reset(); continue
-
-        ring.append(block)
-
-        if clap.feed(block) and cfg["audio"].get("clap_instant_activate", True):
-            if time.monotonic() - last_arrival > cooldown:
-                run_arrival(cfg, mouth, "palmas")
-                last_arrival = time.monotonic()
-            mic.drain(); ring.clear(); continue
-
-        if rms(block) <= speech_thr:
-            continue
-
-        audio = capture_utterance(mic, cfg, list(ring))
-        ring.clear()
-        if audio is None or len(audio) < SR * 0.3:
-            continue
-        raw = ears.transcribe(audio)
-        n = norm(raw)
-        if not n:
-            continue
-        log(f"ouvi: {raw!r}")
-
-        # -------- resposta a uma confirmação pendente --------
-        if pending:
-            question, do, _ = pending
-            if any(w in n for w in NEGATE):
-                mouth.say("Cancelado, senhor."); pending = None; mic.drain(); continue
-            if any(n == w or n.startswith(w + " ") or w in n.split() for w in AFFIRM):
-                pending = None
-                try:
-                    followup = do()
-                except Exception as exc:  # noqa: BLE001
-                    log(f"erro na ação confirmada: {exc}"); followup = "Deu erro, senhor."
-                mouth.say(followup or "Feito, senhor.")
-                mic.drain(); continue
-            # fala não relacionada durante confirmação -> ignora e segue esperando
-            mic.drain(); continue
-
-        # -------- frase de chegada --------
-        if is_arrival_phrase(n, cfg):
-            if time.monotonic() - last_arrival > cooldown:
-                run_arrival(cfg, mouth, "frase")
-                last_arrival = time.monotonic()
-            else:
-                log("  (cooldown — ignorado)")
-            mic.drain(); continue
-
-        # -------- comando "jarvis ..." --------
-        payload = strip_wake_word(raw, n, wake_word)
-        if payload is None:
-            mic.drain(); continue     # fala não endereçada -> silêncio
-
-        if not norm(payload):
-            mouth.say(cfg["assistant"].get("attention_reply", "Olá senhor, com o que posso ajudar?"))
-            mic.drain(); continue
-
-        log(f"  comando: {payload!r}")
         try:
-            res = skills.dispatch(payload, cfg, mouth.say, brain)
+            _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg,
+                          wake_word, speech_thr, cooldown, st)
         except Exception as exc:  # noqa: BLE001
-            log(f"erro no dispatch: {exc!r}")
-            mouth.say("Tive um erro ao executar isso, senhor.")
-            mic.drain(); continue
+            log(f"erro no loop (ignorado): {exc!r}")
+            try:
+                mic.drain()
+            except Exception:  # noqa: BLE001
+                pass
+            ring.clear()
 
-        if res.to_llm:
-            mouth.say(brain.ask(res.to_llm))
-        elif res.confirm:
-            question, do = res.confirm
-            mouth.say(question)
-            pending = (question, do, time.monotonic() + 20)
-        elif res.speak:
-            mouth.say(res.speak)
-        mic.drain()
+
+def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
+                  speech_thr, cooldown, st) -> None:
+    if mouth.speaking:
+        ring.clear(); clap.reset(); return
+
+    ring.append(block)
+
+    if clap.feed(block) and cfg["audio"].get("clap_instant_activate", True):
+        if time.monotonic() - st["last_arrival"] > cooldown:
+            run_arrival(cfg, mouth, "palmas")
+            st["last_arrival"] = time.monotonic()
+        mic.drain(); ring.clear(); return
+
+    if rms(block) <= speech_thr:
+        return
+
+    audio = capture_utterance(mic, cfg, list(ring))
+    ring.clear()
+    if audio is None or len(audio) < SR * 0.3:
+        return
+    raw = ears.transcribe(audio)
+    n = norm(raw)
+    if not n:
+        return
+    log(f"ouvi: {raw!r}")
+
+    # -------- resposta a uma confirmação pendente --------
+    if st["pending"]:
+        _question, do, _dl = st["pending"]
+        if any(w in n for w in NEGATE):
+            mouth.say("Cancelado, senhor."); st["pending"] = None; mic.drain(); return
+        if any(n == w or n.startswith(w + " ") or w in n.split() for w in AFFIRM):
+            st["pending"] = None
+            try:
+                followup = do()
+            except Exception as exc:  # noqa: BLE001
+                log(f"erro na ação confirmada: {exc}"); followup = "Deu erro, senhor."
+            mouth.say(followup or "Feito, senhor.")
+            mic.drain(); return
+        mic.drain(); return   # fala não relacionada durante a confirmação
+
+    # -------- frase de chegada --------
+    if is_arrival_phrase(n, cfg):
+        if time.monotonic() - st["last_arrival"] > cooldown:
+            run_arrival(cfg, mouth, "frase")
+            st["last_arrival"] = time.monotonic()
+        else:
+            log("  (cooldown — ignorado)")
+        mic.drain(); return
+
+    # -------- comando "jarvis ..." --------
+    payload = strip_wake_word(raw, n, wake_word)
+    if payload is None:
+        mic.drain(); return          # fala não endereçada -> silêncio
+
+    if not norm(payload):
+        mouth.say(cfg["assistant"].get("attention_reply", "Olá senhor, com o que posso ajudar?"))
+        mic.drain(); return
+
+    log(f"  comando: {payload!r}")
+    try:
+        res = skills.dispatch(payload, cfg, mouth.say, brain)
+    except Exception as exc:  # noqa: BLE001
+        log(f"erro no dispatch: {exc!r}")
+        mouth.say("Tive um erro ao executar isso, senhor.")
+        mic.drain(); return
+
+    if res.to_llm:
+        mouth.say(brain.ask(res.to_llm))
+    elif res.confirm:
+        question, do = res.confirm
+        mouth.say(question)
+        st["pending"] = (question, do, time.monotonic() + 20)
+    elif res.speak:
+        mouth.say(res.speak)
+    mic.drain()
 
 
 if __name__ == "__main__":
