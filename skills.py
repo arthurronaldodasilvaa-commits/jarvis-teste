@@ -14,7 +14,7 @@ import re
 import subprocess
 import time
 import webbrowser
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -220,9 +220,10 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
             return Result(speak="Às ordens, senhor.", stop=True)
 
     # --- pausar a escuta ("modo cinema") ---
-    if re.search(r"\b(modo cinema|modo filme|para de (me )?ouvir|para de escutar|pausa\w* (a )?escuta|"
-                 r"modo soneca|se desliga|desativa\w* (voce|a escuta)|nao me escuta|fica quieto|"
-                 r"modo silencio|para de prestar atencao)\b", t):
+    if re.search(r"\bmod[eo]s?\s+(de\s+)?cinema\b|\bmod[eo]s?\s+filme\b|\bmod[eo]s?\s+soneca\b|"
+                 r"\bmod[eo]s?\s+silencio\b|para de (me )?(ouvir|escutar|prestar atencao)|"
+                 r"pausa\w*\s+(a\s+)?escuta|se desliga|desativa\w*\s+(voce|a escuta)|"
+                 r"nao me (escuta|ouve)|fica quieto|fica em silencio", t):
         write_control(paused=True)
         write_app_state(status="PAUSADO", speaking=False)
         return Result(speak="Escuta pausada, senhor. Aperte o botão no aplicativo ou "

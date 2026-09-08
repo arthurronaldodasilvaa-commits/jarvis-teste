@@ -8,9 +8,10 @@ input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
 
 # --- detecção de fala (VAD) ---
 speech_level = 0.018            # energia mínima pra considerar que você falou
-silence_timeout = 0.9          # silêncio (s) que encerra uma fala
+silence_timeout = 1.0          # silêncio (s) que encerra uma fala
 max_utterance_seconds = 9.0
 pre_roll_seconds = 0.6         # segundos de áudio antes do disparo (não cortar sílaba)
+min_utterance_seconds = 0.35   # ignora "falas" mais curtas que isso (clique, tosse)
 
 # --- palmas (atalho opcional) ---
 clap_enabled = true
@@ -35,10 +36,15 @@ spotify_wait_seconds = 4.0
 greeting = "Bom dia, senhor. Com o que posso te ajudar?"
 
 [wake]
-# Reconhecimento de voz (Whisper local). NÃO é a frase de chegada.
-whisper_model = "small"        # tiny | base | small | medium
+# Reconhecimento de voz em 2 estágios (economiza MUITA CPU quando você não
+# está falando com o Jarvis):
+#   1) TODA fala passa por um modelo minúsculo e rápido ('wake_model')
+#   2) só se detectar "jarvis"/frase de chegada, re-transcreve com o bom ('command_model')
+wake_model = "tiny"           # tiny | base   (1ª passada, tem que ser rápida)
+command_model = "small"       # base | small | medium   (2ª passada, precisão)
+beam_size = 1                 # 1 = ganancioso/rápido; 5 = mais preciso/lento
 whisper_language = "pt"
-whisper_device = "cpu"         # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
+whisper_device = "cpu"        # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
 whisper_initial_prompt = "Bom dia, neném, o papai chegou. Jarvis, abrir Steam. Jarvis, jogar Palworld. Jarvis, desligar o computador."
 
 [assistant]
@@ -48,22 +54,25 @@ wake_word = "jarvis"           # precisa vir no INÍCIO da fala pra ele agir
 attention_reply = "Olá senhor, com o que posso ajudar?"
 ollama_url = "http://localhost:11434"
 model = "qwen3.5:2b"
-reply_num_predict = 160
+reply_num_predict = 110        # respostas faladas: curtas
 compose_num_predict = 600      # tamanho máx. de textos que ele redige
+keepwarm_minutes = 10          # ping no Ollama a cada N min p/ o modelo não descarregar (0 = desliga)
+keep_alive = "1h"             # quanto tempo o Ollama segura o modelo na RAM após cada uso
 system_prompt = """
-Você é o Jarvis, mordomo e assistente pessoal do Arthur.
-Regras invioláveis:
-- Dirija-se a ele SEMPRE como "Senhor". Nunca use o primeiro nome dele para chamá-lo.
-- Se ele perguntar qual é o nome dele, responda que o nome dele é Arthur, mas continue tratando-o por "Senhor".
-- Responda em português do Brasil.
-- Suas respostas são faladas em voz alta: no máximo 2 frases curtas, sem listas, sem markdown, sem emojis.
-- Tom cordial, respeitoso e levemente formal, como um mordomo britânico.
+Você é o Jarvis, assistente pessoal por voz. Fala com uma única pessoa, a quem chama sempre de "Senhor".
+- Responda em português do Brasil, curto: 1 ou 2 frases. É voz — nada de listas, markdown ou emojis.
+- Fale DIRETAMENTE com ele ("o senhor..."), nunca na terceira pessoa e nunca use o nome dele para se dirigir a ele.
+- O nome dele é Arthur. Só diga isso se ele perguntar o próprio nome; fora disso, "Senhor".
+- Tom cordial e discreto, estilo mordomo. Se não souber, diga que não sabe — não invente.
 """
 
 [tts]
 sapi_voice = "Microsoft Maria Desktop"
 sapi_rate = 0
 ready_line = ""
+
+[perf]
+log_max_kb = 512              # ao iniciar, corta o jarvis_voice.log se passar disso
 
 [app]
 # O "cérebro" holográfico (E:\OpenJarvis\jarvis-app). Independente: abre e

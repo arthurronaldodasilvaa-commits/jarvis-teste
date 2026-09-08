@@ -14,14 +14,17 @@ Jarvis Voz — escuta contínua + habilidades (skills.py).
 
 from __future__ import annotations
 
+import base64
 import ctypes
 import ctypes.wintypes as wt
+import os
 import queue
 import re
 import subprocess
 import sys
 import threading
 import time
+import webbrowser
 import winsound
 from collections import deque
 from difflib import SequenceMatcher
@@ -35,7 +38,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from common import log, norm, read_control, write_app_state, write_control
+from common import log, norm, read_control, rotate_log, write_app_state, write_control
 import skills
 
 HERE = Path(__file__).resolve().parent
@@ -88,7 +91,7 @@ def load_cfg() -> dict:
 
 
 def rms(b: np.ndarray) -> float:
-    return float(np.sqrt(np.mean(b.astype(np.float64) ** 2)) + 1e-9)
+    return float(np.sqrt(np.mean(np.square(b, dtype=np.float32))) + 1e-9)
 
 
 # --------------------------------------------------------------------------
@@ -173,25 +176,46 @@ class ClapDetector:
 
 # --------------------------------------------------------------------------
 class Ears:
+    """STT em 2 estágios: um modelo minúsculo filtra TODA fala; o modelo bom
+    só roda quando o pequeno viu 'jarvis' ou a frase de chegada."""
+
     def __init__(self, cfg: dict):
         from faster_whisper import WhisperModel
 
         w = cfg["wake"]
         self.lang = w["whisper_language"]
         self.initial_prompt = w.get("whisper_initial_prompt") or None
+        self.beam = int(w.get("beam_size", 1))
         dev = w.get("whisper_device", "cpu")
         ct = "int8" if dev == "cpu" else "float16"
-        log(f"carregando Whisper '{w['whisper_model']}' ({dev}/{ct})...")
-        try:
-            self.model = WhisperModel(w["whisper_model"], device=dev, compute_type=ct)
-        except Exception as exc:  # noqa: BLE001
-            log(f"falha no device '{dev}' ({exc}); usando cpu/int8")
-            self.model = WhisperModel(w["whisper_model"], device="cpu", compute_type="int8")
-        log("Whisper pronto.")
 
-    def transcribe(self, audio: np.ndarray) -> str:
-        segs, _ = self.model.transcribe(
-            audio, language=self.lang, vad_filter=True,
+        wake_name = w.get("wake_model", w.get("whisper_model", "tiny"))
+        cmd_name = w.get("command_model", w.get("whisper_model", "small"))
+
+        def _load(name):
+            log(f"carregando Whisper '{name}' ({dev}/{ct})...")
+            try:
+                return WhisperModel(name, device=dev, compute_type=ct)
+            except Exception as exc:  # noqa: BLE001
+                log(f"  falha ({exc}); cpu/int8")
+                return WhisperModel(name, device="cpu", compute_type="int8")
+
+        self.wake = _load(wake_name)
+        self.cmd = self.wake if cmd_name == wake_name else _load(cmd_name)
+        log("Whisper pronto (2 estágios).")
+
+    def hear_wake(self, audio: np.ndarray) -> str:
+        """1ª passada — rápida. Mantém o initial_prompt (ajuda a captar 'jarvis')."""
+        segs, _ = self.wake.transcribe(
+            audio, language=self.lang, beam_size=1, vad_filter=False,
+            condition_on_previous_text=False, initial_prompt=self.initial_prompt,
+        )
+        return " ".join(s.text for s in segs).strip()
+
+    def hear_command(self, audio: np.ndarray) -> str:
+        """2ª passada — precisa."""
+        segs, _ = self.cmd.transcribe(
+            audio, language=self.lang, beam_size=self.beam, vad_filter=True,
             condition_on_previous_text=False, initial_prompt=self.initial_prompt,
         )
         return " ".join(s.text for s in segs).strip()
@@ -199,36 +223,86 @@ class Ears:
 
 # --------------------------------------------------------------------------
 class Mouth:
+    """Voz do Windows (SAPI). Mantém UM PowerShell vivo com o sintetizador já
+    carregado — cada fala vira só um write no stdin (sem gastar ~0,5s subindo
+    um processo novo toda vez)."""
+
     def __init__(self, cfg: dict):
         t = cfg["tts"]
         self.voice = t.get("sapi_voice", "")
         self.rate = int(t.get("sapi_rate", 0))
         self.speaking = False
+        self._proc: subprocess.Popen | None = None
+        self._lock = threading.Lock()
+        self._spawn()
+
+    def _spawn(self) -> None:
+        sel = f"try{{$s.SelectVoice('{self.voice}')}}catch{{}}" if self.voice else ""
+        script = (
+            "$ErrorActionPreference='SilentlyContinue';"
+            "Add-Type -AssemblyName System.Speech;"
+            "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
+            f"{sel};$s.Rate={self.rate};"
+            "while($true){$l=[Console]::In.ReadLine();"
+            "if($null -eq $l -or $l -eq '__QUIT__'){break};"
+            "$t=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($l));"
+            "$s.Speak($t);[Console]::Out.WriteLine('__DONE__');[Console]::Out.Flush()}"
+        )
+        try:
+            self._proc = subprocess.Popen(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                text=True, encoding="utf-8", creationflags=CNW, bufsize=1,
+            )
+            log("TTS worker pronto.")
+        except Exception as exc:  # noqa: BLE001
+            log(f"não subi o TTS worker ({exc}); usando modo lento")
+            self._proc = None
 
     def say(self, text: str) -> None:
         if not text:
             return
         text = re.sub(r"\s+", " ", str(text)).strip()
         log(f"Jarvis: {text}")
-        ps = (
-            "$ErrorActionPreference='SilentlyContinue';"
-            "Add-Type -AssemblyName System.Speech;"
-            "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-            + (f"try{{$s.SelectVoice('{self.voice}')}}catch{{}};" if self.voice else "")
-            + f"$s.Rate={self.rate};$s.Speak([Console]::In.ReadToEnd());"
-        )
         self.speaking = True
         write_app_state(speaking=True, status="FALANDO")
         try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-                input=text, text=True, timeout=60, creationflags=CNW,
-            )
+            self._speak(text)
         except Exception as exc:  # noqa: BLE001
             log(f"falha na fala: {exc}")
         finally:
             self.speaking = False
             write_app_state(speaking=False, status="OUVINDO")
+
+    def _speak(self, text: str) -> None:
+        with self._lock:
+            if self._proc is None or self._proc.poll() is not None:
+                self._spawn()
+            if self._proc is not None:
+                b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
+                self._proc.stdin.write(b64 + "\n")
+                self._proc.stdin.flush()
+                deadline = time.monotonic() + 60
+                while time.monotonic() < deadline:
+                    line = self._proc.stdout.readline()
+                    if not line or line.strip() == "__DONE__":
+                        return
+                return
+        # sem worker -> fallback um-tiro
+        ps = ("Add-Type -AssemblyName System.Speech;"
+              "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
+              + (f"try{{$s.SelectVoice('{self.voice}')}}catch{{}};" if self.voice else "")
+              + f"$s.Rate={self.rate};$s.Speak([Console]::In.ReadToEnd());")
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                       input=text, text=True, timeout=60, creationflags=CNW)
+
+    def close(self) -> None:
+        try:
+            if self._proc and self._proc.poll() is None:
+                self._proc.stdin.write("__QUIT__\n")
+                self._proc.stdin.flush()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # --------------------------------------------------------------------------
@@ -241,13 +315,15 @@ class Brain:
         self.url = a["ollama_url"].rstrip("/") + "/api/chat"
         self.model = a["model"]
         self.system = a["system_prompt"].strip()
-        self.num_predict = int(a.get("reply_num_predict", 160))
+        self.num_predict = int(a.get("reply_num_predict", 110))
+        self.keep_alive = a.get("keep_alive", "1h")
+        self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
 
     def _post(self, messages, num_predict, temperature=0.4):
         r = self._httpx.post(
             self.url,
             json={"model": self.model, "messages": messages, "stream": False,
-                  "think": False, "keep_alive": "30m",
+                  "think": False, "keep_alive": self.keep_alive,
                   "options": {"temperature": temperature, "num_predict": num_predict}},
             timeout=90,
         )
@@ -260,6 +336,25 @@ class Brain:
             log("LLM aquecido.")
         except Exception as exc:  # noqa: BLE001
             log(f"warmup LLM falhou: {exc}")
+
+    def start_keepwarm(self) -> None:
+        if self.keepwarm_minutes <= 0:
+            return
+
+        def loop():
+            while True:
+                time.sleep(self.keepwarm_minutes * 60)
+                try:
+                    self._httpx.post(self.url, json={
+                        "model": self.model, "messages": [{"role": "user", "content": "."}],
+                        "stream": False, "think": False, "keep_alive": self.keep_alive,
+                        "options": {"num_predict": 1},
+                    }, timeout=30)
+                except Exception:  # noqa: BLE001
+                    pass
+
+        threading.Thread(target=loop, daemon=True).start()
+        log(f"keep-warm do LLM a cada {self.keepwarm_minutes:g} min")
 
     def ask(self, question: str) -> str:
         try:
@@ -297,7 +392,7 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
     if SequenceMatcher(None, n, target).ratio() >= float(arr.get("match_threshold", 0.7)):
         return True
     has_papai = "papai" in n or "pape" in n or "papi" in n
-    has_chegou = "chegou" in n or "chego" in n or "chegô" in n or "chego" in n
+    has_chegou = "chegou" in n or "chego" in n
     has_bomdia = "bom dia" in n
     return (has_papai and has_chegou) or (has_bomdia and has_papai)
 
@@ -362,8 +457,6 @@ def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
 
 
 def _run_action(action: str, cfg: dict) -> None:
-    import os
-    import webbrowser
     try:
         if action.startswith("spotify:track:"):
             was = "spotify.exe" in subprocess.run(
@@ -372,8 +465,8 @@ def _run_action(action: str, cfg: dict) -> None:
             os.startfile(action)  # noqa: S606
             if was and cfg["arrival"].get("spotify_force_play", True):
                 time.sleep(float(cfg["arrival"].get("spotify_wait_seconds", 4.0)))
-                __import__("ctypes").windll.user32.keybd_event(0xB3, 0, 0, 0)
-                __import__("ctypes").windll.user32.keybd_event(0xB3, 0, 2, 0)
+                ctypes.windll.user32.keybd_event(0xB3, 0, 0, 0)
+                ctypes.windll.user32.keybd_event(0xB3, 0, 2, 0)
         else:
             kind, _, rest = action.partition(":")
             if kind == "app":
@@ -424,6 +517,7 @@ def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
 def main() -> None:
     ensure_single_instance()
     cfg = load_cfg()
+    rotate_log(int(cfg.get("perf", {}).get("log_max_kb", 512)))
     log("=" * 50)
     log("Jarvis Voz iniciando (escuta contínua + skills)")
 
@@ -436,6 +530,7 @@ def main() -> None:
     clap = ClapDetector(cfg)
     skills.build_indexes()
     brain.warmup()
+    brain.start_keepwarm()
 
     set_paused(False, beep=False)   # começa sempre ouvindo
     threading.Thread(target=hotkey_listener, daemon=True).start()
@@ -501,12 +596,28 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
 
     audio = capture_utterance(mic, cfg, list(ring))
     ring.clear()
-    if audio is None or len(audio) < SR * 0.3:
+    min_len = float(cfg["audio"].get("min_utterance_seconds", 0.35))
+    if audio is None or len(audio) < SR * min_len:
         return
-    raw = ears.transcribe(audio)
+
+    # estágio 1: modelo minúsculo filtra TODA fala (barato)
+    raw_w = ears.hear_wake(audio)
+    n_w = norm(raw_w)
+    if not n_w:
+        return
+
+    triggered = (st["pending"] is not None
+                 or is_arrival_phrase(n_w, cfg)
+                 or strip_wake_word(raw_w, n_w, wake_word) is not None)
+    if not triggered:
+        mic.drain()
+        return
+
+    # estágio 2: só agora roda o modelo bom
+    raw = ears.hear_command(audio)
     n = norm(raw)
     if not n:
-        return
+        raw, n = raw_w, n_w
     log(f"ouvi: {raw!r}")
 
     # -------- resposta a uma confirmação pendente --------

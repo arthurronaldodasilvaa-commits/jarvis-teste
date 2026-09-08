@@ -67,6 +67,17 @@ def write_control(**changes) -> dict:
     return data
 
 
+def rotate_log(max_kb: int = 512) -> None:
+    """Mantém só a última metade do log se ele passar de max_kb. Chamar no start."""
+    try:
+        if LOG_PATH.stat().st_size <= max_kb * 1024:
+            return
+        lines = LOG_PATH.read_text(encoding="utf-8", errors="ignore").splitlines()
+        LOG_PATH.write_text("\n".join(lines[-len(lines) // 2:]) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def log(msg: str) -> None:
     line = f"[{time.strftime('%H:%M:%S')}] {msg}"
     print(line, flush=True)

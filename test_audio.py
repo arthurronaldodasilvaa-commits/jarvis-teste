@@ -55,10 +55,13 @@ def whisper():
     buf, got = [], 0
     while got < 5 * jv.SR:
         b = mic.read(timeout=7); buf.append(b); got += len(b)
-    txt = ears.transcribe(np.concatenate(buf))
-    print("entendi:", repr(txt))
-    print("é frase de chegada? ", jv.is_arrival_phrase(jv.norm(txt), cfg))
-    print("é 'jarvis ...'?      ", jv.strip_wake_word(txt, jv.norm(txt), "jarvis"))
+    audio = np.concatenate(buf)
+    t = time.time(); w = ears.hear_wake(audio); tw = time.time() - t
+    t = time.time(); c = ears.hear_command(audio); tc = time.time() - t
+    print(f"estágio 1 (tiny, {tw*1000:.0f}ms): {w!r}")
+    print(f"estágio 2 (small, {tc*1000:.0f}ms): {c!r}")
+    print("é frase de chegada? ", jv.is_arrival_phrase(jv.norm(c), cfg))
+    print("é 'jarvis ...'?      ", jv.strip_wake_word(c, jv.norm(c), "jarvis"))
 
 
 def meter():
