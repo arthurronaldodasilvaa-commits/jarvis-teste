@@ -41,9 +41,34 @@ SR = 16000
 BLOCK = 1600  # ~100 ms
 CNW = 0x08000000
 
-AFFIRM = ("sim", "confirma", "confirmado", "pode", "pode sim", "isso", "claro",
-          "afirmativo", "positivo", "manda", "faz", "vai", "ok", "beleza", "quero")
-NEGATE = ("nao", "negativo", "cancela", "para", "deixa", "esquece", "melhor nao")
+AFFIRM = ("sim", "confirma", "confirmo", "confirmado", "pode", "pode sim", "isso",
+          "isso mesmo", "claro", "afirmativo", "positivo", "manda", "manda ver",
+          "faz", "faca", "vai", "vai la", "ok", "okay", "beleza", "blz", "quero",
+          "quero sim", "concordo", "aham", "uhum", "com certeza", "certo", "exato",
+          "pode desligar", "pode reiniciar", "pode fechar", "pode suspender",
+          "sim senhor", "isso ai", "positivo senhor")
+NEGATE = ("nao", "não", "negativo", "cancela", "cancelar", "para", "parar", "deixa",
+          "deixa pra la", "esquece", "melhor nao", "nao quero", "para tudo", "aborta")
+CONFIRM_TIMEOUT = 18.0
+
+
+def _is_affirm(n: str) -> bool:
+    toks = n.split()
+    if not toks:
+        return False
+    if n in AFFIRM or toks[0] in ("sim", "pode", "claro", "isso", "ok", "okay",
+                                  "beleza", "confirmo", "exato", "aham", "uhum", "certo"):
+        return True
+    return any(a in n for a in ("sim", "confirm", "pode sim", "com certeza",
+                                "afirmativo", "positivo", "isso mesmo",
+                                "pode desligar", "pode reiniciar", "pode fechar"))
+
+
+def _is_negate(n: str) -> bool:
+    toks = n.split()
+    return bool(toks) and (toks[0] in ("nao", "cancela", "cancelar", "para", "aborta",
+                                       "deixa", "esquece", "negativo")
+                           or n in NEGATE)
 
 
 def ensure_single_instance() -> None:
@@ -396,6 +421,12 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
     if mouth.speaking:
         ring.clear(); clap.reset(); return
 
+    # confirmação pendente expirou sem resposta?
+    p = st["pending"]
+    if p and time.monotonic() > p[2]:
+        log("confirmação expirou (sem resposta)")
+        st["pending"] = None
+
     ring.append(block)
 
     if clap.feed(block) and cfg["audio"].get("clap_instant_activate", True):
@@ -418,19 +449,23 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
     log(f"ouvi: {raw!r}")
 
     # -------- resposta a uma confirmação pendente --------
+    # É SEMPRE consumida pela próxima fala: sim -> executa; qualquer outra
+    # coisa -> cancela. Nunca fica presa.
     if st["pending"]:
         _question, do, _dl = st["pending"]
-        if any(w in n for w in NEGATE):
-            mouth.say("Cancelado, senhor."); st["pending"] = None; mic.drain(); return
-        if any(n == w or n.startswith(w + " ") or w in n.split() for w in AFFIRM):
-            st["pending"] = None
+        st["pending"] = None
+        if _is_affirm(n) and not _is_negate(n):
+            log("  confirmado")
             try:
                 followup = do()
             except Exception as exc:  # noqa: BLE001
                 log(f"erro na ação confirmada: {exc}"); followup = "Deu erro, senhor."
             mouth.say(followup or "Feito, senhor.")
-            mic.drain(); return
-        mic.drain(); return   # fala não relacionada durante a confirmação
+        else:
+            log(f"  confirmação NÃO reconhecida como 'sim' ({n!r}) — cancelado")
+            mouth.say("Cancelado, senhor.")
+        mic.drain()
+        return
 
     # -------- frase de chegada --------
     if is_arrival_phrase(n, cfg):
@@ -463,7 +498,7 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
     elif res.confirm:
         question, do = res.confirm
         mouth.say(question)
-        st["pending"] = (question, do, time.monotonic() + 20)
+        st["pending"] = (question, do, time.monotonic() + CONFIRM_TIMEOUT)
     elif res.speak:
         mouth.say(res.speak)
     mic.drain()

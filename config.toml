@@ -73,7 +73,7 @@ allow_restart = true
 allow_suspend = true
 allow_close = true            # "jarvis, fecha isso" (Alt+F4) / "fecha o <app>"
 allow_typing = true           # "jarvis, digitar ..." e "jarvis, escrever um texto sobre ..."
-shutdown_delay_seconds = 30   # tempo até desligar (dá pra abortar com "jarvis, cancelar")
+shutdown_delay_seconds = 45   # tempo até desligar (dá pra abortar com "jarvis, cancelar")
 
 [apps]
 steam       = "run:C:\\Program Files (x86)\\Steam\\steam.exe"

@@ -225,7 +225,7 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         return Result(speak="Cancelei, senhor.")
 
     # --- hora / data ---
-    if re.search(r"\b(que horas|as horas|horario agora)\b", t):
+    if re.search(r"\b(que horas?|as horas?|horario agora|que hora e|me diz as horas|horas sao)\b", t):
         now = datetime.now()
         return Result(speak=f"São {now.hour} horas e {now.minute} minutos, senhor.")
     if re.search(r"\b(que dia (e )?hoje|data de hoje|dia da semana|hoje e dia)\b", t):
