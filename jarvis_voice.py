@@ -101,6 +101,7 @@ class Mic:
         self._stream = sd.InputStream(
             samplerate=SR, blocksize=BLOCK, device=device,
             channels=1, dtype="float32", callback=self._cb,
+            latency="high",   # buffer maior no driver -> menos "input overflow" sob carga
         )
 
     def _cb(self, indata, frames, time_info, status):  # noqa: ARG002
