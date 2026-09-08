@@ -1,0 +1,9 @@
+﻿__pycache__/
+*.log
+*.pyc
+*.egg-info/
+OpenJarvishf-cache/
+hf-cache/
+*.wav
+NOTAS.md
+PEDIDOS.md

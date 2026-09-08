@@ -1,0 +1,107 @@
+# ============================================================
+#  Jarvis Voz — configuração
+#  Edite e reinicie o Jarvis para aplicar.
+# ============================================================
+
+[audio]
+input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
+
+# --- detecção de fala (VAD) ---
+speech_level = 0.018            # energia mínima pra considerar que você falou
+silence_timeout = 1.0          # silêncio (s) que encerra uma fala
+max_utterance_seconds = 9.0
+pre_roll_seconds = 0.6         # segundos de áudio antes do disparo (não cortar sílaba)
+min_utterance_seconds = 0.35   # ignora "falas" mais curtas que isso (clique, tosse)
+
+# --- palmas (atalho opcional) ---
+clap_enabled = true
+clap_instant_activate = true   # 2 palmas = rotina de chegada na hora
+clap_sensitivity = 7.0
+clap_min_level = 0.030
+clap_window_seconds = 1.6
+clap_min_gap_seconds = 0.12
+claps_required = 2
+
+[arrival]
+# Frase que dispara a ROTINA DE CHEGADA (saudação + Steam + Spotify).
+phrase = "bom dia neném o papai chegou"
+match_threshold = 0.72         # quão parecida a fala precisa ser (sobe = mais rígido)
+reactivate_cooldown_seconds = 30
+sequence = [
+  "app:steam",
+  "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
+]
+spotify_force_play = true
+spotify_wait_seconds = 4.0
+greeting = "Bom dia, senhor. Com o que posso te ajudar?"
+
+[wake]
+# Reconhecimento de voz em 2 estágios (economiza MUITA CPU quando você não
+# está falando com o Jarvis):
+#   1) TODA fala passa por um modelo minúsculo e rápido ('wake_model')
+#   2) só se detectar "jarvis"/frase de chegada, re-transcreve com o bom ('command_model')
+wake_model = "tiny"           # tiny | base   (1ª passada, tem que ser rápida)
+command_model = "small"       # base | small | medium   (2ª passada, precisão)
+beam_size = 1                 # 1 = ganancioso/rápido; 5 = mais preciso/lento
+whisper_language = "pt"
+whisper_device = "cpu"        # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
+whisper_initial_prompt = "Bom dia, neném, o papai chegou. Jarvis, abrir Steam. Jarvis, jogar Palworld. Jarvis, desligar o computador."
+
+[assistant]
+address = "Senhor"
+user_name = "Arthur"
+wake_word = "jarvis"           # precisa vir no INÍCIO da fala pra ele agir
+attention_reply = "Olá senhor, com o que posso ajudar?"
+ollama_url = "http://localhost:11434"
+model = "qwen3.5:2b"
+reply_num_predict = 110        # respostas faladas: curtas
+compose_num_predict = 600      # tamanho máx. de textos que ele redige
+keepwarm_minutes = 10          # ping no Ollama a cada N min p/ o modelo não descarregar (0 = desliga)
+keep_alive = "1h"             # quanto tempo o Ollama segura o modelo na RAM após cada uso
+system_prompt = """
+Você é o Jarvis, assistente pessoal por voz. Fala com uma única pessoa, a quem chama sempre de "Senhor".
+- Responda em português do Brasil, curto: 1 ou 2 frases. É voz — nada de listas, markdown ou emojis.
+- Fale DIRETAMENTE com ele ("o senhor..."), nunca na terceira pessoa e nunca use o nome dele para se dirigir a ele.
+- O nome dele é Arthur. Só diga isso se ele perguntar o próprio nome; fora disso, "Senhor".
+- Tom cordial e discreto, estilo mordomo. Se não souber, diga que não sabe — não invente.
+"""
+
+[tts]
+sapi_voice = "Microsoft Maria Desktop"
+sapi_rate = 0
+ready_line = ""
+
+[perf]
+log_max_kb = 512              # ao iniciar, corta o jarvis_voice.log se passar disso
+
+[app]
+# O "cérebro" holográfico (E:\OpenJarvis\jarvis-app). Independente: abre e
+# fecha por conta própria; o Jarvis funciona com ou sem ele.
+enabled = true
+exe_path = "E:\\OpenJarvis\\jarvis-app\\dist\\JarvisApp.exe"
+open_on_arrival = true       # abre por último na rotina de chegada
+open_on_wake_word = true     # abre ao dizer só "jarvis"
+
+[danger]
+# Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
+# Deixe 'false' para bloquear de vez.
+allow_shutdown = true
+allow_restart = true
+allow_suspend = true
+allow_close = true            # "jarvis, fecha isso" (Alt+F4) / "fecha o <app>"
+allow_typing = true           # "jarvis, digitar ..." e "jarvis, escrever um texto sobre ..."
+shutdown_delay_seconds = 45   # tempo até desligar (dá pra abortar com "jarvis, cancelar")
+
+[apps]
+steam       = "run:C:\\Program Files (x86)\\Steam\\steam.exe"
+spotify     = "run:spotify:"
+youtube     = "url:https://www.youtube.com"
+google      = "url:https://www.google.com"
+gmail       = "url:https://mail.google.com"
+whatsapp    = "url:https://web.whatsapp.com"
+navegador   = "url:https://www.google.com"
+calculadora = "run:calc:"
+"bloco de notas" = "run:notepad"
+notepad     = "run:notepad"
+explorador  = "run:explorer"
+configuracoes = "run:ms-settings:"
