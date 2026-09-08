@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>JARVIS</title>
+<style>
+  :root { --neon: #46d6ff; --neon-dim: #1f6f92; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  body { font-family: "Segoe UI", Consolas, monospace; color: var(--neon); cursor: default; }
+
+  #scene { position: fixed; inset: 0; z-index: 1; }
+
+  /* vinheta + scanlines pra dar cara de holograma */
+  #fx {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%),
+      repeating-linear-gradient(0deg, rgba(70,214,255,0.035) 0 1px, transparent 1px 3px);
+    mix-blend-mode: screen;
+  }
+
+  .hud {
+    position: fixed; z-index: 3; pointer-events: none;
+    font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+    text-shadow: 0 0 8px var(--neon);
+    opacity: 0.75;
+  }
+  #brand  { top: 22px; left: 26px; font-size: 15px; letter-spacing: 6px; }
+  #status { bottom: 22px; left: 26px; }
+  #hint   { bottom: 22px; right: 26px; opacity: 0.35; letter-spacing: 2px; }
+
+  #status::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 9px;
+    border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon);
+    vertical-align: middle; animation: blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  #close {
+    position: fixed; top: 16px; right: 20px; z-index: 4;
+    width: 26px; height: 26px; line-height: 24px; text-align: center;
+    border: 1px solid var(--neon-dim); border-radius: 50%;
+    color: var(--neon); font-size: 14px; opacity: 0.3; cursor: pointer;
+    transition: opacity .2s;
+  }
+  #close:hover { opacity: 1; }
+</style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="fx"></div>
+  <div id="brand" class="hud">J.A.R.V.I.S</div>
+  <div id="status" class="hud">Iniciando</div>
+  <div id="hint" class="hud">S: falar &nbsp; espaço: pulso &nbsp; esc: fechar</div>
+  <div id="close" title="Fechar">&times;</div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="hologram.js"></script>
+</body>
+</html>
