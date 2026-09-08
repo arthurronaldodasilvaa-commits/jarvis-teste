@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,8 +23,23 @@ import webview
 
 FROZEN = getattr(sys, "frozen", False)
 APP_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))   # recursos empacotados
-BASE_DIR = Path(sys.executable).parent if FROZEN else Path(__file__).resolve().parent  # pasta real
-STATE_FILE = BASE_DIR / "state.json"
+
+
+def _resolve_state_file() -> Path:
+    # 1) override explícito
+    env = os.environ.get("JARVIS_STATE_FILE")
+    if env:
+        return Path(env)
+    # 2) frozen: o .exe mora em jarvis-app\dist\ -> state.json fica em jarvis-app\
+    if FROZEN:
+        d = Path(sys.executable).resolve().parent
+        return (d.parent if d.name.lower() == "dist" else d) / "state.json"
+    # 3) dev: ao lado do app.py
+    return Path(__file__).resolve().parent / "state.json"
+
+
+STATE_FILE = _resolve_state_file()
+BASE_DIR_DEBUG = STATE_FILE.parent / "app_debug.log"
 UI = APP_DIR / "ui" / "index.html"
 
 MUTEX_NAME = "Global\\JarvisAppSingleton"
@@ -51,8 +67,12 @@ class Api:
         except (OSError, ValueError):
             return {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
 
-    def ping(self) -> str:
-        return "ok"
+    def debug(self, msg: str) -> None:
+        try:
+            with open(BASE_DIR_DEBUG, "a", encoding="utf-8") as fh:
+                fh.write(f"{msg}\n")
+        except OSError:
+            pass
 
     def close(self) -> None:
         for w in webview.windows:

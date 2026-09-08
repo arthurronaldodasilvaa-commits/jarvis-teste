@@ -3,7 +3,8 @@
   "use strict";
 
   const NEON = 0x46d6ff;
-  const NEON_SOFT = 0x8fe8ff;
+  const NEON_SOFT = 0x9becff;
+  const TAU = Math.PI * 2;
 
   const host = document.getElementById("scene");
   const statusEl = document.getElementById("status");
@@ -21,22 +22,23 @@
   host.appendChild(renderer.domElement);
 
   // ---------- glow de fundo ----------
-  function radialSprite(size, color) {
+  function radialSprite(size) {
     const c = document.createElement("canvas");
     c.width = c.height = size;
-    const g = c.getContext("2d").createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, color);
-    g.addColorStop(0.4, "rgba(70,214,255,0.20)");
-    g.addColorStop(1, "rgba(0,0,0,0)");
     const ctx = c.getContext("2d");
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0.0, "rgba(120,230,255,0.55)");
+    g.addColorStop(0.35, "rgba(70,214,255,0.18)");
+    g.addColorStop(1.0, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
-    const tex = new THREE.CanvasTexture(c);
-    const mat = new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-    const s = new THREE.Sprite(mat);
-    return s;
+    const mat = new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending,
+      depthWrite: false, transparent: true,
+    });
+    return new THREE.Sprite(mat);
   }
-  const glow = radialSprite(512, "rgba(70,214,255,0.55)");
+  const glow = radialSprite(512);
   glow.scale.set(9, 9, 1);
   glow.position.z = -1.5;
   scene.add(glow);
@@ -46,26 +48,24 @@
   scene.add(core);
 
   const shellDefs = [
-    { r: 1.15, detail: 1, opacity: 0.9, color: NEON },
-    { r: 1.15, detail: 1, opacity: 0.28, color: NEON, scale: 1.22 },
-    { r: 1.15, detail: 1, opacity: 0.12, color: NEON, scale: 1.5 },
-    { r: 0.72, detail: 0, opacity: 0.85, color: NEON_SOFT },
+    { r: 1.15, detail: 1, opacity: 0.90, scale: 1.00, phase: 0.0, freq: 0.9 },
+    { r: 1.15, detail: 1, opacity: 0.30, scale: 1.22, phase: 1.4, freq: 0.62 },
+    { r: 1.15, detail: 1, opacity: 0.13, scale: 1.52, phase: 2.9, freq: 0.44 },
+    { r: 0.72, detail: 0, opacity: 0.85, scale: 1.00, phase: 0.7, freq: 1.1 },
   ];
   const shells = shellDefs.map((d) => {
-    const geo = new THREE.IcosahedronGeometry(d.r, d.detail);
-    const wire = new THREE.WireframeGeometry(geo);
+    const wire = new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(d.r, d.detail));
     const mat = new THREE.LineBasicMaterial({
-      color: d.color, transparent: true, opacity: d.opacity,
+      color: NEON, transparent: true, opacity: d.opacity,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const seg = new THREE.LineSegments(wire, mat);
-    if (d.scale) seg.scale.setScalar(d.scale);
-    seg.userData.baseOpacity = d.opacity;
+    seg.scale.setScalar(d.scale);
+    seg.userData = d;
     core.add(seg);
     return seg;
   });
 
-  // volume interno translúcido
   const blobMat = new THREE.MeshBasicMaterial({
     color: NEON, transparent: true, opacity: 0.06,
     blending: THREE.AdditiveBlending, depthWrite: false,
@@ -73,10 +73,8 @@
   const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(1.02, 2), blobMat);
   core.add(blob);
 
-  // pontos nos vértices (sinapses)
-  const ptsGeo = new THREE.IcosahedronGeometry(1.15, 4);
   const points = new THREE.Points(
-    ptsGeo,
+    new THREE.IcosahedronGeometry(1.15, 4),
     new THREE.PointsMaterial({
       color: NEON_SOFT, size: 0.035, transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false,
@@ -84,12 +82,14 @@
   );
   core.add(points);
 
-  // anéis tipo reator
   const rings = [];
   [[1.9, 0.012, 0], [2.25, 0.010, Math.PI / 2.6], [2.6, 0.008, -Math.PI / 3.5]].forEach(([R, tube, tilt], i) => {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(R, tube, 8, 140),
-      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.5 - i * 0.12, blending: THREE.AdditiveBlending, depthWrite: false })
+      new THREE.MeshBasicMaterial({
+        color: NEON, transparent: true, opacity: 0.5 - i * 0.12,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
     );
     ring.rotation.x = Math.PI / 2 + tilt;
     ring.userData.speed = 0.15 + i * 0.12;
@@ -99,54 +99,57 @@
 
   // ---------- starfield ----------
   const starGeo = new THREE.BufferGeometry();
-  const N = 420, pos = new Float32Array(N * 3);
+  const N = 420, sp = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) {
-    pos[i * 3] = (Math.random() - 0.5) * 40;
-    pos[i * 3 + 1] = (Math.random() - 0.5) * 26;
-    pos[i * 3 + 2] = -Math.random() * 30 - 2;
+    sp[i * 3] = (Math.random() - 0.5) * 40;
+    sp[i * 3 + 1] = (Math.random() - 0.5) * 26;
+    sp[i * 3 + 2] = -Math.random() * 30 - 2;
   }
-  starGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  starGeo.setAttribute("position", new THREE.BufferAttribute(sp, 3));
   const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x2a6f88, size: 0.05, transparent: true, opacity: 0.6 }));
   scene.add(stars);
 
   // ---------- estado ----------
   const state = {
-    speaking: false,      // alvo
-    speakLevel: 0,        // suavizado 0..1
-    amplitude: 0.4,       // intensidade do pulso quando falando
-    pulse: 0,             // "one-shot" decaindo
+    speaking: false,
+    speakLevel: 0,       // suavizado 0..1
+    amplitude: 0.5,      // profundidade do pulso quando falando
     status: "SISTEMA ONLINE",
   };
 
   window.jarvis = {
     setSpeaking: (b) => { state.speaking = !!b; },
     setAmplitude: (a) => { state.amplitude = Math.max(0, Math.min(1, +a || 0)); },
-    pulseOnce: () => { state.pulse = 1; },
     setStatus: (s) => { state.status = String(s || ""); },
   };
 
   // ---------- ponte com o Python (state.json) ----------
+  let _dbgReady = false, _lastSpeaking = null;
+  function dbg(m) {
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.debug) api.debug("[" + new Date().toISOString() + "] " + m);
+  }
   function pollState() {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.get_state) {
-      window.pywebview.api.get_state().then((s) => {
-        if (!s) return;
-        state.speaking = !!s.speaking;
-        if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
-        if (s.status) state.status = s.status;
-      }).catch(() => {});
-    }
+    const api = window.pywebview && window.pywebview.api;
+    if (!api || !api.get_state) return;
+    if (!_dbgReady) { _dbgReady = true; dbg("ponte pywebview OK"); }
+    api.get_state().then((s) => {
+      if (!s) return;
+      const sp = !!s.speaking;
+      if (sp !== _lastSpeaking) { _lastSpeaking = sp; dbg("speaking=" + sp + " status=" + s.status); }
+      state.speaking = sp;
+      if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
+      if (s.status) state.status = s.status;
+    }).catch((e) => dbg("erro get_state: " + e));
   }
   setInterval(pollState, 200);
 
-  // ---------- teclado / botão ----------
-  addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeApp();
-    else if (e.key.toLowerCase() === "s") state.speaking = !state.speaking;
-    else if (e.code === "Space") { state.pulse = 1; e.preventDefault(); }
-  });
+  // ---------- fechar ----------
+  addEventListener("keydown", (e) => { if (e.key === "Escape") closeApp(); });
   document.getElementById("close").addEventListener("click", closeApp);
   function closeApp() {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.close) window.pywebview.api.close();
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.close) api.close();
     else window.close();
   }
 
@@ -154,42 +157,45 @@
   const clock = new THREE.Clock();
   function tick() {
     const t = clock.getElapsedTime();
-    const dt = Math.min(clock.getDelta ? 0 : 0, 0); // (getElapsedTime já avança)
 
-    // suavização do "falando"
-    const target = state.speaking ? 1 : 0;
-    state.speakLevel += (target - state.speakLevel) * 0.08;
-    state.pulse *= 0.92;
-    const energy = Math.max(state.speakLevel * (0.5 + state.amplitude), state.pulse);
+    // rampa suave (~1s) pra entrar/sair do "falando"
+    state.speakLevel += ((state.speaking ? 1 : 0) - state.speakLevel) * 0.045;
+    const spk = state.speakLevel;
+    const depth = 0.5 + state.amplitude;               // 0.5 .. 1.5
 
-    // respiração / dilatação
-    const breathe = 1
-      + Math.sin(t * 1.6) * 0.02
-      + energy * (0.10 + Math.sin(t * 14) * 0.06);
-    core.scale.setScalar(breathe);
+    // pulso LENTO (~0.55 Hz) — a "respiração" enquanto fala
+    const slow = 0.5 + 0.5 * Math.sin(t * TAU * 0.55);
 
-    // rotação (mais rápida quando fala)
-    const rot = 0.0025 + energy * 0.012;
+    // escala do núcleo: idle respira de leve; falando pulsa devagar e mais forte
+    const idleBreath = 1 + Math.sin(t * 1.4) * 0.015;
+    const scale = idleBreath + spk * depth * (0.05 + 0.06 * slow);
+    core.scale.setScalar(scale);
+
+    // rotação — quase igual; um tiquinho mais viva falando
+    const rot = 0.0022 + spk * 0.0035;
     core.rotation.y += rot;
-    core.rotation.x = Math.sin(t * 0.25) * 0.15;
-    blob.rotation.y -= rot * 1.6;
-    points.rotation.y += rot * 0.5;
+    core.rotation.x = Math.sin(t * 0.22) * 0.14;
+    blob.rotation.y -= rot * 1.5;
+    points.rotation.y += rot * 0.4;
+    rings.forEach((r) => { r.rotation.z += r.userData.speed * (0.008 + spk * 0.012); });
 
-    rings.forEach((r, i) => { r.rotation.z += r.userData.speed * (0.01 + energy * 0.03); });
-
-    // brilho das cascas
-    shells.forEach((s, i) => {
-      s.material.opacity = s.userData.baseOpacity * (1 + energy * 1.3);
+    // brilhos "piscando" devagar, cada casca em sua própria fase
+    shells.forEach((s) => {
+      const d = s.userData;
+      const wave = 0.5 + 0.5 * Math.sin(t * TAU * d.freq + d.phase);   // 0..1 lento
+      s.material.opacity = d.opacity * (1 + spk * depth * (0.7 + 1.4 * wave));
     });
-    blobMat.opacity = 0.06 + energy * 0.20;
-    glow.scale.setScalar(9 + energy * 4);
-    glow.material.opacity = 0.9 + energy * 0.1;
+    blobMat.opacity = 0.06 + spk * depth * (0.10 + 0.14 * slow);
 
-    // câmera dolly (zoom in/out enquanto fala)
-    camera.position.z = 4.2 - energy * 0.55 + Math.sin(t * 9) * energy * 0.18;
+    // glow de fundo — infla e clareia junto com o pulso lento
+    glow.scale.setScalar(9 + spk * depth * (2.2 + 2.0 * slow));
+    glow.material.opacity = 0.85 + spk * 0.15 * slow;
+
+    // câmera: zoom in/out LENTO, sem tremida
+    camera.position.z = 4.2 - spk * depth * (0.30 + 0.22 * slow);
     camera.lookAt(0, 0, 0);
 
-    stars.rotation.z += 0.0004;
+    stars.rotation.z += 0.0003;
 
     statusEl.textContent = state.speaking ? "FALANDO" : state.status;
 
@@ -203,6 +209,4 @@
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
   });
-
-  setTimeout(() => (statusEl.textContent = state.status), 600);
 })();
