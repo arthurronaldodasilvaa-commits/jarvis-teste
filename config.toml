@@ -65,6 +65,14 @@ sapi_voice = "Microsoft Maria Desktop"
 sapi_rate = 0
 ready_line = ""
 
+[app]
+# O "cérebro" holográfico (E:\OpenJarvis\jarvis-app). Independente: abre e
+# fecha por conta própria; o Jarvis funciona com ou sem ele.
+enabled = true
+exe_path = "E:\\OpenJarvis\\jarvis-app\\dist\\JarvisApp.exe"
+open_on_arrival = true       # abre por último na rotina de chegada
+open_on_wake_word = true     # abre ao dizer só "jarvis"
+
 [danger]
 # Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
 # Deixe 'false' para bloquear de vez.

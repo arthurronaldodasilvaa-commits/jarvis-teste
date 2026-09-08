@@ -13,6 +13,22 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 LOG_PATH = HERE / "jarvis_voice.log"
 
+# state.json lido pelo Jarvis App (o "cérebro" holográfico) ~5x/s.
+APP_STATE_FILE = HERE.parent / "jarvis-app" / "state.json"
+_app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
+
+
+def write_app_state(**changes) -> None:
+    """Atualiza o state.json do Jarvis App. Silencioso se o app nem existir."""
+    import json
+
+    _app_state.update({k: v for k, v in changes.items() if v is not None})
+    try:
+        APP_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        APP_STATE_FILE.write_text(json.dumps(_app_state), encoding="utf-8")
+    except OSError:
+        pass
+
 
 def log(msg: str) -> None:
     line = f"[{time.strftime('%H:%M:%S')}] {msg}"

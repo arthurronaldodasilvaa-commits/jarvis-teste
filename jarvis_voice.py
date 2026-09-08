@@ -32,7 +32,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from common import log, norm
+from common import log, norm, write_app_state
 import skills
 
 HERE = Path(__file__).resolve().parent
@@ -215,6 +215,7 @@ class Mouth:
             + f"$s.Rate={self.rate};$s.Speak([Console]::In.ReadToEnd());"
         )
         self.speaking = True
+        write_app_state(speaking=True, status="FALANDO")
         try:
             subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
@@ -224,6 +225,7 @@ class Mouth:
             log(f"falha na fala: {exc}")
         finally:
             self.speaking = False
+            write_app_state(speaking=False, status="OUVINDO")
 
 
 # --------------------------------------------------------------------------
@@ -297,6 +299,21 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
     return (has_papai and has_chegou) or (has_bomdia and has_papai)
 
 
+def open_jarvis_app(cfg: dict) -> None:
+    """Abre o Jarvis App (cérebro holográfico). O .exe tem trava de instância única."""
+    ap = cfg.get("app", {})
+    if not ap.get("enabled", False):
+        return
+    exe = ap.get("exe_path", "")
+    try:
+        if exe and Path(exe).is_file():
+            subprocess.Popen([exe], creationflags=0x00000008)  # DETACHED_PROCESS
+        else:
+            log(f"Jarvis App: exe_path inválido ({exe!r})")
+    except Exception as exc:  # noqa: BLE001
+        log(f"falha ao abrir o Jarvis App: {exc}")
+
+
 def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
     log(f"** CHEGADA ({reason}) **")
     greeting = (cfg.get("arrival", {}).get("greeting")
@@ -306,6 +323,8 @@ def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
     for action in cfg["arrival"].get("sequence", []):
         _run_action(action, cfg)
         time.sleep(0.6)
+    if cfg.get("app", {}).get("open_on_arrival", False):
+        open_jarvis_app(cfg)   # por último, como pedido
 
 
 def _run_action(action: str, cfg: dict) -> None:
@@ -482,6 +501,8 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
         mic.drain(); return          # fala não endereçada -> silêncio
 
     if not norm(payload):
+        if cfg.get("app", {}).get("open_on_wake_word", False):
+            open_jarvis_app(cfg)
         mouth.say(cfg["assistant"].get("attention_reply", "Olá senhor, com o que posso ajudar?"))
         mic.drain(); return
 
