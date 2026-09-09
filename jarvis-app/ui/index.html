@@ -71,13 +71,14 @@
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 
   #close {
-    position: fixed; top: 16px; right: 20px; z-index: 4;
-    width: 26px; height: 26px; line-height: 24px; text-align: center;
+    position: fixed; top: 15px; right: 16px; z-index: 12;
+    width: 28px; height: 28px; line-height: 26px; text-align: center;
     border: 1px solid var(--neon-dim); border-radius: 50%;
-    color: var(--neon); font-size: 14px; opacity: 0.3; cursor: pointer;
-    transition: opacity .2s;
+    background: rgba(2,8,14,0.72); backdrop-filter: blur(2px);
+    color: var(--neon); font-size: 15px; opacity: 0.55; cursor: pointer;
+    transition: opacity .2s, background .2s;
   }
-  #close:hover { opacity: 1; }
+  #close:hover { opacity: 1; background: rgba(70,214,255,0.18); }
 
   /* ---------- visão da câmera ---------- */
   #cam {
@@ -122,14 +123,16 @@
   body:not(.camera) #cam-help { display: none; }
   body.camera #scene, body.camera #fx, body.camera #brand, body.camera #hint { display: none; }
   body.camera #hud { display: none; }
+  /* na câmera os cantos têm colchetes decorativos — desce o X pra não brigar com eles */
+  body.camera #close { top: 84px; right: 26px; opacity: 0.7; }
 
   /* ---------- HUD do cérebro ---------- */
   #hud { position: fixed; inset: 0; z-index: 3; pointer-events: none;
          font-family: "Segoe UI", Consolas, monospace; }
   #hud .panel { position: fixed; text-shadow: 0 0 8px var(--neon); }
 
-  #clock-box { top: 20px; right: 28px; text-align: right; }
-  #clock { font-size: 40px; letter-spacing: 4px; line-height: 1; font-variant-numeric: tabular-nums; }
+  #clock-box { top: 54px; right: 28px; text-align: right; }
+  #clock { font-size: 36px; letter-spacing: 4px; line-height: 1; font-variant-numeric: tabular-nums; }
   #date  { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; opacity: 0.6; margin-top: 6px; }
   #wx    { font-size: 12px; letter-spacing: 1px; opacity: 0.8; margin-top: 6px; }
   #rem   { margin-top: 12px; font-size: 11px; letter-spacing: 1px; opacity: 0.7; }
@@ -197,10 +200,11 @@
     font: inherit; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; }
   #settings button.ghost { background: transparent; color: var(--neon); border: 1px solid var(--neon-dim); }
   #settings .note { font-size: 10px; opacity: 0.5; margin-top: 12px; letter-spacing: 1px; }
-  #gear { position: fixed; top: 16px; right: 54px; z-index: 4; width: 26px; height: 26px;
-    line-height: 24px; text-align: center; border: 1px solid var(--neon-dim); border-radius: 50%;
-    color: var(--neon); font-size: 13px; opacity: 0.3; cursor: pointer; transition: opacity .2s; }
-  #gear:hover { opacity: 1; }
+  #gear { position: fixed; top: 15px; right: 52px; z-index: 12; width: 28px; height: 28px;
+    line-height: 26px; text-align: center; border: 1px solid var(--neon-dim); border-radius: 50%;
+    background: rgba(2,8,14,0.72); backdrop-filter: blur(2px);
+    color: var(--neon); font-size: 14px; opacity: 0.55; cursor: pointer; transition: opacity .2s, background .2s; }
+  #gear:hover { opacity: 1; background: rgba(70,214,255,0.18); }
   body.camera #gear { display: none; }
 </style>
 </head>
