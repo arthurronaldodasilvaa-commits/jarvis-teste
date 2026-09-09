@@ -22,6 +22,7 @@ from urllib.parse import quote_plus
 
 import calc
 import maps
+import news
 import reminders
 import spotify
 import weather
@@ -539,6 +540,12 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             if cand and cand not in ("casa", "mim", "voce", "cidade", "regiao"):
                 cidade = cand
         return Result(speak=weather.report(cfg, cidade, dia))
+
+    # --- notícias ---
+    if re.search(r"\b(noticias?|manchetes?|novidades do dia|o que (esta|ta) acontecendo|"
+                 r"o que rolou|me atualiza|jornal de hoje|principais noticias)\b", t):
+        mq = re.search(r"\b(?:noticias?|manchetes?)\s+(?:de|sobre|do|da|dos|das)\s+(.+)", t)
+        return Result(speak=news.headlines(mq.group(1) if mq else ""))
 
     # --- contas / porcentagem / conversão de unidades e moeda ---
     fala = calc.handle(t)
