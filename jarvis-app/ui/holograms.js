@@ -106,12 +106,12 @@ window.jarvisHolo = (() => {
     const i = shapes.indexOf(s); if (i >= 0) shapes.splice(i, 1);
     if (selected === s) selected = null;
   }
-  function clearAll() { [...shapes].forEach(removeShape); count = 0; }
+  function clearAll() { [...shapes].forEach(removeShape); count = 0; st.poked && st.poked.clear(); }
 
   function onControl(holo) {
     if (!holo || !holo.n || holo.n <= lastN) return;
     lastN = holo.n;
-    if (holo.action === "add" && holo.shape) { spawn(holo.shape); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
+    if (holo.action === "add" && holo.shape) { spawn(holo.shape); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
     else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
   }
 
@@ -143,26 +143,10 @@ window.jarvisHolo = (() => {
   const handCenter = (lm) => ({ x: (lm[0].x + lm[9].x) / 2, y: (lm[0].y + lm[9].y) / 2 });
   const finite = (n) => (Number.isFinite(n) ? n : 0);
 
-  // ---------- histórico p/ detectar "varredura" (palma rápida) ----------
-  const trail = new Map();   // hand idx -> [{x,t}]
-  function pushTrail(key, x) {
-    const now = performance.now();
-    let a = trail.get(key) || [];
-    a.push({ x, t: now });
-    a = a.filter((p) => now - p.t < 450);
-    trail.set(key, a);
-    return a;
-  }
-  function swipe(key) {
-    const a = trail.get(key) || [];
-    if (a.length < 3) return 0;
-    const dx = Math.abs(a[a.length - 1].x - a[0].x);
-    const dt = a[a.length - 1].t - a[0].t;
-    return (dt > 0 && dt < 400 && dx > 0.35) ? dx : 0;
-  }
-
   // ---------- interação ----------
-  const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false };
+  const C_NEON = new THREE.Color(NEON), C_NEON2 = new THREE.Color(NEON2), C_AMBER = new THREE.Color(AMBER);
+  const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false,
+    poked: new Set(), pokeT: 0 };
   let dbgDot = [0, 0], dbgOn = false;
   let selectorId = null;   // id da mão que é a "seletora" (fica grudado)
 
@@ -177,6 +161,7 @@ window.jarvisHolo = (() => {
   }
 
   function interact(res) {
+    const now = performance.now();
     const hands = (res && res.hands) || [];
     hands.forEach((h) => { h.role = null; });
     if (!hands.length) { st.allPrev = null; st.rotPrev = null; return; }
@@ -199,8 +184,6 @@ window.jarvisHolo = (() => {
     const modPx = mg.pinchAt ? toScreenPx(mg.pinchAt.x, mg.pinchAt.y) : null;
     const R = Math.min(innerWidth, innerHeight) * 0.22;   // raio de "pega" em pixels
 
-    pushTrail("sel", handCenter(selH.landmarks).x);
-    if (modH) pushTrail("mod", modC.x);
     dbgOn = !!selPx;
     if (selPx) dbgDot = selPx;
 
@@ -243,9 +226,6 @@ window.jarvisHolo = (() => {
       st.allPrev = c;
     } else st.allPrev = null;
 
-    // 🖐 seletora varrendo -> apaga TODAS
-    if (sg.name === "palma" && swipe("sel") > 0.5 && !selected) { clearAll(); trail.clear(); }
-
     // ---- MODIFICADORA (só com algo selecionado) ----
     if (selected && modH) {
       if (mg.name === "punho" && modC) {
@@ -257,35 +237,58 @@ window.jarvisHolo = (() => {
         if (!st.resizeRef || !Number.isFinite(st.resizeRef)) st.resizeRef = Math.max(40, d) / Math.max(0.25, selected.userScale);
         const ns = d / st.resizeRef;
         selected.userScale = Math.max(0.25, Math.min(6, Number.isFinite(ns) ? ns : selected.userScale));
-      } else if (mg.name === "paz" && modC) {
+      } else if (mg.name === "paz" && modC && !selected.math) {
+        // gira — proibido em modelos 2D/texto (triângulo, tabelas)
         if (st.rotPrev) {
           selected.obj.rotation.y += finite(modC.x - st.rotPrev.x) * 5;
           selected.obj.rotation.x += finite(modC.y - st.rotPrev.y) * 5;
         }
         st.rotPrev = modC;
-      } else if (mg.name === "palma" && swipe("mod") > 0.4) {
-        removeShape(selected); trail.clear();
       }
       if (mg.pinch < 0.9) st.resizeRef = 0;
       if (mg.name !== "paz") st.rotPrev = null;
     } else { st.resizeRef = 0; st.rotPrev = null; }
 
-    // ---- ☝️ ponteiro ----
+    // ---- ☝️ APONTAR: encostar o indicador no holograma apaga ----
     fx2d.clear();
+    const touchR = R * 0.5;
+    let anyPoint = false;
     for (const h of hands) {
-      if (h.gesture && h.gesture.name === "apontar") {
-        const lm = h.landmarks;
-        const [tx, ty] = toScreenPx(lm[8].x, lm[8].y);
-        const [bx, by] = toScreenPx(lm[6].x, lm[6].y);
-        const a = pxToWorld(tx, ty, 0);
-        const dir = a.clone().sub(pxToWorld(bx, by, 0)).normalize();
-        const b = a.clone().add(dir.clone().multiplyScalar(10));
-        fx2d.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
-          new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending })));
-        const hit = nearestOnScreen(tx, ty, R * 1.5);
-        if (hit) hit._point = 1;
+      const g = h.gesture;
+      if (!g || g.name !== "apontar") continue;
+      anyPoint = true;
+      const lm = h.landmarks;
+      const [tx, ty] = toScreenPx(lm[8].x, lm[8].y);
+      const a = pxToWorld(tx, ty, 0);
+      const dir = a.clone().sub(pxToWorld(...toScreenPx(lm[6].x, lm[6].y), 0)).normalize();
+      fx2d.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([a, a.clone().add(dir.multiplyScalar(9))]),
+        new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending })));
+      pokeDot.position.copy(a); pokeDot.material.opacity = 0.8;
+
+      for (const s of [...shapes]) {
+        const [sx, sy] = worldToPx(s.obj.position);
+        const on = Math.hypot(sx - tx, sy - ty) < touchR;
+        s._pokeN = on ? (s._pokeN || 0) + 1 : 0;
+        if (on) {
+          s._point = 1;
+          if (s._pokeN >= 3) {
+            if (s === selected) { removeShape(s); }        // encostou no selecionado -> apaga só ele
+            else { st.poked.add(s.id); st.pokeT = now; }
+          }
+        }
       }
     }
+    if (!anyPoint) {
+      pokeDot.material.opacity += (0 - pokeDot.material.opacity) * 0.3;
+      shapes.forEach((s) => { s._pokeN = 0; });
+    }
+
+    // apaga TODOS: encostou em todos (sem seleção) -> some tudo
+    if (!selected && shapes.length && [...shapes].every((s) => st.poked.has(s.id))) {
+      clearAll();
+    }
+    if (now - st.pokeT > 1600) st.poked.clear();
   }
 
   function setSelected(s) {
@@ -301,13 +304,19 @@ window.jarvisHolo = (() => {
     blending: THREE.AdditiveBlending }));
   marker.scale.set(0.35, 0.35, 1);
   scene.add(marker);
+  // ponta do dedo quando aponta
+  const pokeDot = new THREE.Sprite(new THREE.SpriteMaterial({
+    color: 0x9becff, transparent: true, opacity: 0, depthWrite: false,
+    blending: THREE.AdditiveBlending }));
+  pokeDot.scale.set(0.3, 0.3, 1);
+  scene.add(pokeDot);
 
   // ---------- loop ----------
   let active = false;
   function setActive(on) {
     active = on;
     cv.style.display = on ? "block" : "none";
-    if (!on) { renderer.clear(); trail.clear(); }
+    if (!on) { renderer.clear(); st.poked.clear(); }
   }
 
   let _errLogged = false;
@@ -341,12 +350,19 @@ window.jarvisHolo = (() => {
       s.amber += (wantAmber - s.amber) * 0.15;
       const ud = s.obj.userData;
       if (ud.wire) {
-        ud.wire.material.color.copy(new THREE.Color(NEON).lerp(new THREE.Color(AMBER), s.amber));
+        ud.wire.material.color.copy(C_NEON).lerp(C_AMBER, s.amber);
         ud.wire.material.opacity = 0.92 + s.amber * 0.06;
-        ud.fill.material.color.copy(new THREE.Color(NEON2).lerp(new THREE.Color(AMBER), s.amber));
+        ud.fill.material.color.copy(C_NEON2).lerp(C_AMBER, s.amber);
         ud.fill.material.opacity = 0.07 + s.amber * 0.12 + (s._point || 0) * 0.1;
-      } else if (s === selected) {
-        s.obj.scale.multiplyScalar(1.0 + Math.sin(t * 6) * 0.006);   // pisca leve o modelo selecionado
+      } else {
+        // modelo composto (triângulo, tabelas): tinge TUDO em direção ao âmbar
+        if (!s._mats) {
+          s._mats = [];
+          s.obj.traverse((o) => {
+            if (o.material && o.material.color) s._mats.push({ m: o.material, c: o.material.color.clone() });
+          });
+        }
+        for (const x of s._mats) x.m.color.copy(x.c).lerp(C_AMBER, s.amber * 0.9);
       }
       s._point = (s._point || 0) * 0.85;
 
