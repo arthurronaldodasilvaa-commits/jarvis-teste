@@ -46,6 +46,17 @@
     box.style.opacity = tr.playing ? "0.9" : "0.4";
   }
 
+  // ---------- próximos lembretes ----------
+  function renderRem(list) {
+    const host = $("rem");
+    if (!Array.isArray(list) || !list.length) { host.innerHTML = ""; return; }
+    host.innerHTML = list.slice(0, 3).map((r) => {
+      const t = (r.t || "").length > 22 ? r.t.slice(0, 21) + "…" : (r.t || "");
+      return `<div>⏰ ${esc(t)}<span class="rw">${esc(r.w || "")}</span></div>`;
+    }).join("");
+  }
+  function esc(s) { return String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])); }
+
   // ---------- feed de notificações ----------
   let feedSeen = 0;
   function renderFeed(notes) {
@@ -90,6 +101,7 @@
       setGauge("ram", +sys.ram || 0);
       setGauge("gpu", +sys.gpu || 0);
       if (typeof s.weather === "string") $("wx").textContent = s.weather;
+      renderRem(s.reminders);
       renderTrack(s.track);
       renderFeed(s.notes);
       const st = $("status");

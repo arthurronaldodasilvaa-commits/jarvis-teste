@@ -94,7 +94,7 @@ _WHEN_RX = re.compile(
 def _reminder_msg(rest: str) -> str:
     """Tira o pedaço de tempo e conectores, sobra a mensagem do lembrete."""
     s = _WHEN_RX.sub(" ", rest)
-    s = re.sub(r"^\s*(?:de|pra|para|que|:|,|o|a|para que|pra que)\s+", " ", s)
+    s = re.sub(r"^\s*(?:de|da|do|das|dos|pra|para|que|:|,|o|a|para que|pra que)\s+", " ", s)
     s = re.sub(r"\s+(?:de|pra|para)\s*$", " ", s)
     s = re.sub(r"\s{2,}", " ", s).strip(" ,.:;-")
     # se sobrou só conectivo/lixo, considera timer sem descrição
@@ -761,6 +761,14 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                   r"alarme\s+(?:de|pra|para|das?)|despertador\s+(?:pra|para|das?))\b(.*)", t)
     if m:
         rest = m.group(2).strip()
+        rec = reminders.parse_recurring(rest)
+        if rec:
+            ts, human, rule = rec
+            msg = _reminder_msg(re.sub(r"\b(todo dia|todos os dias|toda \w+|de hora em hora|"
+                                       r"diariamente|semanalmente)\b", "", rest))
+            reminders.add(msg or "(sem descrição)", ts, rule=rule)
+            return Result(speak=f"Combinado, senhor. Eu aviso {human}"
+                          + (f": {msg}." if msg else "."))
         when = reminders.parse_when(rest)
         if not when:
             return Result(speak="Pra quando, senhor? Diga um tempo, tipo 'em 20 minutos' ou 'às 15 horas'.")
@@ -1009,10 +1017,32 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return r
         _deferred = _deferred or alvo
 
-    # --- anotar / lembrete ---
-    m = re.search(r"^(?:anota\w*|lembra\w*|salva\w*|apont\w*|toma\s+nota)"
-                  r"(?:\s+(?:isso|o\s+seguinte|que|pra\s+mim|ai))?[:,\s]+(.+)", t)
-    if m:
+    # --- limpar as anotações ---
+    if re.search(r"\b(apaga|limpa|zera)\w*\s+(as\s+)?(minhas\s+)?(notas|anotacoes)\b", t):
+        try:
+            (HERE / "NOTAS.md").write_text("", encoding="utf-8")
+        except OSError:
+            pass
+        return Result(speak="Anotações apagadas, senhor.")
+    # --- ler as anotações ---
+    if re.search(r"\b(minhas (notas|anotacoes)|quais.*(notas|anotacoes)|le\w*\s+(as\s+)?(minhas\s+)?"
+                 r"(notas|anotacoes)|o que eu anotei|lista de (notas|anotacoes))\b", t):
+        p = HERE / "NOTAS.md"
+        try:
+            itens = [re.sub(r"^-\s*(\[[^\]]*\]\s*)?", "", ln).strip()
+                     for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip().startswith("-")]
+        except OSError:
+            itens = []
+        if not itens:
+            return Result(speak="O senhor não tem anotações no momento.")
+        return Result(speak=f"{len(itens)} anotaç" + ("ões" if len(itens) > 1 else "ão")
+                      + ", senhor: " + "; ".join(itens[-6:]) + ".")
+
+    # --- anotar ---
+    m = re.search(r"^(?:anota\w*|salva\w*|apont\w*|toma\s+nota)"
+                  r"(?:\s+(?:isso|o\s+seguinte|que|pra\s+mim|ai))?[:,\s]+(.+)",
+                  raw.strip(), flags=re.IGNORECASE)
+    if m and re.match(r"^(anota|salva|apont|toma)", t):
         _append("NOTAS.md", m.group(1).strip())
         return Result(speak="Anotado, senhor.")
 

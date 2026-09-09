@@ -132,6 +132,9 @@
   #clock { font-size: 40px; letter-spacing: 4px; line-height: 1; font-variant-numeric: tabular-nums; }
   #date  { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; opacity: 0.6; margin-top: 6px; }
   #wx    { font-size: 12px; letter-spacing: 1px; opacity: 0.8; margin-top: 6px; }
+  #rem   { margin-top: 12px; font-size: 11px; letter-spacing: 1px; opacity: 0.7; }
+  #rem div { margin-top: 3px; }
+  #rem .rw { color: var(--neon); opacity: 0.55; margin-left: 8px; }
 
   #gauges { left: 26px; top: 50%; transform: translateY(-50%);
             display: flex; flex-direction: column; gap: 20px; }
@@ -218,6 +221,7 @@
       <div id="clock">--:--</div>
       <div id="date">—</div>
       <div id="wx"></div>
+      <div id="rem"></div>
     </div>
     <div id="gauges" class="panel">
       <div class="gauge"><span class="lbl">CPU</span><div class="track"><i class="fill" id="g-cpu"></i></div><span class="num" id="n-cpu">0</span></div>

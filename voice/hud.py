@@ -100,6 +100,21 @@ def _weather_short(cfg: dict) -> str:
     return ""
 
 
+# ---------------------------------------------------------------- lembretes
+def _upcoming() -> list:
+    try:
+        import reminders
+        from datetime import datetime
+        out = []
+        for r in reminders.pending()[:3]:
+            dt = datetime.fromtimestamp(r["at"])
+            when = dt.strftime("%H:%M") if dt.date() == datetime.now().date() else dt.strftime("%d/%m %Hh")
+            out.append({"t": r.get("text", ""), "w": when})
+        return out
+    except Exception:  # noqa: BLE001
+        return []
+
+
 # ---------------------------------------------------------------- loop
 def start(cfg: dict) -> None:
     global _started
@@ -123,6 +138,7 @@ def _loop(cfg: dict) -> None:
         try:
             payload = {"sys": _sys_snapshot()}
             payload["track"] = _media_snapshot() or {}
+            payload["reminders"] = _upcoming()
             if time.time() - last_weather > 900:          # 15 min
                 w = _weather_short(cfg)
                 if w:

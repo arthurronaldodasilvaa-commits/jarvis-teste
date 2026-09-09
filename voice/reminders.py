@@ -51,6 +51,62 @@ def _num(word: str) -> int | None:
     return _NUM.get(word)
 
 
+_DOW = {"segunda": 0, "terca": 1, "quarta": 2, "quinta": 3, "sexta": 4,
+        "sabado": 5, "domingo": 6}
+
+
+def parse_recurring(t: str, now: datetime | None = None):
+    """'todo dia às 8', 'toda segunda às 9', 'de hora em hora'.
+    Devolve (primeiro_ts, human, rule) ou None. rule = {'every':..., 'hh':, 'mm':}."""
+    now = now or datetime.now()
+    t = " " + t + " "
+    if re.search(r"\bde hora em hora\b|\btoda hora\b|\ba cada hora\b", t):
+        nxt = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        return nxt.timestamp(), "de hora em hora", {"every": "hourly"}
+
+    m = re.search(r"\b(todo dia|todos os dias|diariamente|toda (?:manha|noite|tarde)|"
+                  r"toda\s+(segunda|terca|quarta|quinta|sexta|sabado|domingo)|"
+                  r"toda semana|semanalmente)\b", t)
+    if not m:
+        return None
+    hh, mm = 8, 0
+    hm = re.search(r"\bas\s+(\d{1,2})(?:\s*(?:e|:|h)\s*(\d{1,2})|\s*e meia)?", t)
+    if hm:
+        hh = int(hm.group(1))
+        mm = 30 if "e meia" in t else int(hm.group(2) or 0)
+    elif "toda noite" in t:
+        hh = 20
+    elif "toda tarde" in t:
+        hh = 14
+
+    dow = _DOW.get(m.group(2)) if m.group(2) else None
+    if dow is not None:
+        rule = {"every": "weekly", "dow": dow, "hh": hh, "mm": mm}
+        human = f"toda {m.group(2)}-feira às {hh}h" if dow < 5 else f"todo {m.group(2)} às {hh}h"
+    elif "semana" in m.group(1):
+        rule = {"every": "weekly", "dow": now.weekday(), "hh": hh, "mm": mm}
+        human = f"toda semana às {hh}h"
+    else:
+        rule = {"every": "daily", "hh": hh, "mm": mm}
+        human = f"todo dia às {hh}h" + (f"{mm:02d}" if mm else "")
+    return _next_occurrence(rule, now), human, rule
+
+
+def _next_occurrence(rule: dict, now: datetime) -> float:
+    if rule["every"] == "hourly":
+        return (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0).timestamp()
+    target = now.replace(hour=rule["hh"], minute=rule["mm"], second=0, microsecond=0)
+    if rule["every"] == "daily":
+        if target <= now:
+            target += timedelta(days=1)
+    else:  # weekly
+        days = (rule["dow"] - now.weekday()) % 7
+        target += timedelta(days=days)
+        if target <= now:
+            target += timedelta(days=7)
+    return target.timestamp()
+
+
 def parse_when(t: str, now: datetime | None = None) -> tuple[float, str] | None:
     """t = texto normalizado. Devolve (timestamp, texto_humano) ou None."""
     now = now or datetime.now()
@@ -125,20 +181,31 @@ def _at(now: datetime, hh: int, mm: int, tomorrow: bool = False) -> float:
     return target.timestamp()
 
 
-def add(text: str, when_ts: float) -> None:
+def add(text: str, when_ts: float, rule: dict | None = None) -> None:
     items = _load()
-    items.append({"text": text.strip(), "at": when_ts, "made": time.time()})
+    it = {"text": text.strip(), "at": when_ts, "made": time.time()}
+    if rule:
+        it["rule"] = rule
+    items.append(it)
     _save(items)
-    log(f"lembrete: {text!r} para {datetime.fromtimestamp(when_ts):%d/%m %H:%M}")
+    log(f"lembrete{'  (recorrente)' if rule else ''}: {text!r} para "
+        f"{datetime.fromtimestamp(when_ts):%d/%m %H:%M}")
 
 
 def due(now_ts: float | None = None) -> list[dict]:
-    """Devolve (e remove) os lembretes já vencidos."""
+    """Devolve os lembretes vencidos. Remove os pontuais; reagenda os recorrentes."""
     now_ts = now_ts or time.time()
     items = _load()
     ready = [x for x in items if x["at"] <= now_ts]
-    if ready:
-        _save([x for x in items if x["at"] > now_ts])
+    if not ready:
+        return []
+    keep = [x for x in items if x["at"] > now_ts]
+    for r in ready:
+        if r.get("rule"):
+            nxt = dict(r)
+            nxt["at"] = _next_occurrence(r["rule"], datetime.now() + timedelta(seconds=1))
+            keep.append(nxt)
+    _save(keep)
     return ready
 
 
