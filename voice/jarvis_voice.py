@@ -544,6 +544,7 @@ def main() -> None:
     brain.start_keepwarm()
 
     set_paused(False, beep=False)   # começa sempre ouvindo
+    write_app_state(view="brain", camera_match=cfg.get("app", {}).get("camera_match", "Brio"))
     threading.Thread(target=hotkey_listener, daemon=True).start()
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))

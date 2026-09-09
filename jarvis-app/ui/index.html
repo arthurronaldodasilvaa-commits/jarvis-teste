@@ -71,11 +71,67 @@
     transition: opacity .2s;
   }
   #close:hover { opacity: 1; }
+
+  /* ---------- visão da câmera ---------- */
+  #cam {
+    position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1);           /* espelhado (selfie) */
+    filter: brightness(0.72) contrast(1.12) saturate(1.25);
+  }
+  #cam-fx {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    transform: scaleX(-1);
+  }
+  #cam-tint {
+    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(40,150,190,0.10), rgba(0,20,30,0.55) 100%);
+    mix-blend-mode: screen;
+  }
+  .cam-bracket {
+    position: fixed; z-index: 3; width: 46px; height: 46px; pointer-events: none;
+    border: 2px solid var(--neon); opacity: 0.8; filter: drop-shadow(0 0 6px var(--neon));
+  }
+  .cam-bracket.tl { top: 26px; left: 26px; border-right: 0; border-bottom: 0; }
+  .cam-bracket.tr { top: 26px; right: 26px; border-left: 0; border-bottom: 0; }
+  .cam-bracket.bl { bottom: 26px; left: 26px; border-right: 0; border-top: 0; }
+  .cam-bracket.br { bottom: 26px; right: 26px; border-left: 0; border-top: 0; }
+  #cam-label {
+    position: fixed; z-index: 3; top: 26px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; letter-spacing: 4px; text-transform: uppercase;
+    text-shadow: 0 0 8px var(--neon); pointer-events: none;
+  }
+  #cam-motion-wrap {
+    position: fixed; z-index: 3; bottom: 74px; left: 50%; transform: translateX(-50%);
+    width: 220px; height: 3px; background: rgba(70,214,255,0.15); pointer-events: none;
+  }
+  #cam-motion {
+    height: 100%; width: 100%; transform-origin: left center; transform: scaleX(0);
+    background: var(--neon); box-shadow: 0 0 10px var(--neon);
+    transition: transform .12s linear;
+  }
+
+  /* alterna entre cérebro e câmera */
+  body:not(.camera) #cam,
+  body:not(.camera) #cam-fx,
+  body:not(.camera) #cam-tint,
+  body:not(.camera) .cam-bracket,
+  body:not(.camera) #cam-label,
+  body:not(.camera) #cam-motion-wrap { display: none; }
+  body.camera #scene, body.camera #fx, body.camera #brand, body.camera #hint { display: none; }
 </style>
 </head>
 <body>
   <div id="scene"></div>
   <div id="fx"></div>
+
+  <video id="cam" autoplay muted playsinline></video>
+  <canvas id="cam-fx"></canvas>
+  <div id="cam-tint"></div>
+  <div class="cam-bracket tl"></div><div class="cam-bracket tr"></div>
+  <div class="cam-bracket bl"></div><div class="cam-bracket br"></div>
+  <div id="cam-label">Câmera</div>
+  <div id="cam-motion-wrap"><div id="cam-motion"></div></div>
+
   <div id="brand" class="hud">J.A.R.V.I.S</div>
   <div id="status" class="hud">Iniciando</div>
   <div id="hint" class="hud">ctrl+alt+j &nbsp;·&nbsp; esc: fechar</div>
@@ -85,6 +141,7 @@
   <div id="close" title="Fechar">&times;</div>
 
   <script src="lib/three.min.js"></script>
+  <script src="camera.js"></script>
   <script src="hologram.js"></script>
 </body>
 </html>

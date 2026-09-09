@@ -230,6 +230,16 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         return Result(speak="Escuta pausada, senhor. Aperte o botão no aplicativo ou "
                             "Control Alt J para me chamar de volta.")
 
+    # --- câmera do app (troca a tela: cérebro <-> webcam) ---
+    if re.search(r"\b(ativa\w*|liga\w*|abr\w*|mostra\w*|inicia\w*)\s+(a\s+)?c[aâe]mera\b|"
+                 r"\bmodo c[aâe]mera\b|\bvis[aã]o (da\s+)?c[aâe]mera\b|\bliga\w* a webcam\b", t):
+        write_app_state(view="camera")
+        return Result(speak="")
+    if re.search(r"\b(desativa\w*|desliga\w*|fecha\w*|para\w*|tira|encerra\w*)\s+(a\s+)?c[aâe]mera\b|"
+                 r"\bvolta\w*\s+(pro|para o|ao)\s+cerebro\b|\bmodo cerebro\b|\bfecha\w* a webcam\b", t):
+        write_app_state(view="brain")
+        return Result(speak="")
+
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
         _run("shutdown", "/a")

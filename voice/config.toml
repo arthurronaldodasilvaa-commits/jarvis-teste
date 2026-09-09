@@ -91,6 +91,7 @@ enabled = true
 exe_path = "E:\\OpenJarvis\\jarvis-app\\dist\\JarvisApp.exe"
 open_on_arrival = true       # abre por último na rotina de chegada
 open_on_wake_word = true     # abre ao dizer só "jarvis"
+camera_match = "Brio"        # trecho do nome da webcam usada no "ativar câmera"
 
 [danger]
 # Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").

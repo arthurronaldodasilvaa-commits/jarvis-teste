@@ -19,6 +19,13 @@ import os
 import sys
 from pathlib import Path
 
+# Libera câmera/mic no WebView2 sem prompt (app local pessoal). TEM que vir
+# antes do import webview.
+os.environ.setdefault(
+    "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+    "--use-fake-ui-for-media-stream --autoplay-policy=no-user-gesture-required",
+)
+
 import webview
 
 FROZEN = getattr(sys, "frozen", False)
@@ -81,6 +88,13 @@ class Api:
         except OSError:
             pass
         return cur
+
+    def log(self, msg: str) -> None:
+        try:
+            with open(STATE_FILE.parent / "app_debug.log", "a", encoding="utf-8") as fh:
+                fh.write(f"[{__import__('time').strftime('%H:%M:%S')}] {msg}\n")
+        except OSError:
+            pass
 
     def close(self) -> None:
         for w in webview.windows:

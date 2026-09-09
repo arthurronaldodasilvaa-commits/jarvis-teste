@@ -118,7 +118,19 @@
     status: "SISTEMA ONLINE",
     paused: false,
     pausedLevel: 0,      // suavizado 0..1
+    view: "brain",       // "brain" | "camera"
+    cameraMatch: "Brio",
   };
+
+  function applyView(v) {
+    if (v === state.view) return;
+    state.view = v;
+    const cam = v === "camera";
+    document.body.classList.toggle("camera", cam);
+    renderer.domElement.style.display = cam ? "none" : "block";
+    if (cam) window.jarvisCam.start(state.cameraMatch);
+    else window.jarvisCam.stop();
+  }
 
   window.jarvis = {
     setSpeaking: (b) => { state.speaking = !!b; },
@@ -151,8 +163,10 @@
       state.speaking = !!s.speaking;
       if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
       if (s.status) state.status = s.status;
+      if (s.camera_match) state.cameraMatch = s.camera_match;
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
+      if (s.view === "camera" || s.view === "brain") applyView(s.view);
     }).catch(() => {});
   }
   setInterval(pollState, 250);
@@ -171,6 +185,7 @@
   let _skip = false;
   function tick() {
     requestAnimationFrame(tick);
+    if (state.view === "camera") { statusEl.textContent = "CÂMERA ATIVA"; return; }
     const t = clock.getElapsedTime();
 
     const idle = state.speakLevel < 0.01 && !state.speaking

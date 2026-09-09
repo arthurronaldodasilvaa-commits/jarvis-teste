@@ -18,7 +18,8 @@ _SHARED = HERE.parent / "jarvis-app"
 APP_STATE_FILE = _SHARED / "state.json"        # daemon -> app  (o que o Jarvis está fazendo)
 CONTROL_FILE = _SHARED / "control.json"        # app/atalho <-> daemon  (ligado/pausado)
 
-_app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"}
+_app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE",
+              "view": "brain", "camera_match": "Brio"}
 
 
 def write_app_state(**changes) -> None:
