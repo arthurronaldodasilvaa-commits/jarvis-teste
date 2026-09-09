@@ -52,6 +52,11 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
   só na PERSONA (nome, tratamento, `system_prompt`, voz, frase de chegada). Todas as
   funções continuam iguais em qualquer perfil. Ativa por `[profile] active`,
   `--profile` ou `JARVIS_PROFILE`. Perfis: `arthur`, `robson`.
+- [x] **Instalador gráfico** (`installer/`) — assistente estilo "instalar um jogo",
+  sem terminal: escolhe disco, copia, instala Ollama + baixa modelo, configura
+  mic/câmera/voz, autostart. `MONTAR_PACOTE.md` = como montar a pasta do Drive.
+  Falta: testar o clique-a-clique numa máquina limpa antes de mandar pro cliente.
+- [ ] Assinar o `JarvisSetup.exe` (tirar o aviso SmartScreen) — cert de code signing
 - [ ] Painel de configurações no app (em vez de editar `config.toml` na mão)
 - [ ] TTS melhor (Piper — voz neural local, rápida) ou ElevenLabs
 - [ ] Modelo local maior quando tiver hardware (qwen 7b/14b)
