@@ -120,6 +120,7 @@
     pausedLevel: 0,      // suavizado 0..1
     view: "brain",       // "brain" | "camera"
     cameraMatch: "Brio",
+    phase: "",           // "" | "PENSANDO" | "PESQUISANDO" | "ERRO"
   };
 
   function applyView(v) {
@@ -180,6 +181,14 @@
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
       if (s.view === "camera" || s.view === "brain") applyView(s.view);
+
+      // HUD (relógio/clima/gauges/música/feed/fase)
+      if (window.jarvisHud) window.jarvisHud.update(s);
+      const PH = { thinking: "PENSANDO", processing: "PROCESSANDO", searching: "PESQUISANDO", error: "ERRO" };
+      state.phase = (!p && !state.speaking && PH[s.phase]) ? PH[s.phase] : "";
+      const cls = { thinking: "thinking", processing: "thinking", searching: "searching", error: "error" }[s.phase] || "";
+      statusEl.classList.remove("thinking", "searching", "error");
+      if (state.phase && cls) statusEl.classList.add(cls);
     }).catch(() => {});
   }
   setInterval(pollState, 250);
@@ -263,7 +272,8 @@
 
     stars.rotation.z += 0.0003;
 
-    statusEl.textContent = state.paused ? "PAUSADO" : (state.speaking ? "FALANDO" : state.status);
+    statusEl.textContent = state.paused ? "PAUSADO"
+      : (state.speaking ? "FALANDO" : (state.phase || state.status));
 
     renderer.render(scene, camera);
   }

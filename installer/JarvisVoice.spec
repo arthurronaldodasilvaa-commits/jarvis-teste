@@ -3,12 +3,17 @@
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 datas, binaries, hiddenimports = [], [], []
-for pkg in ("faster_whisper", "ctranslate2", "av", "onnxruntime", "tokenizers"):
-    d, b, h = collect_all(pkg)
-    datas += d; binaries += b; hiddenimports += h
+for pkg in ("faster_whisper", "ctranslate2", "av", "onnxruntime", "tokenizers", "winsdk"):
+    try:
+        d, b, h = collect_all(pkg)
+        datas += d; binaries += b; hiddenimports += h
+    except Exception:
+        pass
 
 hiddenimports += collect_submodules("numpy")
-hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio", "anyio", "certifi"]
+hiddenimports += collect_submodules("winsdk")
+hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio",
+                  "anyio", "certifi", "psutil", "pynvml"]
 
 a = Analysis(
     ["../voice/jarvis_voice.py"],

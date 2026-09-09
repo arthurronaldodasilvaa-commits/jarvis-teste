@@ -740,11 +740,14 @@ def _reminder_loop(mouth: "Mouth") -> None:
     time.sleep(20)
     while True:
         try:
+            from common import push_note
             for r in reminders.due():
                 txt = (r.get("text") or "").strip()
                 if txt and txt != "(sem descrição)":
+                    push_note(f"⏰ {txt}", "reminder")
                     mouth.say(f"Senhor, lembrete: {txt}.")
                 else:
+                    push_note("⏰ timer terminou", "reminder")
                     mouth.say("Senhor, seu timer terminou.")
                 time.sleep(1.0)
         except Exception as exc:  # noqa: BLE001
@@ -799,6 +802,11 @@ def main() -> None:
     )
     threading.Thread(target=hotkey_listener, daemon=True).start()
     threading.Thread(target=_reminder_loop, args=(mouth,), daemon=True).start()
+    try:
+        import hud
+        hud.start(cfg)
+    except Exception as exc:  # noqa: BLE001
+        log(f"HUD não iniciou: {exc}")
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
@@ -927,14 +935,19 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         mic.drain(); return
 
     log(f"  comando: {payload!r}")
+    write_app_state(phase="processing")
     try:
         res = skills.dispatch(payload, cfg, mouth.say, brain)
     except Exception as exc:  # noqa: BLE001
         log(f"erro no dispatch: {exc!r}")
+        from common import push_note
+        push_note(f"erro: {exc}", "error")
+        write_app_state(phase="error")
         mouth.say("Tive um erro ao executar isso, senhor.")
         mic.drain(); return
 
     if res.to_llm:
+        write_app_state(phase="thinking")
         mouth.say(brain.ask(res.to_llm))
     elif res.confirm:
         question, do = res.confirm
@@ -942,6 +955,7 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         st["pending"] = (question, do, time.monotonic() + CONFIRM_TIMEOUT)
     elif res.speak:
         mouth.say(res.speak)
+    write_app_state(phase="idle")
     mic.drain()
     if getattr(res, "restart", False):
         relaunch_self()

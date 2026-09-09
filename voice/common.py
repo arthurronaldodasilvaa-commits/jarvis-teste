@@ -24,7 +24,9 @@ APP_STATE_FILE = _SHARED / "state.json"        # daemon -> app  (o que o Jarvis 
 CONTROL_FILE = _SHARED / "control.json"        # app/atalho <-> daemon  (ligado/pausado)
 
 _app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE",
-              "view": "brain", "camera_match": "Brio"}
+              "view": "brain", "camera_match": "Brio", "phase": "idle",
+              "weather": "", "track": {}, "sys": {}, "notes": []}
+_NOTES: list[dict] = []
 
 
 def write_app_state(**changes) -> None:
@@ -34,9 +36,16 @@ def write_app_state(**changes) -> None:
     _app_state.update({k: v for k, v in changes.items() if v is not None})
     try:
         APP_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        APP_STATE_FILE.write_text(json.dumps(_app_state), encoding="utf-8")
+        APP_STATE_FILE.write_text(json.dumps(_app_state, ensure_ascii=False), encoding="utf-8")
     except OSError:
         pass
+
+
+def push_note(msg: str, kind: str = "info") -> None:
+    """Adiciona uma linha ao feed de notificações do cérebro (últimas 6)."""
+    _NOTES.append({"t": time.time(), "msg": str(msg)[:120], "kind": kind})
+    del _NOTES[:-6]
+    write_app_state(notes=list(_NOTES))
 
 
 _control_cache = {"data": {"paused": False, "view": "brain"}, "at": 0.0}

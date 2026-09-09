@@ -544,6 +544,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     # --- notícias ---
     if re.search(r"\b(noticias?|manchetes?|novidades do dia|o que (esta|ta) acontecendo|"
                  r"o que rolou|me atualiza|jornal de hoje|principais noticias)\b", t):
+        write_app_state(phase="searching")
         mq = re.search(r"\b(?:noticias?|manchetes?)\s+(?:de|sobre|do|da|dos|das)\s+(.+)", t)
         return Result(speak=news.headlines(mq.group(1) if mq else ""))
 
@@ -555,6 +556,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)
     if fala is not None:
+        write_app_state(phase="searching")
         return Result(speak=fala)
 
     # --- volume ---
