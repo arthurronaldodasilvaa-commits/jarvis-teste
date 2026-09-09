@@ -168,8 +168,13 @@ Testado: daemon sobe limpo com os 3 módulos; 23 comandos variados por dispatch,
   modelos): novo daemon, novo app, hooks.toml, skills_extra.toml, profiles,
   COMANDOS.md, KIMI_IDEAS.md. config do pacote ganhou `provider = "ollama"`,
   mantém `active = "robson"` + Piper.
-- Falta só o Arthur baixar o `OllamaSetup.exe` pra dentro de `installer/` antes
-  de subir o pacote pro Drive (ver MONTAR_PACOTE.md) — nunca esteve no repo.
+- Arthur baixou o `OllamaSetup.exe` (1,5 GB, assinatura Ollama Inc. válida) —
+  coloquei em `installer/OllamaSetup.exe` e `payload/ollama/`. Agora o passo do
+  Ollama no instalador abre a janela azul direto, sem mandar o Robson pro site.
+
+**Pacote final: `installer/pacote/Jarvis/` (~2,6 GB), pronto pro Drive.**
+JarvisSetup.exe + COMANDOS.md + LEIA-ME.txt + payload{voice frozen, jarvis-app,
+models tiny+small, ollama}. Perfil padrão robson, provider ollama, voz Piper.
 
 ## Encerramento (09/09, ~18h46)
 
