@@ -228,6 +228,59 @@ def _append(fname: str, text: str) -> None:
 STOP_WORDS = ("para", "parar", "chega", "obrigado", "obrigada", "valeu",
               "tchau", "pode ir", "encerra", "silencio", "cala a boca", "cancela")
 
+# --- "manual" do Jarvis: perguntas de "como eu faço X com você" -----------
+# Cada item: (regex no texto normalizado, resposta falada).
+# Checado bem no início do dispatch — resposta sempre certa, sem depender do LLM.
+_HELP = [
+    (r"nao me (ouc|ouv|escut)|par\w* de (me )?(ouvir|escut\w*)|silenci\w* (voce|voce )?um pouco|"
+     r"fic\w* (quiet|em silencio|calad)|modo cinema|te (cal|deslig|mut|silenci)\w*|"
+     r"desativ\w* (a )?(escuta|voce)|paus\w* (a )?escuta|nao (te )?quero (te )?(ouvir|escut\w*)|"
+     r"silenci\w* voce",
+     "Simples, senhor: diga \"Jarvis, modo cinema\". Para eu voltar a ouvir, "
+     "aperte Control Alt J ou o botão no aplicativo."),
+    (r"volt\w* a (ouvir|escut\w*)|te (cham|ativ)\w* de volta|sair do modo cinema|"
+     r"reativ\w* (a )?escuta|(voltar|sair) do (modo )?(cinema|pausa)",
+     "Aperte Control Alt J, ou clique no botão de energia no aplicativo do Jarvis, senhor."),
+    (r"abr\w* (um |o )?(programa|aplicativo|app|jogo)|inici\w* (um )?(programa|jogo)|"
+     r"jog\w* (um )?jogo",
+     "Diga \"Jarvis, abre\" e o nome, senhor. Por exemplo: \"Jarvis, abre o navegador\"."),
+    (r"toc\w* (uma )?musica|coloc\w* (uma )?musica|ouv\w* (uma )?musica|por musica|"
+     r"por uma musica|escut\w* (uma )?musica",
+     "Diga \"Jarvis, toca\" e o nome da música ou do artista, senhor."),
+    (r"cheg\w* (em|no|na|ate)|trac\w* (uma )?rota|v\w* (uma )?rota|ir (pra|para|ate)|"
+     r"us\w* (o )?(google )?maps|abr\w* (o )?maps|acha\w* (um )?(restaurante|lugar|empresa)",
+     "Diga \"Jarvis, como chegar em\" e o lugar, senhor. Ou \"Jarvis, restaurantes "
+     "bem avaliados em\" e a cidade."),
+    (r"ativ\w* (a )?camera|lig\w* (a )?camera|v\w+ (a )?camera|us\w* (a )?camera|"
+     r"cri\w* (um )?holograma|faz\w* (um )?holograma|v\w+ (um )?holograma|"
+     r"cri\w* (um )?(cubo|forma)",
+     "Diga \"Jarvis, ativar câmera\", senhor. Depois \"Jarvis, cria um cubo\" ou outra "
+     "forma. Para sair, \"Jarvis, desativar câmera\"."),
+    (r"mud\w* (o )?volume|aument\w* (o )?(volume|som)|abaix\w* (o )?(volume|som)|"
+     r"control\w* (o )?(som|volume)|(deix\w*|por) (o )?som mais",
+     "Diga \"Jarvis, aumenta o volume\" ou \"Jarvis, abaixa o volume\", senhor."),
+    (r"escrev\w* (um )?(texto|email|e-?mail|mensagem)|redi[jg]\w* (um )?texto|"
+     r"faz\w* (um )?texto|te dit\w*|voce escrev\w*",
+     "Diga \"Jarvis, escreve um texto sobre\" e o assunto, senhor. Eu escrevo no Bloco de Notas."),
+    (r"deslig\w* (o )?(pc|computador|maquina)|reinici\w* (o )?(pc|computador)|"
+     r"faz\w* o (pc|computador) (deslig|reinici)",
+     "Diga \"Jarvis, desliga o computador\", senhor. Eu peço confirmação — responda \"sim\". "
+     "Para abortar, \"Jarvis, cancelar\"."),
+    (r"que horas|v\w+ (as )?horas|sab\w* (a )?hora|v\w+ (a )?data|que dia (e )?hoje",
+     "Diga \"Jarvis, que horas são\" ou \"Jarvis, que dia é hoje\", senhor."),
+    (r"te (us|comand|control)\w*|(quais|que) (sao (os )?)?comando|o que voce (faz|sabe faz\w*)|"
+     r"(como )?voce funciona|me ajud\w* com o que|(pra|para) que voce serve|suas funcoes|"
+     r"lista de comandos|me ensin\w* a te us\w*|o que (da (pra|para)|posso) (faz\w*|ped\w*)",
+     "Eu te atendo quando o senhor começa a fala com \"Jarvis\". Posso abrir programas, "
+     "tocar música, traçar rotas no mapa, mostrar hologramas na câmera, escrever textos, "
+     "controlar o volume e desligar o computador. Diga \"Jarvis, modo cinema\" quando "
+     "quiser que eu pare de ouvir."),
+    (r"te (cham|acord)\w*|(falo|chamo|fal\w*) (com )?(voce|contigo|vc)|"
+     r"palavra (de ativacao|magica|chave)|como come[cç]\w*|te acion\w*",
+     "É só dizer \"Jarvis\" no começo da frase, senhor. \"Jarvis\" sozinho eu respondo; "
+     "\"Jarvis\" com um pedido eu executo."),
+]
+
 
 def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     t = norm(raw)
@@ -240,6 +293,16 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         # exceção: "cancela ..." de desligamento tratado abaixo
         if "cancel" not in t:
             return Result(speak="Às ordens, senhor.", stop=True)
+
+    # --- "manual": "como eu faço X com você?" -> instrução (não executa nada) ---
+    if re.search(r"\b(como|de que jeito|de que forma|como que|nao sei como|"
+                 r"qual (a |o )?(forma|maneira|jeito|palavra|comando|nome)|"
+                 r"me ensin\w*|me explic\w*|o que voce (faz|sabe)|"
+                 r"(pra|para) que (voce )?serve|quais?\s+.*comando|suas funcoes|"
+                 r"o que (da (pra|para)|posso) (faz|ped|dizer|fal))\w*", t):
+        for pat, ans in _HELP:
+            if re.search(rf"\b(?:{pat})", t):
+                return Result(speak=ans)
 
     # --- pausar a escuta ("modo cinema") ---
     if re.search(r"\bmod[eo]s?\s+(de\s+)?cinema\b|\bmod[eo]s?\s+filme\b|\bmod[eo]s?\s+soneca\b|"

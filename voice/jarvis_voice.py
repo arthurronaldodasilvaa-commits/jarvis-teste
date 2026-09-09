@@ -131,7 +131,11 @@ Exemplos:
 "tá calor, sobe o som" -> {"cmd":"volume_up"}
 "apaga essas formas" -> {"cmd":"limpar"}
 "qual a capital da França" -> {"cmd":"conversa"}
-"me conta uma piada" -> {"cmd":"conversa"}"""
+"como está o tempo hoje" -> {"cmd":"conversa"}
+"vai chover amanhã?" -> {"cmd":"conversa"}
+"me conta uma piada" -> {"cmd":"conversa"}
+
+'hora' é só para horário do relógio; tempo/clima/previsão é conversa."""
 
 
 def _is_affirm(n: str) -> bool:
@@ -399,6 +403,22 @@ class Mouth:
             pass
 
 
+_JARVIS_MANUAL = """\
+Sobre você (o Jarvis) — use isto se o senhor perguntar como te usar:
+- Você é um assistente de voz local, que roda no computador dele, sem internet para conversar.
+- Ele te chama dizendo "Jarvis" no começo da frase. "Jarvis" sozinho = você responde e espera.
+  "Jarvis" + um pedido = você faz.
+- Parar de ouvir: "Jarvis, modo cinema". Voltar a ouvir: tecla Control+Alt+J, ou o botão de
+  energia no aplicativo do Jarvis.
+- Abrir programas: "Jarvis, abre o <nome>". Música: "Jarvis, toca <artista>".
+- Mapa: "Jarvis, como chegar em <lugar>" / "Jarvis, restaurantes bem avaliados em <cidade>".
+- Câmera e hologramas: "Jarvis, ativar câmera", depois "Jarvis, cria um cubo"; "Jarvis, desativar câmera".
+- Volume: "Jarvis, aumenta o volume". Textos: "Jarvis, escreve um texto sobre <assunto>".
+- Desligar/reiniciar o PC: "Jarvis, desliga o computador" — você pede confirmação, ele diz "sim";
+  para abortar, "Jarvis, cancelar".
+Explique isso em 1 ou 2 frases, com um exemplo de comando entre aspas. Nunca invente comandos."""
+
+
 # --------------------------------------------------------------------------
 class Brain:
     def __init__(self, cfg: dict):
@@ -412,6 +432,7 @@ class Brain:
         know = a.get("knowledge", "").strip()
         if know:                     # base de conhecimento do perfil (empresa, contexto…)
             self.system += "\n\nContexto que você conhece:\n" + know
+        self.system += "\n\n" + _JARVIS_MANUAL   # como o próprio Jarvis é usado
         self.num_predict = int(a.get("reply_num_predict", 110))
         self.keep_alive = a.get("keep_alive", "1h")
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
