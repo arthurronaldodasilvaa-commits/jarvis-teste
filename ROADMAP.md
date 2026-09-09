@@ -42,12 +42,18 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 - [ ] Estados visuais: pensando / pesquisando / erro
 - [ ] Feed de notificações
 
-## E. Câmera / visão
+## E. Câmera / visão   — `ui/vision.js`
 
-- [ ] **Modo presença** — pausa quando você sai, volta quando senta (rosto detectado)
-- [ ] **Ler texto / QR** apontado pra câmera (OCR)
-- [ ] Reconhecer você vs outra pessoa
-- [ ] Gestos fora do modo holograma (pular música, etc.)
+- [x] **Modo presença** (leve) — `[camera] auto_return_seconds`: volta pro cérebro se
+  ninguém aparece (mãos ausentes + frame estático). Presença "sai da sala" real
+  precisaria de câmera sempre ligada + face detection.
+- [x] **Ler QR** — "Jarvis, lê o QR code" → BarcodeDetector nativo do WebView2;
+  link abre no navegador, texto é falado.
+  - [ ] **OCR de texto** — precisa bundlar tesseract.js + por.traineddata (~13 MB);
+    decisão de tamanho pro pacote. QR cobre o caso comum.
+- [ ] **Reconhecer você vs outra pessoa** — precisa face-api.js + modelos (~6 MB) + enrollment
+- [x] **Gestos fora do modo holograma** — mão aberta varre = ⏮/⏭, punho ~1s = ⏯,
+  palma subindo/descendo = volume (só quando não há hologramas na tela)
 
 ## F. Plataforma / infra
 

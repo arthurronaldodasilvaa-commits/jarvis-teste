@@ -756,6 +756,33 @@ def strip_wake_word(raw: str, n: str, wake: str) -> str | None:
     return re.sub(rf"(?i)^\s*{wake[:4]}\w*[\s,.:;!?-]*", "", raw).strip()
 
 
+def _scan_loop(mouth: "Mouth") -> None:
+    """Vê o scan.json do app (resultado de QR/código lido pela câmera)."""
+    import json as _json
+    from common import _SHARED
+    f = _SHARED / "scan.json"
+    last_n = 0
+    time.sleep(8)
+    while True:
+        try:
+            if f.is_file():
+                d = _json.loads(f.read_text(encoding="utf-8"))
+                n = int(d.get("n", 0))
+                if n > last_n:
+                    last_n = n
+                    txt = (d.get("text") or "").strip()
+                    if txt:
+                        if re.match(r"https?://", txt):
+                            webbrowser.open(txt)
+                            mouth.say("QR lido, senhor. Abri o link.")
+                        else:
+                            short = txt if len(txt) <= 90 else txt[:90] + "…"
+                            mouth.say(f"QR diz: {short}, senhor.")
+        except Exception as exc:  # noqa: BLE001
+            log(f"scan loop: {exc}")
+        time.sleep(1.0)
+
+
 def _reminder_loop(mouth: "Mouth") -> None:
     """Checa lembretes vencidos a cada 15 s e fala."""
     import reminders
@@ -816,14 +843,18 @@ def main() -> None:
     brain.warmup()
     brain.start_keepwarm()
 
+    _cam = cfg.get("camera", {})
     set_paused(False, beep=False)   # começa sempre ouvindo
-    write_control(view="brain")     # começa no cérebro (não gruda entre reinícios)
+    write_control(view="brain",     # começa no cérebro (não gruda entre reinícios)
+                  media_gestures=bool(_cam.get("media_gestures", True)),
+                  auto_return=float(_cam.get("auto_return_seconds", 0)))
     write_app_state(
         camera_match=cfg.get("app", {}).get("camera_match", "Brio"),
-        hand_skeleton=bool(cfg.get("camera", {}).get("hand_skeleton", True)),
+        hand_skeleton=bool(_cam.get("hand_skeleton", True)),
     )
     threading.Thread(target=hotkey_listener, daemon=True).start()
     threading.Thread(target=_reminder_loop, args=(mouth,), daemon=True).start()
+    threading.Thread(target=_scan_loop, args=(mouth,), daemon=True).start()
     try:
         import hud
         hud.start(cfg)

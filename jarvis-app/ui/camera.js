@@ -144,6 +144,17 @@ window.jarvisCam = (() => {
     try {
       if (window.jarvisHands) window.jarvisHands.feed(video);
       if (opt.skeleton) drawHands();
+      if (window.jarvisVision) {
+        window.jarvisVision.tick(window.jarvisHands && window.jarvisHands.results(), video);
+        const fm = window.jarvisVision_flash && window.jarvisVision_flash();
+        if (fm) {
+          fxctx.save(); fxctx.font = "600 18px Segoe UI, monospace";
+          fxctx.fillStyle = "rgba(124,228,255,0.95)"; fxctx.textAlign = "center";
+          fxctx.shadowColor = "rgba(124,228,255,0.9)"; fxctx.shadowBlur = 10;
+          mirrorText(fm, fx.width / 2, 64);
+          fxctx.restore();
+        }
+      }
     } catch (e) { dbg("loop erro: " + (e && e.message)); }
   }
 

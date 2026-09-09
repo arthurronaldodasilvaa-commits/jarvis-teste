@@ -71,7 +71,8 @@ def write_control(**changes) -> dict:
     import time as _t
 
     data = dict(_control_cache["data"])
-    data.pop("holo", None)          # 'holo' é evento de uso único — não fica grudado
+    for k in ("holo", "scan", "scan_hit"):   # eventos de uso único — não ficam grudados
+        data.pop(k, None)
     data.update({k: v for k, v in changes.items() if v is not None})
     try:
         CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)

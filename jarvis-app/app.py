@@ -130,6 +130,31 @@ class Api:
         cur = _read_json(CONTROL_FILE, {}).get("view", "brain")
         return self._write_control(view="brain" if cur == "camera" else "camera")
 
+    _VK = {"next": 0xB0, "prev": 0xB1, "play": 0xB3, "stop": 0xB2,
+           "vol_up": 0xAF, "vol_down": 0xAE, "mute": 0xAD}
+
+    def media(self, action: str, times: int = 1) -> bool:
+        """Tecla de mídia disparada por gesto na câmera."""
+        vk = self._VK.get(action)
+        if not vk:
+            return False
+        u = ctypes.windll.user32
+        for _ in range(max(1, min(int(times), 10))):
+            u.keybd_event(vk, 0, 0, 0)
+            u.keybd_event(vk, 0, 2, 0)
+        return True
+
+    def scan_result(self, kind: str, text: str) -> None:
+        """A câmera leu um QR/código — grava scan.json pro daemon ler."""
+        import time as _t
+        try:
+            (STATE_FILE.parent / "scan.json").write_text(
+                json.dumps({"kind": kind, "text": str(text)[:400], "n": int(_t.time() * 1000)}),
+                encoding="utf-8")
+        except OSError:
+            pass
+        self._write_control(scan="")
+
     def log(self, msg: str) -> None:
         try:
             with open(STATE_FILE.parent / "app_debug.log", "a", encoding="utf-8") as fh:

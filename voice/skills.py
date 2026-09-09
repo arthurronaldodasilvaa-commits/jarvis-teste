@@ -577,6 +577,12 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         write_control(holo={"action": "clear_ink", "n": int(time.time() * 1000)})
         return Result(speak="Limpei, senhor.")
 
+    # --- ler QR code pela câmera ---
+    if re.search(r"\b(le\w*|escaneia\w*|escanear|scann?e\w*|decifra\w*)\s+(o\s+|esse\s+|este\s+)?"
+                 r"(qr|qr\s?code|codigo qr|q r code)\b|\bqr\s?code\b", t):
+        write_control(view="camera", scan="qr")
+        return Result(speak="Aponte o QR code pra câmera, senhor.")
+
     r = _holo_models(t, raw)
     if r is not None:
         return r

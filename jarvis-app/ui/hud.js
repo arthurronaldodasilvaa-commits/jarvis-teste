@@ -3,7 +3,7 @@
 (() => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
+  const $ = (id) => document.getElementById(id) || { textContent: "", style: {}, classList: { add() {}, remove() {} }, appendChild() {}, children: [], innerHTML: "" };
   const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 

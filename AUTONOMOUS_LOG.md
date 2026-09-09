@@ -38,4 +38,36 @@ Regras que eu me impus:
 - **Ditado direcionado** — "escreve no bloco de notas: comprar leite"
   abre o app e cola o texto
 
-Pendente da seção C: **notícias** (dá pra fazer com RSS keyless — vou voltar).
+- **Notícias** (`voice/news.py`) — RSS do Google Notícias, sem chave.
+  "quais as notícias", "notícias de tecnologia", "notícias sobre X".
+
+Seção C: **completa**.
+
+### Seção D — HUD do cérebro  ✅
+
+`voice/hud.py` (thread) alimenta o `state.json`; `ui/hud.js` + `index.html` renderizam:
+- **Relógio** grande + data + **clima** curto (top-right)
+- **Gauges neon** CPU / RAM / GPU (psutil + pynvml) à esquerda, com %
+- **Música tocando** (sessão de mídia do Windows via winsdk) — faixa,
+  artista, barra de progresso
+- **Feed** de notificações (últimas 3) embaixo à direita — lembretes, erros
+- **Estados visuais**: #status muda de cor/texto — PENSANDO / PESQUISANDO / ERRO
+- Testado visualmente (screenshot): tudo renderizando com dados reais.
+
+Pendente D: temperatura da CPU/GPU (precisa de libs com admin no Windows — deixei fora).
+
+### Seção A — modelos de estudo holográficos  ✅ (menos anatomia)
+
+`ui/models.js` — 11 modelos novos, todos testados (build + animação):
+círculo trigonométrico animado, plotter de função, sólido+fórmula,
+diagrama de corpo livre, lançamento oblíquo, plano inclinado, moléculas
+(água/metano/benzeno), tabela periódica, célula animal.
+`skills._clean_expr()` traduz fala → expressão matemática.
+
+Pendente A: **anatomia** (esqueleto/coração/cérebro) — precisa de assets glTF
+que eu não tenho; procedural não fica bom o suficiente.
+
+### Seção B — interação de mão  ✅
+
+`ui/holograms.js`: travar/soltar, duplicar, explodir, rotação de uma mão só
+(✌️ roll), desenhar no ar (modo desenho + ☝️), medir (modo medida + 2 pinças).
