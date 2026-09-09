@@ -96,6 +96,16 @@ modo presença leve (`[camera] auto_return_seconds`).
 
 ---
 
+## ⚠️ Aviso
+
+Durante um teste de regressão eu rodei "bloqueia a tela" de verdade — a
+função executa `LockWorkStation()`. **Sua tela ficou bloqueada.** É só
+destravar com a senha, nada foi perdido, o daemon continuou rodando o
+tempo todo. Não vou mais rodar comandos destrutivos em lote (aprendi:
+os testes de `skills.dispatch` executam efeitos reais — mídia, arquivos,
+LockWorkStation). Desligar/reiniciar/suspender pedem "sim" falado, então
+esses não dispararam.
+
 ## Pra você quando voltar
 
 1. **Diga "Jarvis, para o ciclo"** (ou qualquer coisa) pra eu encerrar.
