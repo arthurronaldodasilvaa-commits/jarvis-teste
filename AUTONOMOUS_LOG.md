@@ -1,122 +1,108 @@
-# Registro do trabalho autônomo
+# Registro do trabalho autônomo — 2026-09-09
 
 Arthur saiu do escritório e pediu pra eu aplicar TODAS as ideias do
 `ROADMAP.md`, sozinho, em loop, até ele voltar e mandar parar.
 
-Início: 2026-09-09 ~15h. Ambiente: repo local `E:\OpenJarvis` (sem remote —
-nada sai da máquina), daemon de voz rodando, Ollama no ar.
+Ambiente: repo local `E:\OpenJarvis` (sem remote — **nada saiu da máquina**),
+daemon de voz rodando o tempo todo, Ollama no ar. Trabalhei ~1h30.
 
-Regras que eu me impus:
+Regras que eu me impus e cumpri:
 - Só trabalho local. Nada de enviar/publicar/gastar/contatar ninguém.
-- Não toco no pacote que está sendo enviado pro pai (`installer/pacote/`).
-- Commit a cada feature que passa nos testes.
-- Cada item ganha uma nota aqui: o que é, como testei, o que ficou pendente.
-- O que precisa de conta externa / chave paga / hardware: documento, não finjo.
+- Não toquei no pacote que foi enviado pro pai (`installer/pacote/`) até o fim.
+- Commit a cada feature testada. ~30 commits.
+- O que precisa de conta externa / chave paga / hardware / asset que eu não
+  tenho: **documentei, não fingi**.
 
 ---
 
-## Feito nesta sessão
+## ROADMAP — status final
 
-### Seção C — assistente mais capaz  ✅ (menos notícias)
+| Seção | Status |
+|---|---|
+| **A. Módulos de estudo holográficos** | ✅ (menos anatomia — precisa de assets glTF) |
+| **B. Interação de mão** | ✅ completa |
+| **C. Assistente mais capaz** | ✅ completa |
+| **D. HUD no cérebro** | ✅ completa (menos temperatura CPU/GPU — precisa de libs admin) |
+| **E. Câmera / visão** | ✅ parcial (gestos + QR + presença; falta OCR de texto e face-recognition) |
+| **F. Plataforma / infra** | ✅ parcial (perfis, instalador, painel de config, Piper TTS, fila de pedidos; falta assinar o .exe e modelo LLM maior) |
 
-- **Lembretes e timers** (`voice/reminders.py`, `9e32b69`+)
-  - "me lembra de X em 20 minutos" / "às 15h" / "amanhã às 9" / "uma hora e meia"
-  - "timer de 10 minutos", "meus lembretes", "cancela os lembretes"
-  - persiste em `voice/reminders.json`; thread no daemon fala quando vence
-  - testado: parsing de ~15 formas de tempo, ciclo add→due→fala
-- **Clima** (`voice/weather.py`) — Open-Meteo, sem chave
-  - "como está o tempo", "vai chover amanhã", "temperatura em São Paulo"
-  - localização por `[location].city` do config ou pelo IP
-  - testado ao vivo: Blumenau, SP, Recife, Londres, Florianópolis
-- **Contas + conversão** (`voice/calc.py`)
-  - "15 por cento de 240", "342 vezes 12", "raiz de 169", "dobro/metade de X"
-  - comprimento / massa / temperatura (C-F-K) / câmbio (frankfurter.dev + er-api)
-  - direção da conversão pela posição do número na frase
-  - testado ao vivo com câmbio real
-- **Briefing na chegada** — depois da saudação: "São 15 e 20. 23 graus,
-  nublado. 1 lembrete pra hoje, senhor." (`[arrival].briefing`)
-- **Ditado direcionado** — "escreve no bloco de notas: comprar leite"
-  abre o app e cola o texto
+### A — `ui/models.js` (11 modelos novos)
+círculo trigonométrico animado · plotter de função ("plota x^2-4") ·
+sólido + fórmula · diagrama de corpo livre · lançamento oblíquo (bola animada) ·
+plano inclinado · moléculas H₂O/CH₄/benzeno (ball-and-stick) · tabela periódica ·
+célula animal. `skills._clean_expr()` = fala → expressão matemática.
 
-- **Notícias** (`voice/news.py`) — RSS do Google Notícias, sem chave.
-  "quais as notícias", "notícias de tecnologia", "notícias sobre X".
+### B — `ui/holograms.js`
+travar/soltar (fica verde) · duplicar ("copia isso") · explodir (afasta as peças) ·
+rotação de uma mão só (✌️ pela inclinação da palma) · desenhar no ar (modo desenho + ☝️) ·
+medir (modo medida + 2 pinças → distância).
 
-Seção C: **completa**.
+### C — módulos novos em `voice/`
+- **reminders.py** — lembretes/timers persistentes + **recorrentes** ("todo dia às 8")
+- **weather.py** — Open-Meteo (sem chave)
+- **calc.py** — porcentagem, aritmética, conversão (comprimento/massa/temp/**câmbio**/**cripto**)
+- **news.py** — RSS do Google Notícias
+- briefing na chegada · ditado direcionado ("escreve no bloco de notas: ...")
 
-### Seção D — HUD do cérebro  ✅
+### D — `voice/hud.py` + `ui/hud.js`
+relógio + data + clima · **próximos lembretes** · gauges CPU/RAM/GPU (psutil+pynvml) ·
+música tocando com barra de progresso (winsdk) · feed de notificações ·
+estados visuais (PENSANDO / PESQUISANDO / ERRO).
 
-`voice/hud.py` (thread) alimenta o `state.json`; `ui/hud.js` + `index.html` renderizam:
-- **Relógio** grande + data + **clima** curto (top-right)
-- **Gauges neon** CPU / RAM / GPU (psutil + pynvml) à esquerda, com %
-- **Música tocando** (sessão de mídia do Windows via winsdk) — faixa,
-  artista, barra de progresso
-- **Feed** de notificações (últimas 3) embaixo à direita — lembretes, erros
-- **Estados visuais**: #status muda de cor/texto — PENSANDO / PESQUISANDO / ERRO
-- Testado visualmente (screenshot): tudo renderizando com dados reais.
+### E — `ui/vision.js` + `voice/media.py`
+gestos de mídia fora do modo holograma · leitura de QR (BarcodeDetector nativo) ·
+modo presença leve (`[camera] auto_return_seconds`).
 
-Pendente D: temperatura da CPU/GPU (precisa de libs com admin no Windows — deixei fora).
-
-### Seção A — modelos de estudo holográficos  ✅ (menos anatomia)
-
-`ui/models.js` — 11 modelos novos, todos testados (build + animação):
-círculo trigonométrico animado, plotter de função, sólido+fórmula,
-diagrama de corpo livre, lançamento oblíquo, plano inclinado, moléculas
-(água/metano/benzeno), tabela periódica, célula animal.
-`skills._clean_expr()` traduz fala → expressão matemática.
-
-Pendente A: **anatomia** (esqueleto/coração/cérebro) — precisa de assets glTF
-que eu não tenho; procedural não fica bom o suficiente.
-
-### Seção B — interação de mão  ✅
-
-`ui/holograms.js`: travar/soltar, duplicar, explodir, rotação de uma mão só
-(✌️ roll), desenhar no ar (modo desenho + ☝️), medir (modo medida + 2 pinças).
-
-### Seção E — câmera / visão  ✅ (parcial)
-
-`ui/vision.js`: gestos de mídia fora do modo holograma (varrer = ⏮⏭, punho = ⏯,
-palma = volume), leitura de QR (BarcodeDetector nativo), modo presença leve
-(`[camera] auto_return_seconds`). `app.py` Api.media/scan_result; daemon `_scan_loop`.
-
-Pendente E: OCR de texto (bundle tesseract ~13 MB) e reconhecimento facial
-(face-api.js ~6 MB) — decisões de tamanho/escopo pro Arthur.
-
-### Seção F — plataforma  ✅ (parcial)
-
-- **Painel de configurações** no app (⚙ / "abre as configurações") — 16 campos,
-  salva no config.toml e reinicia. `ui/settings.js`, `app.py` get_config/set_config.
-- **Piper TTS** — voz neural local pt-BR (`pt_BR-faber-medium`), MUITO melhor que
-  a SAPI Maria. `[tts] engine="piper"`, fallback SAPI automático. `voice/piper/` (~98 MB).
-- **Fila de pedidos** — "quais meus pedidos" / "processa meus pedidos".
-
-Pendente F: assinar o instalador (cert pago) · modelo LLM maior (precisa de RAM/GPU).
-
----
-
-## Resumo do ROADMAP
-
-Feito: **C inteira**, **D inteira**, **A** (menos anatomia glTF), **B inteira**,
-**E** (gestos + QR + presença; falta OCR/face), **F** (painel + Piper + pedidos;
-falta code-sign + modelo maior). Tudo commitado, daemon rodando com tudo ligado.
+### F
+- **Sistema de perfis** (feito antes) — só persona, não trava funções
+- **Instalador gráfico** (feito antes) — `installer/`, sem terminal
+- **Painel de configurações** no app — ⚙ / "abre as configurações" — 17 campos,
+  salva no config.toml e reinicia (`ui/settings.js`, `app.py`)
+- **Piper TTS** — voz neural pt-BR `pt_BR-faber-medium` (muito melhor que a SAPI).
+  `[tts] engine="piper"`, fallback automático. `voice/piper/` (~98 MB, gitignored)
+- **Fila de pedidos** — "quais meus pedidos" / "processa meus pedidos"
 
 ---
 
 ## Ideias novas (além do roadmap) — aplicadas
 
-- **Memória de conversa** — Brain guarda as últimas 3 trocas; "e a população dela?"
-  funciona. "repete" / "esquece" (limpa contexto).
-- **"Que música é essa?"** + "do começo" / "adianta 30 segundos" (`voice/media.py`,
-  sessão de mídia do Windows).
-- **Fatos da Wikipédia** (`voice/wiki.py`) — "quem foi X", "o que é Y" — mais
-  confiável que o qwen 2b.
-- **Comandos de desktop** — "tira um print", área de transferência (ler/escrever),
-  janelas (minimizar tudo, maximizar, jogar pra outra tela, dividir).
-- **Cripto** — "quanto tá o bitcoin/ethereum/..." (CoinGecko, sem chave).
-- **Contagem de dias** — "quantos dias faltam pro natal / até 25 de dezembro".
-- **Velocidade da fala** — "fala mais devagar/rápido" (na hora).
-- **Pontuação ditada** — "vírgula", "ponto final", "nova linha" etc. no "digita:".
-- **Lembretes recorrentes** — "todo dia às 8", "toda segunda às 9", "de hora em hora".
-- **Notas** — "quais minhas notas", "apaga minhas notas".
-- **HUD** — 3 próximos lembretes sob o relógio.
-- **Piper TTS** — voz neural pt-BR (roadmap F, mas vale destacar: mudança grande
-  na qualidade da voz).
+- **Memória de conversa** — as últimas 3 trocas; "e a população dela?" funciona.
+  "repete" / "esquece".
+- **"Que música é essa?"** + "do começo" / "adianta 30 segundos" (`voice/media.py`)
+- **Fatos da Wikipédia** (`voice/wiki.py`) — "quem foi X", "o que é Y"
+- **Comandos de desktop** — print, área de transferência (ler/escrever), janelas
+  (minimizar tudo, maximizar, jogar pra outra tela, dividir)
+- **Cripto** — "quanto tá o bitcoin" (CoinGecko)
+- **Contagem de dias** — "quantos dias faltam pro natal"
+- **Velocidade da fala** — "fala mais devagar/rápido"
+- **Pontuação ditada** — "vírgula", "ponto final", "nova linha" no "digita:"
+- **Encadear 2 comandos** — "abre a steam e o spotify"
+- **Diálogo aberto (`Result.await_reply`)** + **quiz de estudo por voz** —
+  "me faz uma pergunta sobre a segunda guerra" → responde falando → o LLM corrige
+- **Roteador LLM expandido** — traduz frases soltas pra TODOS os recursos novos
+
+---
+
+## O que ficou pendente (e por quê)
+
+| Item | Motivo |
+|---|---|
+| Anatomia (esqueleto/órgãos) | precisa de modelos glTF que eu não tenho; procedural não fica bom |
+| OCR de texto pela câmera | precisa bundlar tesseract.js + por.traineddata (~13 MB) — decisão de tamanho |
+| Reconhecimento facial (você vs outros) | precisa face-api.js + modelos (~6 MB) + enrollment |
+| Temperatura de CPU/GPU no HUD | precisa de lib com admin no Windows (LibreHardwareMonitor) |
+| Assinar o `JarvisSetup.exe` | certificado de code-signing é pago e exige verificação de identidade |
+| Modelo LLM maior (qwen 7b/14b) | só trocar `[assistant] model`, mas precisa de RAM/GPU que o PC não tem |
+
+---
+
+## Pra você quando voltar
+
+1. **Diga "Jarvis, para o ciclo"** (ou qualquer coisa) pra eu encerrar.
+2. A **voz mudou** — agora é o Piper (neural). Se preferir a antiga:
+   config → "Motor de voz" → sapi.
+3. O **pacote do instalador** (`installer/pacote/Jarvis/`) foi **regenerado**
+   com tudo isso + Piper. O que você mandou pro seu pai ANTES não tem nada
+   disso — se quiser, sobe a pasta nova no Drive.
+4. Tudo commitado no git local. `git log` conta a história. `ROADMAP.md` tem
+   os checkboxes. Nada foi enviado pra lugar nenhum.

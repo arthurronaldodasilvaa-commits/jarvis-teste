@@ -606,6 +606,22 @@ _HELP = [
     (r"clim\w*|tempo (hoje|agora|la fora)|previs\w* do tempo|vai chov\w*|"
      r"quantos graus|temperatura (hoje|agora|la fora)",
      "Diga \"Jarvis, como está o tempo?\" — eu falo a temperatura e a previsão de hoje, senhor."),
+    (r"pesquis\w*|busc\w*|fato|sab\w* (mais )?sobre|informacao sobre|"
+     r"quem foi|o que e|significado",
+     "Pergunte \"Jarvis, quem foi\" ou \"o que é\" e o assunto, senhor — eu busco na Wikipédia."),
+    (r"estud\w*|quiz|flashcard|me test\w*|me pergunt\w*|revis\w* materia",
+     "Diga \"Jarvis, me faz uma pergunta sobre\" e a matéria, senhor. Responda em voz alta e "
+     "eu corrijo. \"Para\" encerra."),
+    (r"que (musica|som) (ta|esta) tocando|nome da musica|calcul\w*|conta de|"
+     r"converter?|quantos? (quilo|metro|milha)|cotacao|bitcoin|dolar",
+     "Pergunte direto, senhor: \"que música é essa?\", \"quanto é 15% de 200?\", "
+     "\"quantos km são 5 milhas?\", \"quanto tá o dólar?\"."),
+    (r"print|captura de tela|area de transferencia|janela|monitor|"
+     r"minimiz\w*|maximiz\w*",
+     "\"Jarvis, tira um print\", \"minimiza tudo\", \"maximiza a janela\", "
+     "\"o que tem na área de transferência\", senhor."),
+    (r"junt\w* (dois|2) comando|(dois|2) coisas de uma vez|(um comando|tudo) de uma vez",
+     "Pode juntar com \"e\", senhor: \"Jarvis, abre o navegador e pesquisa gatos\"."),
 ]
 
 
