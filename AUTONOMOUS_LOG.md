@@ -93,8 +93,30 @@ Pendente F: assinar o instalador (cert pago) · modelo LLM maior (precisa de RAM
 
 ---
 
-## Resumo até agora
+## Resumo do ROADMAP
 
 Feito: **C inteira**, **D inteira**, **A** (menos anatomia glTF), **B inteira**,
 **E** (gestos + QR + presença; falta OCR/face), **F** (painel + Piper + pedidos;
 falta code-sign + modelo maior). Tudo commitado, daemon rodando com tudo ligado.
+
+---
+
+## Ideias novas (além do roadmap) — aplicadas
+
+- **Memória de conversa** — Brain guarda as últimas 3 trocas; "e a população dela?"
+  funciona. "repete" / "esquece" (limpa contexto).
+- **"Que música é essa?"** + "do começo" / "adianta 30 segundos" (`voice/media.py`,
+  sessão de mídia do Windows).
+- **Fatos da Wikipédia** (`voice/wiki.py`) — "quem foi X", "o que é Y" — mais
+  confiável que o qwen 2b.
+- **Comandos de desktop** — "tira um print", área de transferência (ler/escrever),
+  janelas (minimizar tudo, maximizar, jogar pra outra tela, dividir).
+- **Cripto** — "quanto tá o bitcoin/ethereum/..." (CoinGecko, sem chave).
+- **Contagem de dias** — "quantos dias faltam pro natal / até 25 de dezembro".
+- **Velocidade da fala** — "fala mais devagar/rápido" (na hora).
+- **Pontuação ditada** — "vírgula", "ponto final", "nova linha" etc. no "digita:".
+- **Lembretes recorrentes** — "todo dia às 8", "toda segunda às 9", "de hora em hora".
+- **Notas** — "quais minhas notas", "apaga minhas notas".
+- **HUD** — 3 próximos lembretes sob o relógio.
+- **Piper TTS** — voz neural pt-BR (roadmap F, mas vale destacar: mudança grande
+  na qualidade da voz).

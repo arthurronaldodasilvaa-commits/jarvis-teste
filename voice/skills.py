@@ -582,6 +582,28 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         if "cancel" not in t:
             return Result(speak="Às ordens, senhor.", stop=True)
 
+    # --- encadear 2 comandos: "abre o navegador e pesquisa X" ---
+    if _depth == 0 and brain is not None:
+        parts = re.split(r"\s+(?:e\s+depois|e\s+tambem|e\s+ai|e|depois|,\s*e|,\s*depois)\s+",
+                         raw.strip(), maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) == 2 and all(2 <= len(p.split()) <= 10 for p in parts) \
+                and not re.search(r"\b(por ?que|porque|quando|seno|cosseno|entao)\b", t) \
+                and not re.match(r"^(anota|digita|escrev|lembr|pedido|nota|me lembr)", t):
+            r1 = dispatch(parts[0], cfg, speak, brain, _depth=1)
+            r2 = dispatch(parts[1], cfg, speak, brain, _depth=1)
+            if r2.to_llm and not r1.to_llm:
+                # 2ª parte sem verbo? tenta com o verbo da 1ª ("cria um cubo E uma esfera")
+                vb = parts[0].split()[0]
+                if re.match(r"(?i)^(cria|faz|abre|mostra|poe|toca|coloca|liga|plota)", vb):
+                    r2b = dispatch(f"{vb} {parts[1]}", cfg, speak, brain, _depth=1)
+                    if not r2b.to_llm:
+                        r2 = r2b
+            if not r1.to_llm and not r2.to_llm and not r1.confirm and not r2.confirm \
+                    and not r1.fallback and not r2.fallback:
+                if r1.speak:
+                    speak(r1.speak)
+                return Result(speak=(r2.speak or r1.speak or ""))
+
     # --- velocidade da fala ---
     if re.search(r"\bfal\w*\s+mais\s+(devagar|lento|calmo|pausad)|\bmais\s+devagar\b|"
                  r"\bfal\w*\s+mais\s+(rapido|ligeiro|depressa)|\bmais\s+rapido\b", t):
