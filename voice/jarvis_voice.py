@@ -166,46 +166,6 @@ def resolve_device(match: str):
 
 
 # --------------------------------------------------------------------------
-class ClapDetector:
-    def __init__(self, cfg: dict):
-        a = cfg["audio"]
-        self.on = bool(a.get("clap_enabled", True))
-        self.sens = float(a["clap_sensitivity"])
-        self.min_level = float(a["clap_min_level"])
-        self.window = float(a["clap_window_seconds"])
-        self.min_gap = float(a["clap_min_gap_seconds"])
-        self.need = int(a["claps_required"])
-        self.floor: deque[float] = deque(maxlen=40)
-        self.claps: deque[float] = deque()
-        self.armed = True
-
-    def feed(self, block: np.ndarray) -> bool:
-        if not self.on:
-            return False
-        lvl = rms(block)
-        fl = float(np.median(self.floor)) if self.floor else 0.01
-        if lvl <= max(self.min_level, fl * self.sens):
-            self.floor.append(lvl)
-            self.armed = True
-        elif self.armed:
-            now = time.monotonic()
-            self.armed = False
-            if not (self.claps and now - self.claps[-1] < self.min_gap):
-                self.claps.append(now)
-        cutoff = time.monotonic() - self.window
-        while self.claps and self.claps[0] < cutoff:
-            self.claps.popleft()
-        if len(self.claps) >= self.need:
-            self.claps.clear()
-            return True
-        return False
-
-    def reset(self):
-        self.claps.clear()
-        self.floor.clear()
-
-
-# --------------------------------------------------------------------------
 class Ears:
     """STT em 2 estágios: um modelo minúsculo filtra TODA fala; o modelo bom
     só roda quando o pequeno viu 'jarvis' ou a frase de chegada."""
@@ -519,31 +479,31 @@ def open_jarvis_app(cfg: dict, *, focus_after: float = 0.0) -> None:
 
 
 def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
-    """Frase de chegada: só saúda e abre o app em primeiro plano."""
+    """Frase de chegada, na ordem:
+       1) toca a música   2) diz a saudação   3) traz o app pra frente."""
     log(f"** CHEGADA ({reason}) **")
-    mouth.say(cfg.get("arrival", {}).get("greeting") or "Bem-vindo, senhor!")
-    for action in cfg["arrival"].get("sequence", []):   # normalmente vazio
-        _run_action(action, cfg)
-        time.sleep(0.4)
-    if cfg.get("app", {}).get("open_on_arrival", True):
-        open_jarvis_app(cfg, focus_after=1.5)
+    arr = cfg.get("arrival", {})
 
-
-def play_clap_song(cfg: dict) -> None:
-    """2 palmas 2x (4 palmas) -> toca a música configurada."""
-    import spotify
-
-    a = cfg.get("audio", {})
-    uri = a.get("clap_spotify", "")
+    # 1) música (antes de tudo)
     try:
+        import spotify
+        uri = arr.get("spotify", "")
         if uri:
             spotify.play_uri(uri, cfg)
-            log(f"** {a.get('claps_required', 4)} palmas -> {uri} **")
-        elif a.get("clap_spotify_search"):
-            ok, _ = spotify.play(a["clap_spotify_search"], cfg)
-            log(f"** palmas -> busca '{a['clap_spotify_search']}' ({ok}) **")
+            log(f"  música: {uri}")
+        elif arr.get("spotify_search"):
+            spotify.play(arr["spotify_search"], cfg)
     except Exception as exc:  # noqa: BLE001
-        log(f"erro ao tocar música das palmas: {exc}")
+        log(f"  erro na música da chegada: {exc}")
+
+    time.sleep(float(arr.get("greeting_delay", 1.2)))   # deixa a música começar
+
+    # 2) saudação
+    mouth.say(arr.get("greeting") or "Bem-vindo, senhor!")
+
+    # 3) app em primeiro plano
+    if cfg.get("app", {}).get("open_on_arrival", True):
+        open_jarvis_app(cfg, focus_after=1.0)
 
 
 def _run_action(action: str, cfg: dict) -> None:
@@ -611,7 +571,6 @@ def main() -> None:
     brain = Brain(cfg)
     mic = Mic(device)
     mic.start()
-    clap = ClapDetector(cfg)
     skills.build_indexes()
     brain.warmup()
     brain.start_keepwarm()
@@ -631,7 +590,7 @@ def main() -> None:
 
     if cfg["tts"].get("ready_line"):
         mouth.say(cfg["tts"]["ready_line"])
-    log(f'pronto — frase de chegada, "{wake_word} ..." ou 2 palmas')
+    log(f'pronto — diga a frase de chegada ou "{wake_word} ..."')
 
     st = {"last_arrival": 0.0, "pending": None}   # pending = (pergunta, do, deadline)
 
@@ -645,7 +604,7 @@ def main() -> None:
                 log("confirmação expirou"); st["pending"] = None
             continue
         try:
-            _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg,
+            _handle_block(block, ring, mic, ears, mouth, brain, cfg,
                           wake_word, speech_thr, cooldown, st)
         except Exception as exc:  # noqa: BLE001
             log(f"erro no loop (ignorado): {exc!r}")
@@ -656,14 +615,14 @@ def main() -> None:
             ring.clear()
 
 
-def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
+def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
                   speech_thr, cooldown, st) -> None:
     if mouth.speaking:
-        ring.clear(); clap.reset(); return
+        ring.clear(); return
 
     # escuta pausada (botão do app ou Ctrl+Alt+J) -> ignora tudo
     if read_control().get("paused", False):
-        mic.drain(); ring.clear(); clap.reset(); st["pending"] = None
+        mic.drain(); ring.clear(); st["pending"] = None
         return
 
     # confirmação pendente expirou sem resposta?
@@ -673,12 +632,6 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
         st["pending"] = None
 
     ring.append(block)
-
-    if clap.feed(block):
-        if time.monotonic() - st.get("last_clap", 0.0) > 12:
-            play_clap_song(cfg)
-            st["last_clap"] = time.monotonic()
-        mic.drain(); ring.clear(); return
 
     if rms(block) <= speech_thr:
         return
