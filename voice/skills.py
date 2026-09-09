@@ -34,6 +34,7 @@ class Result:
     confirm: tuple | None = None          # (pergunta:str, do:callable-> str|None)
     to_llm: str = ""                      # se preenchido, o loop manda pro LLM
     stop: bool = False
+    fallback: bool = False                # True = não achou nada certo (só chutou uma busca web)
 
 
 # --------------------------------------------------------------------------
@@ -134,8 +135,12 @@ def _open_app_value(value: str) -> None:
         os.startfile(value)  # noqa: S606
 
 
-def open_target(spoken: str, cfg: dict, *, prefer_game: bool = False) -> Result:
+def open_target(spoken: str, cfg: dict, *, prefer_game: bool = False,
+                web_fallback: bool = True) -> Result:
     apps = {norm(k): v for k, v in cfg.get("apps", {}).items()}
+
+    spoken = re.sub(r"\s+(?:pra\s+mim|pro\s+senhor|por\s+favor|ai|agora|de\s+novo)$", "",
+                    spoken.strip()).strip()
 
     game = _fuzzy_pick(spoken, _games)
     if prefer_game and game:
@@ -156,8 +161,10 @@ def open_target(spoken: str, cfg: dict, *, prefer_game: bool = False) -> Result:
         os.startfile(lnk[1])  # noqa: S606
         return Result(speak=f"Abrindo {lnk[0]}, senhor.")
 
-    webbrowser.open("https://www.google.com/search?q=" + quote_plus(spoken))
-    return Result(speak=f"Não achei {spoken} instalado, senhor. Procurei na web.")
+    if web_fallback:
+        webbrowser.open("https://www.google.com/search?q=" + quote_plus(spoken))
+        return Result(speak=f"Não achei {spoken} instalado, senhor. Procurei na web.", fallback=True)
+    return Result(fallback=True)   # nada aberto — quem chamou decide (tenta rotear antes)
 
 
 # --------------------------------------------------------------------------
@@ -222,7 +229,7 @@ STOP_WORDS = ("para", "parar", "chega", "obrigado", "obrigada", "valeu",
               "tchau", "pode ir", "encerra", "silencio", "cala a boca", "cancela")
 
 
-def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
+def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     t = norm(raw)
     dz = cfg.get("danger", {})
 
@@ -381,7 +388,16 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
                   r"quero\s+ouvir|quero\s+escutar|poe\s+pra\s+tocar)\s+"
                   r"(?:a\s+musica\s+|a\s+|o\s+|umas?\s+)?(.+)", t)
     if m:
-        song = re.sub(r"\s+(?:no|pelo|pela|la\s+no)\s+spotify$", "", m.group(1)).strip()
+        song = m.group(1)
+        song = re.sub(r"^(?:pra|pro|para)\s+(?:tocar|ouvir|escutar|mim)\s+", "", song)
+        song = re.sub(r"^(?:ver|ouvir|tocar|escutar|botar|colocar|por)\s+", "", song)
+        song = re.sub(r"^(?:aquele|aquela|esse|essa|uns|umas)\s+(?:d[aeo]s?\s+)?", "", song)
+        song = re.sub(r"^(?:um|uns|uma|umas)\s+(?:som|sonzinho|musica|musiquinha|hit|classico|faixa)\s+"
+                      r"(?:d[aeo]s?\s+)?", "", song)
+        song = re.sub(r"^(?:aquele|aquela|essa|esse|a|o)\s+(?:som|musica|hit|classico|faixa)\s+"
+                      r"(?:d[aeo]s?\s+)?", "", song)
+        song = re.sub(r"\s+(?:no|pelo|pela|la\s+no)\s+spotify$", "", song)
+        song = re.sub(r"\s+(?:pra\s+mim|por\s+favor|ai|agora)$", "", song).strip()
         if song:
             ok, fala = spotify.play(song, cfg)
             return Result(speak=fala)
@@ -404,17 +420,28 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
             return Result(speak="A digitação está desativada, senhor.")
         return type_verbatim(m.group(1).strip())
 
+    _deferred = None   # "abrir X" que não achou nada — tenta rotear antes de chutar busca
+    _strip_tail = lambda s: re.sub(r"\s+(?:pra\s+mim|pro\s+senhor|por\s+favor|ai|agora|de\s+novo)$",
+                                   "", s.strip()).strip()
+
     # --- abrir jogo ---
     m = re.search(r"\b(?:jog\w+|abr\w+\s+o\s+jogo|inicia\w*\s+o\s+jogo|roda\w*\s+o\s+jogo|bota\w*\s+o\s+jogo)\b\s*(.*)$", t)
     if m:
-        alvo = m.group(1).strip() or re.sub(r"\b(quero|vamos|bora|joga\w*)\b", "", t).strip()
-        return open_target(alvo, cfg, prefer_game=True)
+        alvo = _strip_tail(m.group(1).strip() or re.sub(r"\b(quero|vamos|bora|joga\w*)\b", "", t).strip())
+        r = open_target(alvo, cfg, prefer_game=True, web_fallback=False)
+        if not r.fallback:
+            return r
+        _deferred = alvo
 
     # --- abrir app / programa / site ---
     m = re.search(r"\b(?:abr\w+|abre|inicia\w*|liga\w*|roda\w*|executa\w*|chama\w*|poe|abrir)\b\s+"
                   r"(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+|meu\s+|minha\s+)?(.+)", t)
     if m:
-        return open_target(m.group(1).strip(), cfg)
+        alvo = _strip_tail(m.group(1).strip())
+        r = open_target(alvo, cfg, web_fallback=False)
+        if not r.fallback:
+            return r
+        _deferred = _deferred or alvo
 
     # --- anotar / lembrete ---
     m = re.search(r"^(?:anota\w*|lembra\w*|salva\w*|apont\w*|toma\s+nota)"
@@ -430,5 +457,26 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         _append("PEDIDOS.md", m.group(1).strip())
         return Result(speak="Registrei o pedido, senhor. Passo ao desenvolvedor.")
 
-    # --- nada bateu: manda pro LLM ---
+    # --- nada bateu: o LLM tenta traduzir o pedido num COMANDO ---
+    _is_question = re.search(r"\b(por ?que|porque|qual|quais|quem|quanto\s+(custa|vale)|"
+                             r"o\s+que\s+(e|significa|quer dizer)|me\s+(explica|conta|fala\s+sobre)|"
+                             r"voce\s+(sabe|acha|pode\s+me\s+dizer))\b|\?", t)
+    if _depth == 0 and brain is not None and hasattr(brain, "route") and not _is_question:
+        try:
+            routed = brain.route(raw)
+        except Exception as exc:  # noqa: BLE001
+            log(f"route falhou: {exc}"); routed = ""
+        if routed and norm(routed) != t:
+            log(f"  roteado: {raw!r} -> {routed!r}")
+            r2 = dispatch(routed, cfg, speak, brain, _depth=1)
+            if not r2.to_llm and not r2.fallback:   # achou um comando de verdade
+                return r2
+            log("  (roteamento não deu num comando claro — vai pro chat)")
+
+    # --- "abrir X" que não achou nada e o roteador não resolveu: chuta busca na web ---
+    if _deferred:
+        webbrowser.open("https://www.google.com/search?q=" + quote_plus(_deferred))
+        return Result(speak=f"Não achei {_deferred} instalado, senhor. Procurei na web.", fallback=True)
+
+    # --- é conversa/pergunta mesmo: manda pro chat ---
     return Result(to_llm=raw.strip())

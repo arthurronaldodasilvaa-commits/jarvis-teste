@@ -57,6 +57,75 @@ NEGATE = ("nao", "não", "negativo", "cancela", "cancelar", "para", "parar", "de
           "deixa pra la", "esquece", "melhor nao", "nao quero", "para tudo", "aborta")
 CONFIRM_TIMEOUT = 18.0
 
+# O roteador escolhe um 'cmd' desta tabela; a frase canônica é montada aqui.
+_ROUTER_SHAPES = {"cubo", "esfera", "cone", "cilindro", "piramide", "toro", "octaedro"}
+_ROUTER_TEMPLATES = {
+    "rota": "como chegar em {arg}",
+    "buscar_local": "procura {arg} no mapa",
+    "abrir": "abrir {arg}",
+    "jogo": "jogar {arg}",
+    "musica": "tocar {arg}",
+    "google": "pesquisar no google {arg}",
+    "forma": "cria um {arg}",
+    "triangulo": "cria um triangulo retangulo",
+    "tabela_angulos": "mostra a tabela de angulos notaveis",
+    "tabela_relacoes": "mostra as relacoes trigonometricas",
+    "limpar": "limpar tudo",
+    "camera_on": "ativar camera",
+    "camera_off": "desativar camera",
+    "cerebro": "volta pro cerebro",
+    "hora": "que horas sao",
+    "data": "que dia e hoje",
+    "volume_up": "aumentar volume",
+    "volume_down": "abaixar volume",
+    "mudo": "mudo",
+    "midia_next": "proxima musica",
+    "midia_pause": "pausar musica",
+    "midia_play": "tocar musica",
+    "bloquear": "bloquear a tela",
+    "suspender": "suspender",
+    "desligar": "desligar o computador",
+    "reiniciar": "reiniciar",
+    "escrever": "escrever um texto sobre {arg}",
+    "digitar": "digitar {arg}",
+    "anotar": "anota {arg}",
+    "modo_cinema": "modo cinema",
+    "fechar": "fechar {arg}",
+}
+
+_ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
+Responda SÓ com um JSON de uma linha: {"cmd": "<nome>", "arg": "<texto>"}
+Se não for um comando (pergunta, papo, dúvida): {"cmd": "conversa"}
+
+cmd possíveis:
+ rota (arg=lugar)            buscar_local (arg=lugar/tipo)   abrir (arg=app/site)
+ jogo (arg=nome)             musica (arg=nome)               google (arg=termo)
+ forma (arg= cubo|esfera|cone|cilindro|piramide|toro|octaedro)
+ triangulo   tabela_angulos   tabela_relacoes   limpar
+ camera_on   camera_off   cerebro   hora   data
+ volume_up   volume_down   mudo   midia_next   midia_pause   midia_play
+ bloquear   suspender   desligar   reiniciar
+ escrever (arg=assunto)   digitar (arg=texto)   anotar (arg=nota)
+ modo_cinema   fechar (arg=app)
+
+Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
+
+Obs: 'jogo' é videogame (Steam). 'forma' é um objeto 3D na tela. 'musica' toca no Spotify.
+
+Exemplos:
+"quero ir pra padaria" -> {"cmd":"rota","arg":"padaria"}
+"tem restaurante bom aqui perto?" -> {"cmd":"buscar_local","arg":"restaurante perto de mim"}
+"bora ouvir um som do queen" -> {"cmd":"musica","arg":"queen"}
+"me joga uma esfera aí" -> {"cmd":"forma","arg":"esfera"}
+"joga um cubo na tela" -> {"cmd":"forma","arg":"cubo"}
+"faz um cone" -> {"cmd":"forma","arg":"cone"}
+"quero jogar palworld" -> {"cmd":"jogo","arg":"palworld"}
+"cadê meu spotify" -> {"cmd":"abrir","arg":"spotify"}
+"tá calor, sobe o som" -> {"cmd":"volume_up"}
+"apaga essas formas" -> {"cmd":"limpar"}
+"qual a capital da França" -> {"cmd":"conversa"}
+"me conta uma piada" -> {"cmd":"conversa"}"""
+
 
 def _is_affirm(n: str) -> bool:
     toks = n.split()
@@ -359,6 +428,35 @@ class Brain:
         except Exception as exc:  # noqa: BLE001
             log(f"erro LLM: {exc}")
             return "Desculpe, senhor, meu raciocínio não respondeu agora."
+
+    def route(self, text: str) -> str:
+        """Classifica o pedido e devolve a frase de COMANDO canônica.
+        Retorna "" se for conversa/pergunta."""
+        try:
+            out = self._post(
+                [{"role": "system", "content": _ROUTER_PROMPT},
+                 {"role": "user", "content": text.strip()}],
+                48, temperature=0.0,
+            ) or ""
+        except Exception as exc:  # noqa: BLE001
+            log(f"erro route: {exc}")
+            return ""
+        mc = re.search(r'"cmd"\s*:\s*"([a-z_]+)"', out)
+        if not mc:
+            return ""
+        cmd = mc.group(1)
+        tpl = _ROUTER_TEMPLATES.get(cmd)
+        if not tpl:
+            return ""     # conversa / cmd desconhecido
+        ma = re.search(r'"arg"\s*:\s*"([^"]*)"', out)
+        arg = (ma.group(1).strip() if ma else "")
+        if "{arg}" in tpl:
+            if not arg:
+                return ""
+            if cmd == "forma" and norm(arg) not in _ROUTER_SHAPES:
+                return ""   # não inventa forma
+            return tpl.format(arg=arg)
+        return tpl
 
     def compose(self, instruction: str, num_predict: int = 600) -> str:
         try:

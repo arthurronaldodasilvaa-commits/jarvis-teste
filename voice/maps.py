@@ -17,8 +17,9 @@ from urllib.parse import quote_plus
 _ROUTE = re.compile(
     r"\b(?:como\s+(?:eu\s+)?cheg\w+|rota\b|caminho\s+(?:ate|pra|para)|"
     r"dire[cç][oõ]es?\b|navega\w*|me\s+leva\w*|"
-    r"tra[cç]a\w*\s+(?:uma\s+)?rota|ir\s+(?:ate|pra|para)|viajar\s+(?:pra|para|ate))\b"
-    r"(?:\s+(?:o|a|à|ao|até|ate|pra|para|em|no|na|de|do|da))*\s+(.+)"
+    r"tra[cç]a\w*\s+(?:uma\s+)?rota|ir\s+(?:ate|pra|para)|viajar\s+(?:pra|para|ate)|"
+    r"(?:bora|vamos?|vamo|vou|to\s+indo)\s+(?:pro|pra|pras|pros|para|ao|a|ate))\b"
+    r"(?:\s+(?:o|a|à|ao|até|ate|pra|pro|pros|pras|para|em|no|na|nos|nas|de|do|da|dos|das))*\s+(.+)"
 )
 
 _PLACE = re.compile(
@@ -45,6 +46,7 @@ _VERB = re.compile(
 
 def _clean(q: str) -> str:
     q = _VERB.sub("", q).strip()
+    q = re.sub(r"^(?:o|a|ao|à|até|ate|pra|pro|pros|pras|para|em|no|na|nos|nas|de|do|da|dos|das)\s+", "", q)
     q = re.sub(r"\b(?:no|na|pelo|pela|l[aá]\s+no)\s+(?:google\s*)?(?:maps?|mapa)\b", "", q)
     q = re.sub(r"\bno\s+google\b", "", q)
     q = re.sub(r"\b(?:por\s+favor|pra\s+mim|agora|a[ií])\b", "", q)
