@@ -160,9 +160,16 @@ Arthur voltou, testou, e trouxe bugs + pediu pra aplicar ideias do kimi-cli.
 Testado: daemon sobe limpo com os 3 módulos; 23 comandos variados por dispatch,
 0 exceções. Onda 2/3 (MCP, task manager, IPC) ficaram documentadas, não feitas.
 
-**Pendente de deploy:** rebuild do `JarvisApp.exe` (UI) e do frozen
-`JarvisVoice.exe` (Onda 1) + regenerar `installer/pacote/`. Arthur vai fechar o
-app pra eu recompilar.
+**Deploy (feito, ~20h):**
+- `JarvisApp.exe` recompilado com os ajustes de UI — testado, abre OK.
+- Frozen `JarvisVoice.exe` recompilado com Onda 1 — testado standalone:
+  sobe com Whisper + Piper + `llm: provedor 'ollama'` + `hooks: 0 carregado`.
+- `installer/pacote/Jarvis/` atualizado no lugar (sem re-baixar os 540 MB de
+  modelos): novo daemon, novo app, hooks.toml, skills_extra.toml, profiles,
+  COMANDOS.md, KIMI_IDEAS.md. config do pacote ganhou `provider = "ollama"`,
+  mantém `active = "robson"` + Piper.
+- Falta só o Arthur baixar o `OllamaSetup.exe` pra dentro de `installer/` antes
+  de subir o pacote pro Drive (ver MONTAR_PACOTE.md) — nunca esteve no repo.
 
 ## Encerramento (09/09, ~18h46)
 
