@@ -8,6 +8,13 @@ user_name = "Arthur"
 address = "Senhor"
 wake_word = "jarvis"
 attention_reply = "Olá senhor, com o que posso ajudar?"
+knowledge = """
+O senhor é Arthur, sócio do Instituto CAM (empresa da família, do seu pai Robson Leandro).
+Ser sócio do instituto não é a sua profissão — o senhor ainda não tem uma profissão definida.
+O que o senhor quer ser: lutador e inventor.
+O Instituto CAM ("Corpo Ativa Mente") faz desenvolvimento humano e corporativo;
+o método é a tríade Consciência, Ação, Mudança.
+"""
 
 [arrival]
 enabled = true

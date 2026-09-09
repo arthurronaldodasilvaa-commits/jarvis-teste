@@ -77,7 +77,13 @@ Você é o Jarvis, assistente pessoal por voz. Fala com uma única pessoa, a que
 """
 # Base de conhecimento do perfil (empresa, contexto pessoal…). É anexada ao
 # system_prompt. Útil por perfil — cada cliente descreve aqui o próprio negócio.
-knowledge = ""
+knowledge = """
+O senhor é Arthur, sócio do Instituto CAM (empresa da família, do seu pai Robson Leandro).
+Ser sócio do instituto não é a sua profissão — o senhor ainda não tem uma profissão definida.
+O que o senhor quer ser: lutador e inventor.
+O Instituto CAM ("Corpo Ativa Mente") faz desenvolvimento humano e corporativo;
+o método é a tríade Consciência, Ação, Mudança.
+"""
 
 [tts]
 sapi_voice = "Microsoft Maria Desktop"
