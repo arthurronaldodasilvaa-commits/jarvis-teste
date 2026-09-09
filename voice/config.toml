@@ -46,7 +46,7 @@ command_model = "small"       # base | small | medium   (2ª passada, precisão)
 beam_size = 1                 # 1 = ganancioso/rápido; 5 = mais preciso/lento
 whisper_language = "pt"
 whisper_device = "cpu"        # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
-whisper_initial_prompt = "Assistente de voz em português. A pessoa chama o assistente de Jarvis. Acorda, criança, o papai chegou."
+whisper_initial_prompt = "Assistente de voz em português. A pessoa chama o assistente de Jarvis. Acorda, criança, o papai chegou. Ela estuda trigonometria: triângulo retângulo, tabela de ângulos notáveis, relações trigonométricas, seno, cosseno, tangente, hipotenusa, cateto."
 
 [assistant]
 address = "Senhor"

@@ -101,7 +101,10 @@ cmd possíveis:
  rota (arg=lugar)            buscar_local (arg=lugar/tipo)   abrir (arg=app/site)
  jogo (arg=nome)             musica (arg=nome)               google (arg=termo)
  forma (arg= cubo|esfera|cone|cilindro|piramide|toro|octaedro)
- triangulo   tabela_angulos   tabela_relacoes   limpar
+ triangulo (triângulo retângulo 3D)
+ tabela_angulos (tabela dos ângulos notáveis 30/45/60 — sen, cos, tan)
+ tabela_relacoes (relações trigonométricas — seno=CO/H, cosseno=CA/H, tangente=CO/CA)
+ limpar
  camera_on   camera_off   cerebro   hora   data
  volume_up   volume_down   mudo   midia_next   midia_pause   midia_play
  bloquear   suspender   desligar   reiniciar
@@ -119,6 +122,10 @@ Exemplos:
 "me joga uma esfera aí" -> {"cmd":"forma","arg":"esfera"}
 "joga um cubo na tela" -> {"cmd":"forma","arg":"cubo"}
 "faz um cone" -> {"cmd":"forma","arg":"cone"}
+"me vira um triângulo retângulo" -> {"cmd":"triangulo"}
+"quero ver a tabela de ângulos notáveis" -> {"cmd":"tabela_angulos"}
+"mostra as relações trigonométricas" -> {"cmd":"tabela_relacoes"}
+"me vê as relações do seno e cosseno" -> {"cmd":"tabela_relacoes"}
 "quero jogar palworld" -> {"cmd":"jogo","arg":"palworld"}
 "cadê meu spotify" -> {"cmd":"abrir","arg":"spotify"}
 "tá calor, sobe o som" -> {"cmd":"volume_up"}

@@ -255,20 +255,21 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if re.search(r"\b(ativa\w*|liga\w*|abr\w*|mostra\w*|inicia\w*)\s+(a\s+)?c[aâe]mera\b|"
                  r"\bmodo c[aâe]mera\b|\bvis[aã]o (da\s+)?c[aâe]mera\b|\bliga\w* a webcam\b", t):
         write_control(view="camera")
-        return Result(speak="")
+        return Result(speak="Câmera ativada, senhor.")
     if re.search(r"\b(desativa\w*|desliga\w*|fecha\w*|para\w*|tira|encerra\w*)\s+(a\s+)?c[aâe]mera\b|"
                  r"\bvolta\w*\s+(pro|para o|ao)\s+cerebro\b|\bmodo cerebro\b|\bfecha\w* a webcam\b", t):
         write_control(view="brain")
-        return Result(speak="")
+        return Result(speak="Voltando pro cérebro, senhor.")
 
     # --- criar / limpar hologramas na tela da câmera ---
     if re.search(r"\b(limpa\w*|apaga\w*|remove\w*|tira|deleta\w*|zera)\s+"
                  r"(tudo|os?\s+holograma\w*|as?\s+forma\w*|a\s+tela)\b", t):
         write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
-        return Result(speak="")
+        return Result(speak="Tela limpa, senhor.")
 
     _mk = ("cria\\w*|criar|faz\\w*|adiciona\\w*|gera\\w*|desenha\\w*|projeta\\w*|"
-           "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*")
+           "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*|quero\\w*|queria|"
+           "vira|me\\s+ve|manda\\w*|coloca\\w*|bota\\w*")
     _trig = None
     if re.search(rf"\b(?:{_mk})\b.*\btriangulo\s+retangulo\b|\btriangulo retangulo\b", t):
         _trig = "triangulo"
@@ -280,7 +281,10 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         _trig = "tabela_relacoes"
     if _trig:
         write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
-        return Result(speak="")
+        _nome = {"triangulo": "Triângulo retângulo",
+                 "tabela_angulos": "Tabela de ângulos notáveis",
+                 "tabela_relacoes": "Relações trigonométricas"}[_trig]
+        return Result(speak=f"{_nome} na tela, senhor.")
 
     m = re.search(rf"\b(?:{_mk})\b\s+(.+)", t)
     if m:
@@ -288,7 +292,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
             if shape:
                 write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
-                return Result(speak="")
+                return Result(speak=f"{w.capitalize()} na tela, senhor.")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
