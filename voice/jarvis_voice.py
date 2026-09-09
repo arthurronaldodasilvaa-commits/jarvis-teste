@@ -3,13 +3,18 @@
 """
 Jarvis Voz — escuta contínua + habilidades (skills.py).
 
-- FRASE DE CHEGADA ("bom dia neném o papai chegou") ou 2 palmas
-      -> saudação + abre Steam + toca Highway to Hell.
+- FRASE DE CHEGADA (config [arrival].phrase) -> toca a música, saúda e
+  dá o briefing (hora, clima, lembretes do dia).
 - "JARVIS" sozinho  -> "Olá senhor, com o que posso ajudar?" (só isso).
 - "JARVIS <comando/pergunta>" -> executa ou responde (te trata por "Senhor").
+  Se não bater em nenhum script, o LLM traduz o pedido num comando (roteador).
 - Qualquer outra fala -> silêncio.
 - Ações sensíveis (desligar, reiniciar, suspender, fechar app) pedem
   confirmação falada ("sim" / "confirma" / "pode").
+- Threads em paralelo: lembretes que vencem, HUD (state.json), leitura de
+  QR (scan.json) e reload do painel de config (reload.flag).
+
+Uso: pythonw jarvis_voice.py [--profile <nome>]   (roda oculto, sem console)
 """
 
 from __future__ import annotations
