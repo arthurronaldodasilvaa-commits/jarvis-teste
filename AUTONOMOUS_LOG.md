@@ -71,3 +71,30 @@ que eu não tenho; procedural não fica bom o suficiente.
 
 `ui/holograms.js`: travar/soltar, duplicar, explodir, rotação de uma mão só
 (✌️ roll), desenhar no ar (modo desenho + ☝️), medir (modo medida + 2 pinças).
+
+### Seção E — câmera / visão  ✅ (parcial)
+
+`ui/vision.js`: gestos de mídia fora do modo holograma (varrer = ⏮⏭, punho = ⏯,
+palma = volume), leitura de QR (BarcodeDetector nativo), modo presença leve
+(`[camera] auto_return_seconds`). `app.py` Api.media/scan_result; daemon `_scan_loop`.
+
+Pendente E: OCR de texto (bundle tesseract ~13 MB) e reconhecimento facial
+(face-api.js ~6 MB) — decisões de tamanho/escopo pro Arthur.
+
+### Seção F — plataforma  ✅ (parcial)
+
+- **Painel de configurações** no app (⚙ / "abre as configurações") — 16 campos,
+  salva no config.toml e reinicia. `ui/settings.js`, `app.py` get_config/set_config.
+- **Piper TTS** — voz neural local pt-BR (`pt_BR-faber-medium`), MUITO melhor que
+  a SAPI Maria. `[tts] engine="piper"`, fallback SAPI automático. `voice/piper/` (~98 MB).
+- **Fila de pedidos** — "quais meus pedidos" / "processa meus pedidos".
+
+Pendente F: assinar o instalador (cert pago) · modelo LLM maior (precisa de RAM/GPU).
+
+---
+
+## Resumo até agora
+
+Feito: **C inteira**, **D inteira**, **A** (menos anatomia glTF), **B inteira**,
+**E** (gestos + QR + presença; falta OCR/face), **F** (painel + Piper + pedidos;
+falta code-sign + modelo maior). Tudo commitado, daemon rodando com tudo ligado.
