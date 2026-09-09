@@ -93,6 +93,11 @@ open_on_arrival = true       # abre por último na rotina de chegada
 open_on_wake_word = true     # abre ao dizer só "jarvis"
 camera_match = "Brio"        # trecho do nome da webcam usada no "ativar câmera"
 
+[camera]
+motion_overlay = true        # false = câmera limpa, sem o rastro neon de movimento
+motion_fade = 0.10           # 0.04 = rastro longo/lento · 0.5 = some rápido
+motion_sensitivity = 1.0     # >1 acende com menos movimento
+
 [danger]
 # Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
 # Deixe 'false' para bloquear de vez.

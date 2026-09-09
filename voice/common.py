@@ -34,7 +34,7 @@ def write_app_state(**changes) -> None:
         pass
 
 
-_control_cache = {"data": {"paused": False}, "at": 0.0}
+_control_cache = {"data": {"paused": False, "view": "brain"}, "at": 0.0}
 _CONTROL_TTL = 0.25   # relê o arquivo no máx. 4x/s (é minúsculo)
 
 

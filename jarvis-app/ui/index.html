@@ -30,9 +30,12 @@
   #status { bottom: 22px; left: 26px; }
   #hint   { bottom: 22px; right: 26px; opacity: 0.35; letter-spacing: 2px; }
 
-  /* botão liga/pausa a escuta do Jarvis */
-  #power {
+  /* barra de botões embaixo */
+  #controls {
     position: fixed; z-index: 4; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; gap: 12px;
+  }
+  #controls > div {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 18px 9px 14px; cursor: pointer; user-select: none;
     border: 1px solid var(--neon-dim); border-radius: 999px;
@@ -41,13 +44,17 @@
     text-shadow: 0 0 8px var(--neon);
     transition: border-color .2s, background .2s, color .2s;
   }
-  #power:hover { background: rgba(70,214,255,0.14); }
+  #controls > div:hover { background: rgba(70,214,255,0.14); }
   #power .dot {
     width: 9px; height: 9px; border-radius: 50%;
     background: var(--neon); box-shadow: 0 0 12px var(--neon);
   }
+  #cam-btn .ico {
+    width: 11px; height: 8px; border: 1.5px solid var(--neon); border-radius: 2px;
+    box-shadow: 0 0 8px var(--neon);
+  }
   body.paused { --neon: #ffb24d; --neon-dim: #7a5320; }
-  body.paused #power { background: rgba(255,178,77,0.10); }
+  body.paused #controls > div { background: rgba(255,178,77,0.10); }
   body.paused #power .dot { animation: none; box-shadow: 0 0 12px #ffb24d; }
   body.paused #status::before { background: #ffb24d; box-shadow: 0 0 10px #ffb24d; animation: none; }
   #fx.paused {
@@ -135,8 +142,13 @@
   <div id="brand" class="hud">J.A.R.V.I.S</div>
   <div id="status" class="hud">Iniciando</div>
   <div id="hint" class="hud">ctrl+alt+j &nbsp;·&nbsp; esc: fechar</div>
-  <div id="power" title="Ligar / pausar a escuta do Jarvis">
-    <span class="dot"></span><span id="power-label">Ouvindo</span>
+  <div id="controls">
+    <div id="power" title="Ligar / pausar a escuta do Jarvis">
+      <span class="dot"></span><span id="power-label">Ouvindo</span>
+    </div>
+    <div id="cam-btn" title="Alternar câmera / cérebro">
+      <span class="ico"></span><span id="cam-btn-label">Câmera</span>
+    </div>
   </div>
   <div id="close" title="Fechar">&times;</div>
 

@@ -544,7 +544,14 @@ def main() -> None:
     brain.start_keepwarm()
 
     set_paused(False, beep=False)   # começa sempre ouvindo
-    write_app_state(view="brain", camera_match=cfg.get("app", {}).get("camera_match", "Brio"))
+    write_control(view="brain")     # começa no cérebro (não gruda entre reinícios)
+    _cam = cfg.get("camera", {})
+    write_app_state(
+        camera_match=cfg.get("app", {}).get("camera_match", "Brio"),
+        motion_overlay=bool(_cam.get("motion_overlay", True)),
+        motion_fade=float(_cam.get("motion_fade", 0.10)),
+        motion_sensitivity=float(_cam.get("motion_sensitivity", 1.0)),
+    )
     threading.Thread(target=hotkey_listener, daemon=True).start()
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))

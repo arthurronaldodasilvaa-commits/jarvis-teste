@@ -77,17 +77,29 @@ class Api:
 
     def get_status(self) -> dict:
         s = _read_json(STATE_FILE, {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"})
-        s["paused"] = bool(_read_json(CONTROL_FILE, {"paused": False}).get("paused", False))
+        ctl = _read_json(CONTROL_FILE, {"paused": False, "view": "brain"})
+        s["paused"] = bool(ctl.get("paused", False))
+        s["view"] = ctl.get("view", "brain")
         return s
 
-    def toggle_pause(self) -> dict:
-        cur = _read_json(CONTROL_FILE, {"paused": False})
-        cur["paused"] = not cur.get("paused", False)
+    def _write_control(self, **changes) -> dict:
+        cur = _read_json(CONTROL_FILE, {"paused": False, "view": "brain"})
+        cur.update(changes)
         try:
             CONTROL_FILE.write_text(json.dumps(cur), encoding="utf-8")
         except OSError:
             pass
         return cur
+
+    def toggle_pause(self) -> dict:
+        return self._write_control(paused=not _read_json(CONTROL_FILE, {}).get("paused", False))
+
+    def set_view(self, view: str) -> dict:
+        return self._write_control(view="camera" if view == "camera" else "brain")
+
+    def toggle_view(self) -> dict:
+        cur = _read_json(CONTROL_FILE, {}).get("view", "brain")
+        return self._write_control(view="brain" if cur == "camera" else "camera")
 
     def log(self, msg: str) -> None:
         try:

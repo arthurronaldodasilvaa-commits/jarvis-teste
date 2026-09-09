@@ -128,6 +128,8 @@
     const cam = v === "camera";
     document.body.classList.toggle("camera", cam);
     renderer.domElement.style.display = cam ? "none" : "block";
+    const lbl = document.getElementById("cam-btn-label");
+    if (lbl) lbl.textContent = cam ? "Cérebro" : "Câmera";
     if (cam) window.jarvisCam.start(state.cameraMatch);
     else window.jarvisCam.stop();
   }
@@ -154,6 +156,14 @@
     powerLbl.textContent = p ? "Pausado — clique p/ ativar" : "Ouvindo";
   }
 
+  // botão câmera <-> cérebro
+  const camBtn = document.getElementById("cam-btn");
+  if (camBtn) camBtn.addEventListener("click", () => {
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.toggle_view) api.toggle_view().then((c) => applyView((c && c.view) || "brain"));
+    else applyView(state.view === "camera" ? "brain" : "camera");
+  });
+
   // ---------- ponte com o Python (1 round-trip: state.json + control.json) ----------
   function pollState() {
     const api = window.pywebview && window.pywebview.api;
@@ -164,6 +174,7 @@
       if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
       if (s.status) state.status = s.status;
       if (s.camera_match) state.cameraMatch = s.camera_match;
+      window.jarvisCam.configure(s);
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
       if (s.view === "camera" || s.view === "brain") applyView(s.view);

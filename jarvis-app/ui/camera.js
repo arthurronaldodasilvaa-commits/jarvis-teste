@@ -17,6 +17,14 @@ window.jarvisCam = (() => {
   const sctx = small.getContext("2d", { willReadFrequently: true });
 
   let stream = null, raf = 0, prev = null, motionLevel = 0;
+  const opt = { overlay: true, fade: 0.10, sensitivity: 1.0 };
+
+  function configure(o) {
+    if (!o) return;
+    if (typeof o.motion_overlay === "boolean") opt.overlay = o.motion_overlay;
+    if (typeof o.motion_fade === "number") opt.fade = Math.max(0.02, Math.min(0.9, o.motion_fade));
+    if (typeof o.motion_sensitivity === "number") opt.sensitivity = o.motion_sensitivity || 1;
+  }
 
   function dbg(m) {
     const api = window.pywebview && window.pywebview.api;
@@ -84,12 +92,17 @@ window.jarvisCam = (() => {
 
     sctx.drawImage(video, 0, 0, W, H);
     const cur = sctx.getImageData(0, 0, W, H);
-    fxctx.clearRect(0, 0, fx.width, fx.height);
+
+    // esmaece o rastro anterior (não apaga de vez -> o movimento "fica")
+    fxctx.globalCompositeOperation = "destination-out";
+    fxctx.fillStyle = "rgba(0,0,0," + opt.fade + ")";
+    fxctx.fillRect(0, 0, fx.width, fx.height);
 
     let energy = 0;
-    if (prev) {
+    if (prev && opt.overlay) {
       const sx = fx.width / W, sy = fx.height / H;
       const cd = cur.data, pd = prev.data;
+      const thr = 42 / opt.sensitivity;
       fxctx.globalCompositeOperation = "lighter";
       for (let y = 0; y < H; y += 2) {
         for (let x = 0; x < W; x += 2) {
@@ -98,25 +111,32 @@ window.jarvisCam = (() => {
             Math.abs(cd[i] - pd[i]) +
             Math.abs(cd[i + 1] - pd[i + 1]) +
             Math.abs(cd[i + 2] - pd[i + 2]);
-          if (diff > 42) {
+          if (diff > thr) {
             energy += diff;
-            const a = Math.min(0.55, diff / 420);
-            fxctx.fillStyle = "rgba(90,224,255," + a + ")";
-            fxctx.fillRect(x * sx - sx, y * sy - sy, sx * 3, sy * 3);
+            const a = Math.min(0.6, (diff / 420) * opt.sensitivity);
+            fxctx.fillStyle = "rgba(120,232,255," + a + ")";
+            fxctx.fillRect(x * sx - sx * 1.5, y * sy - sy * 1.5, sx * 4, sy * 4);
           }
         }
       }
-      fxctx.globalCompositeOperation = "source-over";
+    } else if (prev) {
+      // overlay desligado: ainda medimos o movimento pra barra
+      const cd = cur.data, pd = prev.data;
+      for (let i = 0; i < cd.length; i += 16) {
+        energy += Math.abs(cd[i] - pd[i]);
+      }
+      energy *= 4;
     }
+    fxctx.globalCompositeOperation = "source-over";
     prev = cur;
 
     const lvl = Math.min(1, energy / 110000);
-    motionLevel += (lvl - motionLevel) * 0.4;
+    motionLevel += (lvl - motionLevel) * 0.35;
     if (motionBar) motionBar.style.transform = "scaleX(" + motionLevel.toFixed(3) + ")";
   }
 
   return {
-    start, stop,
+    start, stop, configure,
     active: () => !!stream,
     motion: () => motionLevel,
   };
