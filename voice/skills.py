@@ -481,6 +481,19 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         if "cancel" not in t:
             return Result(speak="Às ordens, senhor.", stop=True)
 
+    # --- repetir a última fala ---
+    if re.search(r"\b(repete|repita|de novo|nao entendi|o que voce (disse|falou)|"
+                 r"pode repetir|como e que e|fala de novo)\b", t) and len(t.split()) <= 6:
+        last = getattr(getattr(speak, "__self__", None), "last", "") or getattr(brain, "last_reply", "")
+        return Result(speak=(last or "Não falei nada ainda, senhor."))
+
+    # --- esquecer o contexto da conversa ---
+    if re.search(r"\b(esquece|esquec\w+|novo assunto|mud\w+ de assunto|comeca de novo|"
+                 r"limpa\w*\s+(a\s+)?(conversa|contexto|memoria))\b", t) and len(t.split()) <= 6:
+        if brain is not None and hasattr(brain, "forget"):
+            brain.forget()
+        return Result(speak="Esquecido, senhor. Assunto novo.")
+
     # --- "manual": "como eu faço X com você?" -> instrução (não executa nada) ---
     # Só entra se a pergunta é sobre COMO usar o Jarvis (menciona "você/te/jarvis"
     # ou é uma pergunta meta), pra não roubar comandos reais tipo "como chegar em X".

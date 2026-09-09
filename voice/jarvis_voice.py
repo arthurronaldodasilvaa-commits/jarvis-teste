@@ -395,10 +395,13 @@ class Mouth:
             log(f"não subi o TTS worker ({exc}); usando modo lento")
             self._proc = None
 
+    last = ""
+
     def say(self, text: str) -> None:
         if not text:
             return
         text = re.sub(r"\s+", " ", str(text)).strip()
+        Mouth.last = text
         log(f"Jarvis: {text}")
         self.speaking = True
         write_app_state(speaking=True, status="FALANDO")
@@ -500,10 +503,14 @@ class Brain:
         know = a.get("knowledge", "").strip()
         if know:                     # base de conhecimento do perfil (empresa, contexto…)
             self.system += "\n\nContexto que você conhece:\n" + know
-        self.system += "\n\n" + _JARVIS_MANUAL   # como o próprio Jarvis é usado
+        self.system += ("\n\nVocê é um assistente de voz local. Se o senhor perguntar COMO te usar, "
+                        "responda com o comando entre aspas (ex: \"Jarvis, modo cinema\" para parar de "
+                        "ouvir). Fora isso, não fique sugerindo comandos.")
         self.num_predict = int(a.get("reply_num_predict", 110))
         self.keep_alive = a.get("keep_alive", "1h")
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
+        self._hist: deque = deque(maxlen=6)   # últimas 3 trocas (user/assistant)
+        self.last_reply = ""
 
     def _post(self, messages, num_predict, temperature=0.4):
         r = self._httpx.post(
@@ -543,15 +550,22 @@ class Brain:
         log(f"keep-warm do LLM a cada {self.keepwarm_minutes:g} min")
 
     def ask(self, question: str) -> str:
+        msgs = [{"role": "system", "content": self.system}]
+        msgs.extend(self._hist)
+        msgs.append({"role": "user", "content": question})
         try:
-            return self._post(
-                [{"role": "system", "content": self.system},
-                 {"role": "user", "content": question}],
-                self.num_predict,
-            ) or "Perdão, senhor, não consegui elaborar uma resposta."
+            ans = self._post(msgs, self.num_predict) \
+                or "Perdão, senhor, não consegui elaborar uma resposta."
         except Exception as exc:  # noqa: BLE001
             log(f"erro LLM: {exc}")
             return "Desculpe, senhor, meu raciocínio não respondeu agora."
+        self._hist.append({"role": "user", "content": question})
+        self._hist.append({"role": "assistant", "content": ans})
+        self.last_reply = ans
+        return ans
+
+    def forget(self) -> None:
+        self._hist.clear()
 
     def route(self, text: str) -> str:
         """Classifica o pedido e devolve a frase de COMANDO canônica.
