@@ -637,7 +637,9 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
     if st["pending"]:
         _question, do, _dl = st["pending"]
         st["pending"] = None
-        if _is_affirm(n) and not _is_negate(n):
+        ans = strip_wake_word(raw, n, wake_word)          # "jarvis não" -> "não"
+        ans = norm(ans) if ans else n
+        if _is_affirm(ans) and not _is_negate(ans):
             log("  confirmado")
             try:
                 followup = do()
@@ -645,7 +647,7 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
                 log(f"erro na ação confirmada: {exc}"); followup = "Deu erro, senhor."
             mouth.say(followup or "Feito, senhor.")
         else:
-            log(f"  confirmação NÃO reconhecida como 'sim' ({n!r}) — cancelado")
+            log(f"  confirmação não foi 'sim' ({ans!r}) — cancelado")
             mouth.say("Cancelado, senhor.")
         mic.drain()
         return

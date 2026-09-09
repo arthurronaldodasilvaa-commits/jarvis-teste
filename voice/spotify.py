@@ -22,8 +22,11 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import subprocess
 import time
+
+from common import log
 
 _CNW = 0x08000000
 _token = {"value": "", "exp": 0.0}
@@ -103,11 +106,21 @@ def play_uri(uri: str, cfg: dict) -> None:
         ctypes.windll.user32.keybd_event(0xB3, 0, 2, 0)
 
 
+def _clean_query(q: str) -> str:
+    q = q.strip().strip(".").strip()
+    # tira preenchimento no fim que o Whisper cola quando a fala é cortada
+    q = re.sub(r"[\s,]+(mas|entao|então|ai|aí|por favor|pra mim|agora|la|lá)\s*$", "", q, flags=re.I)
+    # "3 3 3" / "3, 3, 3" -> "333" (números falados soltos)
+    q = re.sub(r"\b(\d)[\s,]+(?=\d\b)", r"\1", q)
+    return q.strip(" ,.").strip()
+
+
 def play(query: str, cfg: dict) -> tuple[bool, str]:
     """Toca a música pelo nome. Retorna (ok, fala). Em caso de sucesso a fala
     fica vazia (toca calado), a menos que [spotify].announce = true."""
     from urllib.parse import quote_plus
 
+    query = _clean_query(query)
     if not configured(cfg):
         os.startfile("spotify:search:" + quote_plus(query))  # noqa: S606
         return False, f"Abri a busca por {query}, senhor. Falta a chave do Spotify no secrets.toml."
@@ -117,8 +130,10 @@ def play(query: str, cfg: dict) -> tuple[bool, str]:
         os.startfile("spotify:search:" + quote_plus(query))  # noqa: S606
         return False, f"Não consegui buscar no Spotify agora, senhor. ({exc.__class__.__name__})"
     if not hit:
+        log(f"Spotify: nada pra {query!r}")
         return False, f"Não achei {query} no Spotify, senhor."
     uri, label = hit
+    log(f"Spotify: tocando {label}  (busca: {query!r})")
     play_uri(uri, cfg)
     fala = f"Tocando {label}, senhor." if _cfg(cfg).get("announce", False) else ""
     return True, fala
