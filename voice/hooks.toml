@@ -1,0 +1,48 @@
+# hooks.toml — automações do Jarvis (sem programar)
+#
+# Cada bloco [[hooks]] liga um EVENTO a uma AÇÃO. Descomente e ajuste.
+# Detalhes e lista de eventos: veja o topo de voice/hooks.py
+#
+# Campos:
+#   event         (obrigatório) on_startup | on_wake | on_command | on_command_done |
+#                 on_error | on_idle | on_reminder_due | on_profile_switch
+#   when          "HH:MM-HH:MM"  — só dispara nessa faixa de horário
+#   matcher       regex no texto do comando (on_command / on_wake / on_command_done)
+#   after_seconds (só on_idle) segundos de silêncio até disparar
+#   once_per_day  true = no máximo 1x por dia
+#   speak         frase que o Jarvis fala
+#   then          um comando pra ele executar (como se você tivesse falado)
+#   run           um comando no shell (o contexto vai em JSON pelo stdin)
+#   timeout       segundos pro `run` (padrão 15)
+
+# --- exemplos (comentados) --------------------------------------------------
+
+# Bom dia com briefing, só de manhã, uma vez por dia:
+# [[hooks]]
+# event = "on_wake"
+# when = "05:30-09:30"
+# once_per_day = true
+# speak = "Bom dia, senhor. Deixa eu te passar o resumo do dia."
+# then = "qual a previsão do tempo"
+
+# Depois de 30 min sem falar nada, desliga o monitor (precisa do nircmd):
+# [[hooks]]
+# event = "on_idle"
+# after_seconds = 1800
+# run = "nircmd.exe monitor off"
+
+# Toda vez que der erro, fala uma frase mais humana:
+# [[hooks]]
+# event = "on_error"
+# speak = "Puxa, senhor, algo saiu errado. Já registrei no log pra gente ver."
+
+# Quando um lembrete de "remédio" vencer, também abre um site:
+# [[hooks]]
+# event = "on_reminder_due"
+# matcher = "remedio|remédio"
+# run = "start https://www.google.com/search?q=bula"
+
+# Ao trocar de perfil, confirma em voz:
+# [[hooks]]
+# event = "on_profile_switch"
+# speak = "Perfil trocado, senhor. Reiniciando pra aplicar."

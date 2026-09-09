@@ -46,6 +46,12 @@ except ModuleNotFoundError:  # pragma: no cover
 from common import log, norm, read_control, rotate_log, write_app_state, write_control
 import skills
 
+try:
+    import hooks
+except Exception as _exc:  # noqa: BLE001
+    hooks = None
+    log(f"hooks não disponível: {_exc}")
+
 HERE = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) \
     else Path(__file__).resolve().parent
 CFG_PATH = HERE / "config.toml"
@@ -921,9 +927,11 @@ def _first_file(explicit, candidates):
     return None
 
 
-def _reminder_loop(mouth: "Mouth") -> None:
+def _reminder_loop(mouth: "Mouth", cfg: dict | None = None, brain=None) -> None:
     """Checa lembretes vencidos a cada 15 s e fala."""
     import reminders
+    hk = (_hook_callbacks(cfg, mouth, brain)
+          if (hooks and cfg is not None) else (None, None))
     time.sleep(20)
     while True:
         try:
@@ -936,6 +944,12 @@ def _reminder_loop(mouth: "Mouth") -> None:
                 else:
                     push_note("⏰ timer terminou", "reminder")
                     mouth.say("Senhor, seu timer terminou.")
+                if hooks:
+                    try:
+                        hooks.fire("on_reminder_due", text=txt, cfg=cfg,
+                                   speak=hk[0], dispatch=hk[1])
+                    except Exception as exc:  # noqa: BLE001
+                        log(f"hook on_reminder_due: {exc}")
                 time.sleep(1.0)
         except Exception as exc:  # noqa: BLE001
             log(f"loop de lembretes: {exc}")
@@ -964,6 +978,21 @@ def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
 
 
 # --------------------------------------------------------------------------
+def _hook_callbacks(cfg, mouth, brain):
+    """(speak, dispatch) pra passar pro hooks.fire — 'then' roda uma skill de
+    verdade, mas SEM re-disparar hooks (evita laço)."""
+    def _disp(phrase: str) -> None:
+        try:
+            r = skills.dispatch(phrase, cfg, mouth.say, brain)
+            if getattr(r, "to_llm", None):
+                mouth.say(brain.ask(r.to_llm))
+            elif getattr(r, "speak", None):
+                mouth.say(r.speak)
+        except Exception as exc:  # noqa: BLE001
+            log(f"hook 'then' ({phrase!r}) falhou: {exc}")
+    return mouth.say, _disp
+
+
 def main() -> None:
     ensure_single_instance()
     cfg = load_cfg()
@@ -991,7 +1020,7 @@ def main() -> None:
         hand_skeleton=bool(_cam.get("hand_skeleton", True)),
     )
     threading.Thread(target=hotkey_listener, daemon=True).start()
-    threading.Thread(target=_reminder_loop, args=(mouth,), daemon=True).start()
+    threading.Thread(target=_reminder_loop, args=(mouth, cfg, brain), daemon=True).start()
     threading.Thread(target=_scan_loop, args=(mouth,), daemon=True).start()
     try:
         import hud
@@ -1008,6 +1037,13 @@ def main() -> None:
         mouth.say(cfg["tts"]["ready_line"])
     log(f'pronto — diga a frase de chegada ou "{wake_word} ..."')
 
+    if hooks:
+        hk_speak, hk_disp = _hook_callbacks(cfg, mouth, brain)
+        try:
+            hooks.fire("on_startup", cfg=cfg, speak=hk_speak, dispatch=hk_disp)
+        except Exception as exc:  # noqa: BLE001
+            log(f"hook on_startup: {exc}")
+
     st = {"last_arrival": 0.0, "pending": None, "await": None}   # pending=(q,do,dl); await=(fn,dl)
 
     ring: deque[np.ndarray] = deque(maxlen=pre_n)
@@ -1021,6 +1057,11 @@ def main() -> None:
             aw = st["await"]
             if aw and time.monotonic() > aw[1]:
                 st["await"] = None
+            if hooks:
+                try:
+                    hooks.check_idle(cfg=cfg, speak=hk_speak, dispatch=hk_disp)
+                except Exception as exc:  # noqa: BLE001
+                    log(f"hook on_idle: {exc}")
             continue
         try:
             _handle_block(block, ring, mic, ears, mouth, brain, cfg,
@@ -1124,9 +1165,15 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         mic.drain()
         return
 
+    hk_speak, hk_disp = (_hook_callbacks(cfg, mouth, brain) if hooks else (None, None))
+    if hooks:
+        hooks.mark_activity()
+
     # -------- frase de chegada --------
     if is_arrival_phrase(n, cfg):
         if time.monotonic() - st["last_arrival"] > cooldown:
+            if hooks:
+                hooks.fire("on_wake", text="(chegada)", cfg=cfg, speak=hk_speak, dispatch=hk_disp)
             run_arrival(cfg, mouth, "frase")
             st["last_arrival"] = time.monotonic()
         else:
@@ -1151,6 +1198,9 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         mic.drain(); return
 
     log(f"  comando: {payload!r}")
+    if hooks:
+        hooks.fire("on_wake", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)
+        hooks.fire("on_command", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)
     write_app_state(phase="processing")
     try:
         res = skills.dispatch(payload, cfg, mouth.say, brain)
@@ -1159,6 +1209,8 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         from common import push_note
         push_note(f"erro: {exc}", "error")
         write_app_state(phase="error")
+        if hooks:
+            hooks.fire("on_error", text=str(exc), cfg=cfg, speak=hk_speak, dispatch=hk_disp)
         mouth.say("Tive um erro ao executar isso, senhor.")
         mic.drain(); return
 
@@ -1173,9 +1225,19 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         mouth.say(res.speak)
     if getattr(res, "await_reply", None):
         st["await"] = (res.await_reply, time.monotonic() + 40)
+    if hooks:
+        hooks.fire("on_command_done", text=payload, cfg=cfg, speak=hk_speak,
+                   dispatch=hk_disp, extra={"reply": (res.speak or res.to_llm or "")[:200]})
     write_app_state(phase="idle")
     mic.drain()
     if getattr(res, "restart", False):
+        if hooks:
+            try:
+                nxt = _active_profile(load_cfg())
+            except Exception:  # noqa: BLE001
+                nxt = ""
+            hooks.fire("on_profile_switch", text=nxt, cfg=cfg,
+                       speak=hk_speak, dispatch=hk_disp)
         relaunch_self()
 
 
