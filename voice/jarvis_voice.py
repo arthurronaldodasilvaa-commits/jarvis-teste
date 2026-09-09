@@ -662,12 +662,46 @@ def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
 
     time.sleep(float(arr.get("greeting_delay", 1.2)))   # deixa a música começar
 
-    # 2) saudação
+    # 2) saudação + briefing
     mouth.say(arr.get("greeting") or "Bem-vindo, senhor!")
+    if arr.get("briefing", True):
+        try:
+            mouth.say(_briefing(cfg))
+        except Exception as exc:  # noqa: BLE001
+            log(f"  briefing falhou: {exc}")
 
     # 3) app em primeiro plano
     if cfg.get("app", {}).get("open_on_arrival", True):
         open_jarvis_app(cfg, focus_after=1.0)
+
+
+def _briefing(cfg: dict) -> str:
+    """'São 14 e 20. 18 graus, nublado. 2 lembretes pra hoje, senhor.'"""
+    from datetime import datetime
+
+    import reminders
+
+    n = datetime.now()
+    partes = [f"São {n.hour} e {n.minute:02d}"] if n.minute else [f"São {n.hour} horas"]
+
+    try:
+        import weather
+        w = weather.report(cfg)
+        m = re.search(r"(\d+) graus,\s*([^.]+?)\.", w)
+        if m:
+            partes.append(f"{m.group(1)} graus, {m.group(2).strip()}")
+        mx = re.search(r"máxima (?:é |de )?(\d+)", w)
+        if mx:
+            partes.append(f"máxima de {mx.group(1)}")
+    except Exception as exc:  # noqa: BLE001
+        log(f"  briefing/clima: {exc}")
+
+    hoje = [r for r in reminders.pending()
+            if datetime.fromtimestamp(r["at"]).date() == n.date()]
+    if hoje:
+        partes.append(f"{len(hoje)} lembrete" + ("s" if len(hoje) > 1 else "") + " pra hoje")
+
+    return ". ".join(p[0].upper() + p[1:] for p in partes) + ", senhor."
 
 
 def _run_action(action: str, cfg: dict) -> None:

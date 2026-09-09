@@ -25,6 +25,7 @@ min_utterance_seconds = 0.35   # ignora "falas" mais curtas que isso (clique, to
 # Frase de chegada. Ao reconhecer, na ORDEM:
 #   1) toca a música   2) diz a saudação   3) traz o app pra frente
 enabled = true
+briefing = true              # após a saudação, fala hora + clima + lembretes do dia
 phrase = "acorda criança o papai chegou"
 match_threshold = 0.74
 reactivate_cooldown_seconds = 20

@@ -650,6 +650,19 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="Escrever textos está desativado, senhor.")
         return write_document(m.group(1).strip(), cfg, speak, brain)
 
+    # --- ditado direcionado: "escreve no bloco de notas: ..." ---
+    m = re.search(r"^(?:digit\w*|escrev[ae]|poe|transcrev\w*|anota)\s+"
+                  r"(?:isso\s+)?n[oa]\s+(.+?)\s*[:,]\s*(.+)", raw.strip(), flags=re.IGNORECASE)
+    if m:
+        if not dz.get("allow_typing", True):
+            return Result(speak="A digitação está desativada, senhor.")
+        alvo, texto = m.group(1).strip(), m.group(2).strip()
+        r = open_target(alvo, cfg, web_fallback=False)
+        if not r.fallback:
+            time.sleep(1.6)
+        paste_text(texto)
+        return Result(speak="")
+
     # --- digitar literalmente (o que você ditar vai pro campo em foco) ---
     m = re.search(r"^(?:digit\w*|escrev[ae]\s+isso|transcrev\w*|poe\s+isso|escreve\s+o\s+seguinte|"
                   r"anota\s+literalmente)[:,\s]+(.+)", raw.strip(), flags=re.IGNORECASE)

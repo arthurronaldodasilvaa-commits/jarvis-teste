@@ -16,7 +16,7 @@ from urllib.parse import quote_plus
 
 _ROUTE = re.compile(
     r"\b(?:como\s+(?:eu\s+)?cheg\w+|rota\b|caminho\s+(?:ate|pra|para)|"
-    r"dire[cç][oõ]es?\b|navega\w*|me\s+leva\w*|"
+    r"dire[cç][oõ]es?\b|navega(?:r|ndo|\s|$)|me\s+leva\w*|"
     r"tra[cç]a\w*\s+(?:uma\s+)?rota|ir\s+(?:ate|pra|para)|viajar\s+(?:pra|para|ate)|"
     r"(?:bora|vamos?|vamo|vou|to\s+indo)\s+(?:pro|pra|pras|pros|para|ao|a|ate))\b"
     r"(?:\s+(?:o|a|à|ao|até|ate|pra|pro|pros|pras|para|em|no|na|nos|nas|de|do|da|dos|das))*\s+(.+)"

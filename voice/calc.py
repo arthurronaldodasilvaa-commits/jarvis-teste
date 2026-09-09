@@ -271,7 +271,9 @@ def convert(t: str) -> str | None:
 
 
 def _pretty(u: str) -> str:
-    return {"pe": "pés", "pes": "pés", "quilometro": "quilômetros",
+    return {"km": "quilômetros", "m": "metros", "cm": "centímetros", "mm": "milímetros",
+            "kg": "quilos", "g": "gramas", "mg": "miligramas", "lb": "libras", "oz": "onças",
+            "pe": "pés", "pes": "pés", "quilometro": "quilômetros",
             "quilometros": "quilômetros", "kilometros": "quilômetros",
             "milimetro": "milímetros", "milimetros": "milímetros",
             "centimetro": "centímetros", "centimetros": "centímetros",

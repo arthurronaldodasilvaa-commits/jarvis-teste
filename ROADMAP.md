@@ -25,11 +25,12 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 
 ## C. Assistente mais capaz (sem holograma)
 
-- [ ] **Timers e lembretes** ("me lembra em 20 min", "me lembra de X às 15h") — persistente
-- [ ] **Clima** (Open-Meteo, grátis, sem chave) · **notícias** · **contas** ("15% de 240")
-- [ ] **Conversão** de unidades / moeda
-- [ ] **Briefing na chegada** — "Senhor, 14h, 18 graus, 2 compromissos hoje"
-- [ ] Ditado direcionado a um app específico
+- [x] **Timers e lembretes** — `voice/reminders.py`, persistente, thread que fala no vencimento
+- [x] **Clima** (Open-Meteo, sem chave) — `voice/weather.py` · **contas** ("15% de 240") — `voice/calc.py`
+  - [ ] **notícias** (falta — precisa de um feed/RSS; RSS de portal BR é keyless, dá pra fazer)
+- [x] **Conversão** de unidades / moeda — `voice/calc.py` (comprimento, massa, temp, câmbio)
+- [x] **Briefing na chegada** — `_briefing()` em jarvis_voice.py (hora + clima + lembretes do dia)
+- [x] Ditado direcionado a um app específico — "escreve no bloco de notas: ..."
 
 ## D. HUD de verdade no cérebro
 
