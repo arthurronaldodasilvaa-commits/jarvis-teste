@@ -1,0 +1,77 @@
+# Jarvis — roadmap de ideias
+
+Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
+
+---
+
+## A. Módulos de estudo holográficos (linha "Homem de Ferro")
+
+- [ ] **Círculo trigonométrico** animado — ângulo varrendo, sen/cos como projeções em tempo real
+- [ ] **Sólidos + fórmulas** — "mostra o volume da esfera" → 4/3·π·r³ ao lado da forma
+- [ ] **Física** — vetores de força, lançamento oblíquo, plano inclinado, diagrama de corpo livre
+- [ ] **Química** — moléculas 3D (H₂O, CH₄, benzeno) ball-and-stick + tabela periódica
+- [ ] **Anatomia** — esqueleto / coração / cérebro (glTF), girar, cortar ao meio (plano de corte), rótulos
+- [ ] **Plotter de função** — "plota y = x²" → curva/superfície neon 3D
+- [x] Triângulo retângulo 3·4·5, tabela de ângulos notáveis, tabela de relações
+
+## B. Interação de mão (câmera)
+
+- [x] pinça seleciona/arrasta (âmbar) · 2 mãos escala · ✌️ gira · ✊ move tudo · ☝️ toca = apaga
+- [ ] **Desenhar no ar** — indicador deixa rastro 3D neon
+- [ ] **Medir** — pinça 2 pontos → distância
+- [ ] **Travar/soltar** uma forma · **duplicar** ("copia isso")
+- [ ] **Explodir** um modelo (separar peças com as 2 mãos)
+- [ ] Rotação com uma mão só (twist)
+
+## C. Assistente mais capaz (sem holograma)
+
+- [ ] **Timers e lembretes** ("me lembra em 20 min", "me lembra de X às 15h") — persistente
+- [ ] **Clima** (Open-Meteo, grátis, sem chave) · **notícias** · **contas** ("15% de 240")
+- [ ] **Conversão** de unidades / moeda
+- [ ] **Briefing na chegada** — "Senhor, 14h, 18 graus, 2 compromissos hoje"
+- [ ] Ditado direcionado a um app específico
+
+## D. HUD de verdade no cérebro
+
+- [ ] Relógio + data + clima
+- [ ] **Música tocando** (faixa + progresso do Spotify)
+- [ ] **Gauges neon** de CPU / GPU / RAM / temperatura
+- [ ] Estados visuais: pensando / pesquisando / erro
+- [ ] Feed de notificações
+
+## E. Câmera / visão
+
+- [ ] **Modo presença** — pausa quando você sai, volta quando senta (rosto detectado)
+- [ ] **Ler texto / QR** apontado pra câmera (OCR)
+- [ ] Reconhecer você vs outra pessoa
+- [ ] Gestos fora do modo holograma (pular música, etc.)
+
+## F. Plataforma / infra
+
+- [ ] **Sistema de perfis** — um `profile.toml` por usuário/uso (persona, apps, skills ligadas)
+  - essencial pra vender: cada cliente = um perfil, não um fork
+- [ ] Painel de configurações no app (em vez de editar `config.toml` na mão)
+- [ ] TTS melhor (Piper — voz neural local, rápida) ou ElevenLabs
+- [ ] Modelo local maior quando tiver hardware (qwen 7b/14b)
+- [ ] Fila `PEDIDOS.md` → "processa meus pedidos" abre uma sessão de dev
+
+---
+
+## G. Versão comercial — cliente: instituto de desenvolvimento pessoal
+
+Contexto: instituto focado em **treinamentos corporativos** (cultura organizacional).
+Usa no **notebook**, focado no trabalho. Sem os jogos / brincadeiras pessoais.
+
+Pedidos do cliente (do mais simples ao mais complexo):
+
+1. **Google Maps** — abrir para viajar (rotas), achar empresas, achar restaurantes
+   bem avaliados (5 estrelas)  ← **COMEÇAR POR AQUI**
+2. **Meta (Ads)** — criar campanhas de tráfego  → precisa Meta Marketing API + app review
+3. **HostGator** — criar sites  → API/cPanel + provavelmente um gerador de site
+4. **IA de vídeo** — gerar vídeos  → integrar uma API (ex: pika/runway/heygen)
+5. "e assim vai" — mais integrações sob demanda
+
+Notas de escopo:
+- 1 é URL scheme (fácil, sem chave). 2–4 são projetos reais, cada um com auth OAuth + custo de API.
+- Provável arquitetura: Jarvis "base" + módulos plugáveis por assinatura.
+- Vender como: instalação personalizada (one-time) + suporte/atualizações (mensal).

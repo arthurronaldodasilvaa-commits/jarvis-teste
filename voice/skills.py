@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import quote_plus
 
+import maps
 import spotify
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
@@ -298,6 +299,11 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
                  "agosto", "setembro", "outubro", "novembro", "dezembro"]
         n = datetime.now()
         return Result(speak=f"Hoje é {dias[n.weekday()]}, {n.day} de {meses[n.month - 1]}, senhor.")
+
+    # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
+    fala = maps.handle(t)
+    if fala is not None:
+        return Result(speak=fala)
 
     # --- volume ---
     if re.search(r"\bvolume\b|\bsom\b", t) or re.search(r"\b(aumenta|abaixa|diminui|sobe|desce)\b", t):
