@@ -41,7 +41,8 @@ except ModuleNotFoundError:  # pragma: no cover
 from common import log, norm, read_control, rotate_log, write_app_state, write_control
 import skills
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) \
+    else Path(__file__).resolve().parent
 CFG_PATH = HERE / "config.toml"
 SR = 16000
 BLOCK = 1600  # ~100 ms
@@ -349,7 +350,7 @@ class Mouth:
         try:
             self._proc = subprocess.Popen(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, encoding="utf-8", creationflags=CNW, bufsize=1,
             )
             log("TTS worker pronto.")
@@ -392,7 +393,8 @@ class Mouth:
               + (f"try{{$s.SelectVoice('{self.voice}')}}catch{{}};" if self.voice else "")
               + f"$s.Rate={self.rate};$s.Speak([Console]::In.ReadToEnd());")
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-                       input=text, text=True, timeout=60, creationflags=CNW)
+                       input=text, text=True, timeout=60, creationflags=CNW,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def close(self) -> None:
         try:
@@ -619,7 +621,9 @@ def open_jarvis_app(cfg: dict, *, focus_after: float = 0.0) -> None:
                 ctypes.windll.user32.AllowSetForegroundWindow(-1)
             except Exception:  # noqa: BLE001
                 pass
-            subprocess.Popen([exe], creationflags=0x00000008)  # DETACHED_PROCESS
+            subprocess.Popen([exe], creationflags=0x00000008,  # DETACHED_PROCESS
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
         else:
             log(f"Jarvis App: exe_path inválido ({exe!r})")
             return

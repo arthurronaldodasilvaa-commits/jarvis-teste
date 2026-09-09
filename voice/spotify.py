@@ -109,6 +109,7 @@ def _running() -> bool:
         out = subprocess.run(
             ["tasklist", "/fi", "imagename eq Spotify.exe"],
             capture_output=True, text=True, timeout=10, creationflags=_CNW,
+            stdin=subprocess.DEVNULL,
         ).stdout.lower()
         return "spotify.exe" in out
     except Exception:  # noqa: BLE001

@@ -1,0 +1,35 @@
+========================================
+  JARVIS  —  como instalar
+========================================
+
+1. Clique duas vezes em   JarvisSetup.exe
+
+2. Vá clicando em "Avançar". O instalador faz tudo:
+     - escolhe onde instalar
+     - copia os arquivos
+     - instala o "cérebro" (Ollama) e baixa o modelo
+     - configura seu microfone, câmera e a voz
+
+3. No fim, o Jarvis abre sozinho. A partir daí ele também
+   abre junto com o Windows.
+
+--------------------------------------------------
+Se o Windows mostrar um aviso azul de "Windows protegeu
+o seu PC":  clique em "Mais informações"  e depois em
+"Executar assim mesmo".  É seguro — o aviso aparece só
+porque o programa é novo.
+--------------------------------------------------
+
+COMO USAR, depois de instalado:
+
+  "Jarvis"                        -> ele responde e espera
+  "Jarvis, que horas são"
+  "Jarvis, abre o navegador"
+  "Jarvis, toca uma música do ..."
+  "Jarvis, como chegar em ..."
+  "Jarvis, modo cinema"          -> ele para de ouvir
+  Ctrl + Alt + J                 -> ele volta a ouvir
+  "Jarvis, o que você sabe fazer?"  -> ele te explica
+
+Precisa de internet só na primeira vez (pra baixar o
+modelo). Depois funciona offline.

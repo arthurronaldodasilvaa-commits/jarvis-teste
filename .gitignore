@@ -33,3 +33,8 @@ control.json
 NOTAS.md
 PEDIDOS.md
 secrets.toml
+
+# instalador: manter os .spec escritos a mão, ignorar saídas
+!installer/*.spec
+installer/pacote/
+installer/OllamaSetup.exe

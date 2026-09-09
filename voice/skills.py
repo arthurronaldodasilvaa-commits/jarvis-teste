@@ -192,7 +192,9 @@ def write_document(topic: str, cfg: dict, speak, brain) -> Result:
 # sistema
 # --------------------------------------------------------------------------
 def _run(*args: str) -> None:
-    subprocess.run(list(args), creationflags=CNW, timeout=15)
+    subprocess.run(list(args), creationflags=CNW, timeout=15,
+                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
 
 
 def _lock() -> None:

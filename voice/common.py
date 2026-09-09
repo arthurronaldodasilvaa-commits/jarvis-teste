@@ -6,11 +6,16 @@ from __future__ import annotations
 
 import ctypes
 import re
+import sys
 import time
 import unicodedata
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Congelado (PyInstaller): a pasta é a do .exe, não a de extração temporária.
+if getattr(sys, "frozen", False):
+    HERE = Path(sys.executable).resolve().parent
+else:
+    HERE = Path(__file__).resolve().parent
 LOG_PATH = HERE / "jarvis_voice.log"
 
 # Arquivos compartilhados com o Jarvis App (pasta jarvis-app\).
