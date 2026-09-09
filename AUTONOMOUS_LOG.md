@@ -130,6 +130,40 @@ esses não dispararam.
 - A partir daqui entro em cadência leve: checo a saúde do daemon de tempos
   em tempos e faço polimento pequeno, esperando você voltar e mandar parar.
 
+## Rodada 2 (09/09, 19h) — bugs do Arthor + Onda 1 do Kimi
+
+Arthur voltou, testou, e trouxe bugs + pediu pra aplicar ideias do kimi-cli.
+
+**Bugs corrigidos:**
+- Não dava pra sair do modo desenho/medida nem limpar os traços por voz.
+  Causa: `STOP_WORDS` ("para", "chega") comia "para de desenhar" / "chega de
+  medir" antes do handler; e o regex de sair era estreito e ainda reativava a
+  entrada. Agora sair vem primeiro e cobre desativa/cancela/fecha/encerra/sai
+  da/volta ao normal. "limpa a tela"/"limpa tudo" também apaga traços e medidas.
+- Botões de fechar/config em cima do relógio e o X quase invisível na câmera —
+  ajustado no `index.html` (fundo sólido, opacidade, relógio desceu, X desce
+  abaixo do colchete no modo câmera). Verificado em navegador nos 2 modos.
+- Relançamento do daemon morria no meio (`timeout /t 4` falha com stdin
+  redirecionado) — agora usa ping + a instância nova espera o mutex (JARVIS_RELAUNCH).
+- **bloquear a tela agora pede confirmação** (era imediato — foi o que me
+  travou). Toggle `danger.allow_lock`.
+
+**Onda 1 do KIMI_IDEAS.md (Arthur escolheu só a Onda 1):**
+- `voice/hooks.py` + `hooks.toml` — sistema de hooks (8 eventos de ciclo de
+  vida → speak / then / run shell). Fail-open. Automação sem programar.
+- `voice/llm.py` — abstração de provedor (ollama | openai-compat | anthropic)
+  com fallback. `Brain` agora fala com um `llm.Router`. Comportamento padrão idêntico.
+- `voice/skills_extra.py` + `skills_extra.toml` — catálogo de skills declarativo:
+  `[[skill]]` com patterns/speak/open/run/then/confirm. Prioridade sobre a torre
+  de regex. Recarrega ao salvar.
+
+Testado: daemon sobe limpo com os 3 módulos; 23 comandos variados por dispatch,
+0 exceções. Onda 2/3 (MCP, task manager, IPC) ficaram documentadas, não feitas.
+
+**Pendente de deploy:** rebuild do `JarvisApp.exe` (UI) e do frozen
+`JarvisVoice.exe` (Onda 1) + regenerar `installer/pacote/`. Arthur vai fechar o
+app pra eu recompilar.
+
 ## Encerramento (09/09, ~18h46)
 
 Arthur voltou e mandou parar ("cheguei, ao finalizar esta tarefa, pare e me

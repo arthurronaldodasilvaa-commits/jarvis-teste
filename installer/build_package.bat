@@ -17,7 +17,9 @@ mkdir "%OUT%\payload"
 
 echo [1/6] daemon de voz ...
 xcopy /e /i /y "dist\JarvisVoice" "%OUT%\payload\voice" >nul
-copy /y "..\voice\config.toml"      "%OUT%\payload\voice\config.toml" >nul
+copy /y "..\voice\config.toml"        "%OUT%\payload\voice\config.toml" >nul
+copy /y "..\voice\hooks.toml"         "%OUT%\payload\voice\hooks.toml" >nul
+copy /y "..\voice\skills_extra.toml"  "%OUT%\payload\voice\skills_extra.toml" >nul
 xcopy /e /i /y "..\voice\profiles"  "%OUT%\payload\voice\profiles" >nul
 
 echo [2/6] aplicativo (cerebro holografico) ...
@@ -40,6 +42,7 @@ if exist "OllamaSetup.exe" (
 echo [5/6] o instalador ...
 copy /y "dist\JarvisSetup.exe" "%OUT%\JarvisSetup.exe" >nul
 copy /y "LEIA-ME.txt" "%OUT%\LEIA-ME.txt" >nul
+if exist "..\COMANDOS.md" copy /y "..\COMANDOS.md" "%OUT%\COMANDOS.md" >nul
 
 echo [6/6] pronto.
 echo.
