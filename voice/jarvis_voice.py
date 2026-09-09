@@ -112,6 +112,12 @@ _ROUTER_TEMPLATES = {
     "print": "tira um print",
     "config": "abre as configuracoes",
     "quiz": "me faz uma pergunta sobre {arg}",
+    "traduzir": "traduz {arg}",
+    "soletrar": "soletra {arg}",
+    "hora_mundo": "que horas sao em {arg}",
+    "clipboard_ler": "o que tem na area de transferencia",
+    "minimizar": "minimiza tudo",
+    "dias_ate": "quantos dias faltam pro {arg}",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -138,7 +144,8 @@ cmd possíveis:
  clima   noticias   lembrete (arg=o quê + quando)   conta (arg=expressão)
  converter (arg=X unidade em unidade)   cripto (arg=bitcoin/ethereum/...)
  wiki (arg=pessoa/conceito — fatos)   musica_atual   print   config
- quiz (arg=tema de estudo)
+ quiz (arg=tema de estudo)   traduzir (arg="X pra <idioma>")   soletrar (arg=palavra)
+ hora_mundo (arg=cidade)   clipboard_ler   minimizar   dias_ate (arg=data/feriado)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
