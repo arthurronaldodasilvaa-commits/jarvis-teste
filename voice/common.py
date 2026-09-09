@@ -57,7 +57,8 @@ def write_control(**changes) -> dict:
     import time as _t
 
     data = dict(_control_cache["data"])
-    data.update(changes)
+    data.pop("holo", None)          # 'holo' é evento de uso único — não fica grudado
+    data.update({k: v for k, v in changes.items() if v is not None})
     try:
         CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
         CONTROL_FILE.write_text(json.dumps(data), encoding="utf-8")

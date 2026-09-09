@@ -445,13 +445,17 @@ def set_paused(paused: bool, *, beep: bool = True) -> None:
 
 
 def hotkey_listener() -> None:
-    """Ctrl+Alt+J (global) pausa/ativa a escuta. Thread própria com message loop."""
+    """Ctrl+Alt+J e Ctrl+Shift+J (global) pausam/ativam a escuta."""
     u32 = ctypes.windll.user32
-    MOD_ALT, MOD_CONTROL, MOD_NOREPEAT = 0x0001, 0x0002, 0x4000
-    if not u32.RegisterHotKey(None, 1, MOD_ALT | MOD_CONTROL | MOD_NOREPEAT, 0x4A):
-        log("não consegui registrar o atalho global Ctrl+Alt+J")
+    MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT = 0x0001, 0x0002, 0x0004, 0x4000
+    combos = [(1, MOD_ALT | MOD_CONTROL, "Ctrl+Alt+J"),
+              (2, MOD_SHIFT | MOD_CONTROL, "Ctrl+Shift+J")]
+    ok = [name for i, mods, name in combos
+          if u32.RegisterHotKey(None, i, mods | MOD_NOREPEAT, 0x4A)]
+    if not ok:
+        log("não consegui registrar nenhum atalho global (Ctrl+Alt+J / Ctrl+Shift+J)")
         return
-    log("atalho global ativo: Ctrl+Alt+J pausa/ativa a escuta")
+    log(f"atalho global ativo: {' ou '.join(ok)} pausa/ativa a escuta")
     msg = wt.MSG()
     while u32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
         if msg.message == 0x0312:  # WM_HOTKEY
@@ -461,7 +465,32 @@ def hotkey_listener() -> None:
                 log(f"erro no atalho: {exc}")
 
 
-def open_jarvis_app(cfg: dict) -> None:
+def focus_jarvis_app() -> None:
+    """Traz a janela JARVIS pra frente (rouba o foco de outro app)."""
+    u = ctypes.windll.user32
+    hwnd = u.FindWindowW(None, "JARVIS")
+    if not hwnd:
+        return
+    try:
+        u.AllowSetForegroundWindow(-1)  # ASFW_ANY
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        fg = u.GetForegroundWindow()
+        cur = ctypes.windll.kernel32.GetCurrentThreadId()
+        other = u.GetWindowThreadProcessId(fg, 0)
+        u.AttachThreadInput(cur, other, True)
+        u.ShowWindow(hwnd, 9)                              # SW_RESTORE
+        u.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0003)       # HWND_TOPMOST
+        u.SetWindowPos(hwnd, -2, 0, 0, 0, 0, 0x0003)       # HWND_NOTOPMOST (não prende)
+        u.BringWindowToTop(hwnd)
+        u.SetForegroundWindow(hwnd)
+        u.AttachThreadInput(cur, other, False)
+    except Exception as exc:  # noqa: BLE001
+        log(f"focus_jarvis_app: {exc}")
+
+
+def open_jarvis_app(cfg: dict, *, focus_after: float = 0.0) -> None:
     """Abre o Jarvis App (cérebro holográfico). O .exe tem trava de instância única."""
     ap = cfg.get("app", {})
     if not ap.get("enabled", False):
@@ -469,11 +498,23 @@ def open_jarvis_app(cfg: dict) -> None:
     exe = ap.get("exe_path", "")
     try:
         if exe and Path(exe).is_file():
+            try:
+                ctypes.windll.user32.AllowSetForegroundWindow(-1)
+            except Exception:  # noqa: BLE001
+                pass
             subprocess.Popen([exe], creationflags=0x00000008)  # DETACHED_PROCESS
         else:
             log(f"Jarvis App: exe_path inválido ({exe!r})")
+            return
     except Exception as exc:  # noqa: BLE001
         log(f"falha ao abrir o Jarvis App: {exc}")
+        return
+
+    def _bring():
+        time.sleep(focus_after)
+        focus_jarvis_app()
+
+    threading.Thread(target=_bring, daemon=True).start()
 
 
 def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
@@ -486,7 +527,7 @@ def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
         _run_action(action, cfg)
         time.sleep(0.6)
     if cfg.get("app", {}).get("open_on_arrival", False):
-        open_jarvis_app(cfg)   # por último, como pedido
+        open_jarvis_app(cfg, focus_after=3.5)   # por último + traz pra frente
 
 
 def _run_action(action: str, cfg: dict) -> None:
@@ -687,9 +728,15 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
     if payload is None:
         mic.drain(); return          # fala não endereçada -> silêncio
 
+    # Whisper às vezes alucina uma cauda ("... Jarvis. Jaris, cia um cubão...").
+    # Um comando real é UMA frase curta — corta na 1ª pontuação forte se
+    # aparecer "jarvis" de novo ou várias frases.
+    if norm(payload).count(" jarvis") >= 1 or payload.count(".") >= 2:
+        payload = re.split(r"[.!?]", payload, 1)[0].strip() or payload
+
     if not norm(payload):
         if cfg.get("app", {}).get("open_on_wake_word", False):
-            open_jarvis_app(cfg)
+            open_jarvis_app(cfg, focus_after=1.6)
         mouth.say(cfg["assistant"].get("attention_reply", "Olá senhor, com o que posso ajudar?"))
         mic.drain(); return
 

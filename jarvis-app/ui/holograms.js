@@ -108,9 +108,11 @@ window.jarvisHolo = (() => {
   }
   function clearAll() { [...shapes].forEach(removeShape); count = 0; st.poked && st.poked.clear(); }
 
+  const APP_START = Date.now();
   function onControl(holo) {
     if (!holo || !holo.n || holo.n <= lastN) return;
     lastN = holo.n;
+    if (holo.n < APP_START - 3000) return;   // comando velho (de antes do app abrir) — ignora
     if (holo.action === "add" && holo.shape) { spawn(holo.shape); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
     else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
   }
