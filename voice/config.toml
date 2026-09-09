@@ -90,6 +90,10 @@ sapi_voice = "Microsoft Maria Desktop"
 sapi_rate = 0
 ready_line = ""
 
+[location]
+# Cidade padrão pro clima ("Jarvis, como está o tempo?"). Vazio = detecta pelo IP.
+city = ""
+
 [perf]
 log_max_kb = 512              # ao iniciar, corta o jarvis_voice.log se passar disso
 

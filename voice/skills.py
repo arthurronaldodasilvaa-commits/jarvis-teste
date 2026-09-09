@@ -23,6 +23,7 @@ from urllib.parse import quote_plus
 import maps
 import reminders
 import spotify
+import weather
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
 PROFILES_DIR = HERE / "profiles"
@@ -513,12 +514,30 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         msg = _reminder_msg(rest)
         reminders.add(msg or "(sem descrição)", ts)
         prefixo = "Às" if (":" in human or "meio-dia" in human or "meia-noite" in human) else "Daqui a"
-        if prefixo == "Às":
-            human = human.replace(":", " e ").replace(" de amanhã", ", amanhã,")
+        if prefixo == "Às" and ":" in human:
+            hh, mm = human.split(" de ")[0].split(":")
+            human = f"{int(hh)} horas" if mm == "00" else f"{int(hh)}h{mm}"
+            if "amanhã" in when[1]:
+                human += ", amanhã"
         if msg:
             return Result(speak=f"Combinado, senhor. {prefixo} {human} eu aviso: {msg}.")
         return Result(speak=f"Marcado pra {human}, senhor. Eu aviso." if prefixo == "Às"
                       else f"Timer de {human}, senhor. Eu aviso quando terminar.")
+
+    # --- clima ---
+    if re.search(r"\b(tempo|clima|previs\w+|vai chov\w+|ta chov\w+|esta chov\w+|"
+                 r"quantos graus|qual (a )?temperatura|ta (frio|calor|quente)|"
+                 r"faz (frio|calor)|tempo la fora)\b", t) and not re.search(
+                 r"\b(quanto tempo|ao mesmo tempo|com o tempo|perde\w* tempo|um tempo)\b", t):
+        dia = "amanhã" if re.search(r"\bamanha\b", t) else "hoje"
+        _tw = "hoje|amanha|agora|de manha|de tarde|de noite|hoje a noite|essa semana|senhor|la fora|aqui|fora"
+        mc = re.search(rf"\b(?:em|no|na)\s+([a-z][a-z\s]+?)(?:\s+(?:{_tw}))*\s*$", t)
+        cidade = None
+        if mc:
+            cand = re.sub(rf"\b(?:{_tw})\b", "", mc.group(1)).strip()
+            if cand and cand not in ("casa", "mim", "voce", "cidade", "regiao"):
+                cidade = cand
+        return Result(speak=weather.report(cfg, cidade, dia))
 
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)
