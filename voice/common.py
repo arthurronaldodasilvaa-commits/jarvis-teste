@@ -118,7 +118,8 @@ KEYEVENTF_KEYUP = 0x02
 
 VK = {
     "CTRL": 0x11, "ALT": 0x12, "SHIFT": 0x10, "WIN": 0x5B, "ENTER": 0x0D,
-    "V": 0x56, "A": 0x41, "F4": 0x73, "TAB": 0x09, "ESC": 0x1B,
+    "V": 0x56, "A": 0x41, "D": 0x44, "M": 0x4D, "F4": 0x73, "TAB": 0x09, "ESC": 0x1B,
+    "LEFT": 0x25, "UP": 0x26, "RIGHT": 0x27, "DOWN": 0x28, "SNAPSHOT": 0x2C,
     "VOL_MUTE": 0xAD, "VOL_DOWN": 0xAE, "VOL_UP": 0xAF,
     "MEDIA_NEXT": 0xB0, "MEDIA_PREV": 0xB1, "MEDIA_STOP": 0xB2, "MEDIA_PLAY": 0xB3,
 }
@@ -184,3 +185,31 @@ def paste_text(text: str) -> None:
     if set_clipboard(text):
         time.sleep(0.25)
         combo("CTRL", "V")
+
+
+def get_clipboard() -> str:
+    """Lê texto (unicode) da área de transferência via Win32."""
+    c = ctypes
+    CF_UNICODETEXT = 13
+    k32, u32 = c.windll.kernel32, c.windll.user32
+    k32.GlobalLock.restype = c.c_void_p
+    k32.GlobalLock.argtypes = [c.c_void_p]
+    k32.GlobalUnlock.argtypes = [c.c_void_p]
+    u32.GetClipboardData.restype = c.c_void_p
+    u32.GetClipboardData.argtypes = [c.c_uint]
+    for _ in range(6):
+        if u32.OpenClipboard(None):
+            break
+        time.sleep(0.05)
+    else:
+        return ""
+    try:
+        h = u32.GetClipboardData(CF_UNICODETEXT)
+        if not h:
+            return ""
+        p = k32.GlobalLock(h)
+        text = c.c_wchar_p(p).value or ""
+        k32.GlobalUnlock(h)
+        return text
+    finally:
+        u32.CloseClipboard()

@@ -738,6 +738,41 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         media.seek(secs)
         return Result(speak="")
 
+    # --- screenshot ---
+    if re.search(r"\b(tira|faz|captur\w+|bat\w+)\s+(um\s+|uma\s+)?(print|screenshot|foto da tela|"
+                 r"captura de tela|imagem da tela)\b|\bprint da tela\b|\bprintar\b", t):
+        combo("WIN", "SNAPSHOT")
+        return Result(speak="Print salvo em Imagens, na pasta Capturas de Tela, senhor.")
+
+    # --- área de transferência ---
+    m = re.search(r"^(?:copia|poe|bota)\s+(?:pra|para|na|no)?\s*(?:area de transferencia|"
+                  r"transferencia|clipboard|memoria)\s*[:,]?\s*(.+)", t)
+    if m:
+        from common import set_clipboard
+        set_clipboard(m.group(1).strip())
+        return Result(speak="Copiado, senhor.")
+    if re.search(r"\b(o que (tem|ta|esta)|le|mostra|cola)\s+.*\b(area de transferencia|clipboard|transferencia)\b|"
+                 r"\bque copiei\b", t):
+        from common import get_clipboard
+        txt = get_clipboard().strip()
+        if not txt:
+            return Result(speak="A área de transferência está vazia, senhor.")
+        return Result(speak=(txt if len(txt) <= 200 else txt[:200] + "…"))
+
+    # --- janelas ---
+    if re.search(r"\b(minimiza|esconde|abaixa)\s+(tudo|todas as janelas|as janelas)\b|"
+                 r"\bmostra a area de trabalho\b|\bmostrar? o desktop\b", t):
+        combo("WIN", "D"); return Result(speak="")
+    if re.search(r"\bmaximiza\w*\s+(essa|a|esta)?\s*janela\b|\bjanela em tela cheia\b", t):
+        combo("WIN", "UP"); return Result(speak="")
+    if re.search(r"\bminimiza\w*\s+(essa|a|esta)?\s*janela\b", t):
+        combo("WIN", "DOWN"); return Result(speak="")
+    if re.search(r"\b(joga|manda|passa|move)\s+.*\b(outra tela|segundo monitor|monitor da (direita|esquerda)|"
+                 r"pro lado)\b", t):
+        combo("WIN", "SHIFT", "RIGHT"); return Result(speak="")
+    if re.search(r"\b(encaixa|joga)\s+.*\b(esquerda|direita)\b|\bdivide a tela\b", t):
+        combo("WIN", "LEFT" if "esquerda" in t else "RIGHT"); return Result(speak="")
+
     # --- bloquear tela ---
     if re.search(r"\bbloqueia?\b.*\b(tela|pc|computador|maquina)\b|\btrava a tela\b", t):
         _lock()
