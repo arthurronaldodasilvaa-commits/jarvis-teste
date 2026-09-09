@@ -950,7 +950,7 @@ def main() -> None:
         mouth.say(cfg["tts"]["ready_line"])
     log(f'pronto — diga a frase de chegada ou "{wake_word} ..."')
 
-    st = {"last_arrival": 0.0, "pending": None}   # pending = (pergunta, do, deadline)
+    st = {"last_arrival": 0.0, "pending": None, "await": None}   # pending=(q,do,dl); await=(fn,dl)
 
     ring: deque[np.ndarray] = deque(maxlen=pre_n)
     while True:
@@ -960,6 +960,9 @@ def main() -> None:
             p = st["pending"]
             if p and time.monotonic() > p[2]:
                 log("confirmação expirou"); st["pending"] = None
+            aw = st["await"]
+            if aw and time.monotonic() > aw[1]:
+                st["await"] = None
             continue
         try:
             _handle_block(block, ring, mic, ears, mouth, brain, cfg,
@@ -980,7 +983,7 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
 
     # escuta pausada (botão do app ou Ctrl+Alt+J) -> ignora tudo
     if read_control().get("paused", False):
-        mic.drain(); ring.clear(); st["pending"] = None
+        mic.drain(); ring.clear(); st["pending"] = None; st["await"] = None
         return
 
     # confirmação pendente expirou sem resposta?
@@ -1007,6 +1010,7 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         return
 
     triggered = (st["pending"] is not None
+                 or st["await"] is not None
                  or is_arrival_phrase(n_w, cfg)
                  or strip_wake_word(raw_w, n_w, wake_word) is not None)
     if not triggered:
@@ -1023,6 +1027,27 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
     # -------- resposta a uma confirmação pendente --------
     # É SEMPRE consumida pela próxima fala: sim -> executa; qualquer outra
     # coisa -> cancela. Nunca fica presa.
+    # -------- resposta a um diálogo aberto (quiz, etc.) --------
+    if st["await"]:
+        fn, dl = st["await"]
+        st["await"] = None
+        if time.monotonic() > dl:
+            log("  (diálogo expirou)")
+        else:
+            ans = strip_wake_word(raw, n, wake_word) or raw
+            try:
+                out = fn(ans)
+            except Exception as exc:  # noqa: BLE001
+                log(f"erro no diálogo: {exc}"); out = None
+            if isinstance(out, tuple):        # (fala, novo_fn) -> continua o diálogo
+                mouth.say(out[0])
+                if out[1]:
+                    st["await"] = (out[1], time.monotonic() + 40)
+            elif out:
+                mouth.say(out)
+            mic.drain()
+            return
+
     if st["pending"]:
         _question, do, _dl = st["pending"]
         st["pending"] = None
@@ -1088,6 +1113,8 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         st["pending"] = (question, do, time.monotonic() + CONFIRM_TIMEOUT)
     elif res.speak:
         mouth.say(res.speak)
+    if getattr(res, "await_reply", None):
+        st["await"] = (res.await_reply, time.monotonic() + 40)
     write_app_state(phase="idle")
     mic.drain()
     if getattr(res, "restart", False):

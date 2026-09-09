@@ -112,6 +112,7 @@ class Result:
     stop: bool = False
     fallback: bool = False                # True = não achou nada certo (só chutou uma busca web)
     restart: bool = False                 # True = o loop deve reiniciar o daemon (troca de perfil)
+    await_reply: object = None            # callable(fala_do_usuario:str)->str : consome a próxima fala
 
 
 # --------------------------------------------------------------------------
@@ -210,6 +211,44 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
                                         "n": int(time.time() * 1000)})
                     return Result(speak=f"{w.capitalize()} na tela, senhor.")
     return None
+
+
+def _quiz_round(brain, tema: str, n: int) -> "Result":
+    """Gera 1 pergunta sobre `tema` e devolve um Result que espera a resposta falada."""
+    try:
+        q = brain._post(
+            [{"role": "system", "content":
+              "Você é um professor. Faça UMA pergunta curta de estudo sobre o tema pedido, "
+              "nível ensino médio. Só a pergunta, sem numeração, sem a resposta."},
+             {"role": "user", "content": f"Tema: {tema}"}], 60, temperature=0.7).strip()
+    except Exception:  # noqa: BLE001
+        return Result(speak="Não consegui montar a pergunta agora, senhor.")
+    q = re.sub(r'^["\-\d.\s]+', "", q).strip()
+    if not q:
+        return Result(speak="Não consegui montar a pergunta agora, senhor.")
+
+    def avaliar(resposta: str):
+        r = (resposta or "").strip().lower()
+        if re.search(r"\b(para|parar|chega|desisto|sair do quiz|acabou|encerra)\b", r):
+            return "Encerrando o quiz, senhor.", None
+        if re.search(r"\b(nao sei|sei la|passa|pula|proxima|nenhuma ideia)\b", r):
+            veredito = "Sem problema."
+        else:
+            try:
+                veredito = brain._post(
+                    [{"role": "system", "content":
+                      "Avalie a resposta do aluno à pergunta. Diga se acertou, errou ou "
+                      "acertou em parte, e dê a resposta correta em 1 frase. Máximo 2 frases, "
+                      "tom de professor gentil. Trate o aluno por 'senhor'."},
+                     {"role": "user", "content": f"Pergunta: {q}\nResposta do aluno: {resposta}"}],
+                    90, temperature=0.3).strip()
+            except Exception:  # noqa: BLE001
+                veredito = "Não consegui avaliar agora, senhor."
+        prox = _quiz_round(brain, tema, n + 1)
+        return f"{veredito} Próxima: {prox.speak}", (prox.await_reply if not prox.to_llm else None)
+
+    return Result(speak=(f"Pergunta {n}, senhor: {q}" if n == 1 else q),
+                  await_reply=avaliar)
 
 
 _MESES = {"janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,
@@ -1095,6 +1134,14 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                           + " na fila, senhor. Abri o arquivo pro desenvolvedor.")
         resumo = "; ".join(re.sub(r"^-\s*(\[[^\]]*\]\s*)?", "", ln).strip() for ln in linhas[:4])
         return Result(speak=f"Senhor, {len(linhas)} na fila: {resumo}.")
+
+    # --- modo estudo / flashcards por voz ---
+    m = re.search(r"\b(?:me (?:faz|faca|manda|de)\s+(?:uma\s+)?(?:pergunta|questao)|me pergunta|"
+                  r"modo estudo|modo quiz|me testa|toma minha licao|"
+                  r"quiz|flashcard\w*)\b(?:\s+(?:sobre|de|em|a respeito de)\s+(.+))?", t)
+    if m and brain is not None and hasattr(brain, "_post"):
+        tema = (m.group(1) or "").strip() or "conhecimentos gerais"
+        return _quiz_round(brain, tema, 1)
 
     # --- fato rápido da Wikipédia ("quem foi X", "o que é Y") ---
     if re.match(r"^(quem (foi|e|era|s[aã]o)|o que (e|era|foi|significa)|"
