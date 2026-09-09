@@ -105,9 +105,7 @@ window.jarvisTrig = (() => {
     return panel("RELAÇÕES TRIGONOMÉTRICAS",
       "  sen α = cateto oposto ÷ hipotenusa\n" +
       "  cos α = cateto adjacente ÷ hipotenusa\n" +
-      "  tan α = cateto oposto ÷ cateto adjacente\n" +
-      "  tan α = sen α ÷ cos α\n" +
-      "  sen²α + cos²α = 1");
+      "  tan α = cateto oposto ÷ cateto adjacente");
   }
 
   const BUILDERS = {
