@@ -8,11 +8,10 @@ Fica ao lado de uma pasta  payload/  com tudo que vai ser instalado:
 
     JarvisSetup.exe
     payload/
-        python/            (runtime portátil)
-        voice/             (código + config.toml modelo + profiles/)
-        app/JarvisApp.exe
-        models/faster-whisper-tiny/ , faster-whisper-small/
-        ollama/OllamaSetup.exe
+        voice/       JarvisVoice.exe + _internal/ + config.toml + profiles/
+        jarvis-app/  JarvisApp.exe
+        models/      faster-whisper-tiny/ , faster-whisper-small/
+        ollama/      OllamaSetup.exe   (opcional — senão baixa do site)
 """
 from __future__ import annotations
 
@@ -38,7 +37,7 @@ AMBER   = "#ffb454"
 OK      = "#54e08a"
 BAD     = "#ff5d6c"
 
-APP_W, APP_H = 860, 620
+APP_W, APP_H = 860, 640
 
 PKG = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 PAYLOAD = PKG / "payload"
@@ -79,7 +78,7 @@ class Wizard(tk.Tk):
         self.f_mono = tkfont.Font(family="Consolas", size=9)
 
         # estado partilhado entre passos
-        self.state = {
+        self.data = {
             "dest_root": None,       # Path do disco escolhido (ex: F:\)
             "install_dir": None,     # <disco>\Jarvis
             "model": read_model_name(),
@@ -116,26 +115,28 @@ class Wizard(tk.Tk):
                  fg=DIM, bg=BG).place(x=106, y=56)
         tk.Frame(self, bg=LINE, height=1).pack(fill="x")
 
-        self.body = tk.Frame(self, bg=BG)
-        self.body.pack(fill="both", expand=True)
-
-        tk.Frame(self, bg=LINE, height=1).pack(fill="x")
-        foot = tk.Frame(self, bg=BG, height=64)
-        foot.pack(fill="x")
+        # rodapé PRIMEIRO (ancorado embaixo) pra nunca ser cortado pelo conteúdo
+        foot = tk.Frame(self, bg=BG, height=68)
+        foot.pack(fill="x", side="bottom")
         foot.pack_propagate(False)
+        tk.Frame(self, bg=LINE, height=1).pack(fill="x", side="bottom")
         self.dots = tk.Label(foot, text="", font=self.f_body, fg=DIM, bg=BG)
-        self.dots.place(x=24, y=22)
+        self.dots.place(x=24, y=24)
         self.btn_next = _Btn(foot, "Avançar", self._next, primary=True)
-        self.btn_next.place(relx=1.0, x=-24, y=14, anchor="ne")
+        self.btn_next.place(relx=1.0, x=-24, y=15, anchor="ne")
         self.btn_back = _Btn(foot, "Voltar", self._back)
-        self.btn_back.place(relx=1.0, x=-168, y=14, anchor="ne")
+        self.btn_back.place(relx=1.0, x=-172, y=15, anchor="ne")
+
+        # corpo ocupa o que sobrar, com rolagem se precisar
+        self.body = tk.Frame(self, bg=BG)
+        self.body.pack(fill="both", expand=True, side="top")
 
     # ---- navegação ----------------------------------------------------
     def _show(self, i: int) -> None:
         for s in self.steps:
             s.pack_forget()
         st = self.steps[i]
-        st.pack(fill="both", expand=True, padx=40, pady=28)
+        st.pack(fill="both", expand=True, padx=40, pady=(22, 10))
         self.idx = i
         self.dots.config(text=f"passo {i + 1} de {len(self.steps)}   "
                               + "•" * (i + 1) + "·" * (len(self.steps) - i - 1))
@@ -294,7 +295,7 @@ class ProfileStep(Step):
         profs = L.list_profiles(payload_dir("voice"))
         if not profs:
             self.para("(nenhum perfil encontrado — vai usar a configuração padrão)", fg=AMBER)
-            self.wiz.state["profile"] = ""
+            self.wiz.data["profile"] = ""
             self.wiz.refresh_nav()
             return
         for p in profs:
@@ -308,7 +309,7 @@ class ProfileStep(Step):
         self._pick()
 
     def _pick(self) -> None:
-        self.wiz.state["profile"] = self.var.get()
+        self.wiz.data["profile"] = self.var.get()
         self.wiz.refresh_nav()
 
     def can_advance(self) -> bool:
@@ -349,8 +350,8 @@ class DriveStep(Step):
     def _pick(self) -> None:
         root = self.var.get()
         if root:
-            self.wiz.state["dest_root"] = Path(root)
-            self.wiz.state["install_dir"] = Path(root) / "Jarvis"
+            self.wiz.data["dest_root"] = Path(root)
+            self.wiz.data["install_dir"] = Path(root) / "Jarvis"
             self.note.config(text=f"Vai instalar em:  {root}Jarvis")
         self.wiz.refresh_nav()
 
@@ -374,13 +375,13 @@ class InstallStep(Step):
         self.done = False
 
     def enter(self) -> None:
-        if self.done or self.wiz.state["installed"]:
+        if self.done or self.wiz.data["installed"]:
             return
         self.wiz.btn_next.set_enabled(False)
         threading.Thread(target=self._run, daemon=True).start()
 
     def _run(self) -> None:
-        st = self.wiz.state
+        st = self.wiz.data
         dest: Path = st["install_dir"]
         try:
             parts = ("voice", "jarvis-app", "models")
@@ -431,7 +432,7 @@ class InstallStep(Step):
         self.wiz.post(go)
 
     def can_advance(self) -> bool:
-        return self.wiz.state["installed"]
+        return self.wiz.data["installed"]
 
 
 # ---- 5. Ollama -----------------------------------------------------
@@ -460,7 +461,7 @@ class OllamaStep(Step):
         self._check()
 
     def _check(self) -> None:
-        model = self.wiz.state["model"]
+        model = self.wiz.data["model"]
         has_ollama = bool(L.find_ollama())
         if not has_ollama:
             self.status.config(text="Ollama ainda não está instalado.", fg=AMBER)
@@ -511,7 +512,7 @@ class OllamaStep(Step):
 
     def _pull_thread(self) -> None:
         import re
-        model = self.wiz.state["model"]
+        model = self.wiz.data["model"]
 
         def on_line(ln: str) -> None:
             pct = re.search(r"(\d+)%", ln)
@@ -558,7 +559,7 @@ class MicStep(Step):
             self._pick()
 
     def _pick(self) -> None:
-        self.wiz.state["mic"] = self.cb.get()
+        self.wiz.data["mic"] = self.cb.get()
         self.wiz.refresh_nav()
 
     def _test(self) -> None:
@@ -666,26 +667,26 @@ class DoneStep(Step):
 
     def build(self) -> None:
         self.title("Tudo pronto, senhor.")
-        self.para("\nO Jarvis está instalado e vai abrir sozinho quando você ligar o computador.\n")
+        self.para("O Jarvis está instalado e vai abrir sozinho quando você ligar o computador.",
+                  fg=DIM)
         card = tk.Frame(self, bg=PANEL)
-        card.pack(fill="x", pady=8)
+        card.pack(fill="x", pady=10)
         for t in ('Diga  "Jarvis"  →  ele responde e espera seu pedido',
                   'Diga  "Jarvis, que horas são"  →  ele responde',
                   'Diga  "Jarvis, abre o navegador"  →  ele abre',
                   'Diga  "Jarvis, modo cinema"  →  ele para de ouvir',
                   'Aperte  Ctrl + Alt + J  →  ele volta a ouvir',
-                  'Diga  "Jarvis, muda de perfil"  →  troca de usuário',
-                  'Pergunte  "Jarvis, o que você sabe fazer?"  →  ele te explica'):
-            tk.Label(card, text="   " + t, font=self.wiz.f_h2, fg=INK, bg=PANEL,
-                     anchor="w", justify="left").pack(fill="x", pady=5, padx=8)
+                  'Diga  "Jarvis, o que você sabe fazer?"  →  ele te explica'):
+            tk.Label(card, text="   " + t, font=self.wiz.f_body, fg=INK, bg=PANEL,
+                     anchor="w", justify="left").pack(fill="x", pady=3, padx=10)
         self.launch = tk.BooleanVar(value=True)
         tk.Checkbutton(self, text="  Abrir o Jarvis agora", variable=self.launch,
                        font=self.wiz.f_h2, fg=INK, bg=BG, selectcolor=PANEL,
-                       activebackground=BG, activeforeground=INK).pack(anchor="w", pady=14)
+                       activebackground=BG, activeforeground=INK).pack(anchor="w", pady=12)
 
     def on_next(self) -> bool:
         if self.launch.get():
-            vbs = self.wiz.state["install_dir"] / "iniciar_jarvis.vbs"
+            vbs = self.wiz.data["install_dir"] / "iniciar_jarvis.vbs"
             try:
                 os.startfile(str(vbs))  # noqa: S606
             except Exception:  # noqa: BLE001
@@ -704,7 +705,7 @@ def _short(name: str) -> str:
 
 
 def _patch_cfg(wiz: "Wizard", changes: dict) -> None:
-    cfgp = wiz.state["install_dir"] / "voice" / "config.toml"
+    cfgp = wiz.data["install_dir"] / "voice" / "config.toml"
     try:
         txt = cfgp.read_text(encoding="utf-8")
         cfgp.write_text(L.patch_config(txt, changes), encoding="utf-8")
