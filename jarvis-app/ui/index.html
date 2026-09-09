@@ -144,16 +144,18 @@
                  background: linear-gradient(0deg, var(--neon), #bff0ff);
                  box-shadow: 0 0 10px var(--neon); transition: height .5s ease; }
   .gauge .lbl { writing-mode: vertical-rl; text-orientation: mixed; }
-  .gauge .val { position: absolute; bottom: -16px; left: -6px; font-size: 9px; opacity: 0.7; }
+  .gauge .num { font-size: 9px; opacity: 0.65; width: 22px; }
 
-  #np { left: 26px; bottom: 78px; max-width: 42vw; opacity: 0; transition: opacity .4s; }
+  #np { left: 26px; bottom: 104px; width: 260px; opacity: 0; transition: opacity .4s;
+        border-left: 2px solid var(--neon-dim); padding-left: 12px; }
   #np.on { opacity: 0.9; }
   #np .t { font-size: 13px; letter-spacing: 1px; white-space: nowrap; overflow: hidden;
            text-overflow: ellipsis; }
-  #np .a { font-size: 11px; opacity: 0.6; letter-spacing: 1px; margin-top: 2px; }
-  #np .bar { margin-top: 7px; height: 2px; background: rgba(70,214,255,0.18); position: relative; }
+  #np .a { font-size: 11px; opacity: 0.6; letter-spacing: 1px; margin-top: 2px;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #np .bar { margin-top: 8px; height: 2px; background: rgba(70,214,255,0.18); position: relative; }
   #np .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
-               background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+               background: var(--neon); box-shadow: 0 0 8px var(--neon); transition: width 1s linear; }
   #np .ico { display: inline-block; margin-right: 7px; opacity: 0.8; }
 
   #feed { right: 28px; bottom: 60px; text-align: right; display: flex;
@@ -189,9 +191,9 @@
       <div id="wx"></div>
     </div>
     <div id="gauges" class="panel">
-      <div class="gauge"><span class="lbl">CPU</span><div class="track"><i class="fill" id="g-cpu"></i></div></div>
-      <div class="gauge"><span class="lbl">RAM</span><div class="track"><i class="fill" id="g-ram"></i></div></div>
-      <div class="gauge"><span class="lbl">GPU</span><div class="track"><i class="fill" id="g-gpu"></i></div></div>
+      <div class="gauge"><span class="lbl">CPU</span><div class="track"><i class="fill" id="g-cpu"></i></div><span class="num" id="n-cpu">0</span></div>
+      <div class="gauge"><span class="lbl">RAM</span><div class="track"><i class="fill" id="g-ram"></i></div><span class="num" id="n-ram">0</span></div>
+      <div class="gauge"><span class="lbl">GPU</span><div class="track"><i class="fill" id="g-gpu"></i></div><span class="num" id="n-gpu">0</span></div>
     </div>
     <div id="np" class="panel">
       <div class="t"><span class="ico">♪</span><span id="np-t">—</span></div>

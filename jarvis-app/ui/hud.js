@@ -20,11 +20,13 @@
 
   // ---------- gauges ----------
   const gv = { cpu: 0, ram: 0, gpu: 0 };
-  function setGauge(id, target) {
-    const key = id.slice(2);
+  function setGauge(key, target) {
     gv[key] += (target - gv[key]) * 0.5;
-    const el = $(id);
-    if (el) el.style.height = Math.max(0, Math.min(100, gv[key])) + "%";
+    const v = Math.max(0, Math.min(100, gv[key]));
+    const el = $("g-" + key);
+    if (el) el.style.height = v + "%";
+    const n = $("n-" + key);
+    if (n) n.textContent = Math.round(v);
   }
 
   // ---------- música ----------
@@ -84,9 +86,9 @@
     update(s) {
       if (!s) return;
       const sys = s.sys || {};
-      setGauge("g-cpu", +sys.cpu || 0);
-      setGauge("g-ram", +sys.ram || 0);
-      setGauge("g-gpu", +sys.gpu || 0);
+      setGauge("cpu", +sys.cpu || 0);
+      setGauge("ram", +sys.ram || 0);
+      setGauge("gpu", +sys.gpu || 0);
       if (typeof s.weather === "string") $("wx").textContent = s.weather;
       renderTrack(s.track);
       renderFeed(s.notes);
