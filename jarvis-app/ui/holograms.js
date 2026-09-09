@@ -141,15 +141,16 @@ window.jarvisHolo = (() => {
     lastN = holo.n;
     if (holo.n < APP_START - 3000) return;   // comando velho (de antes do app abrir) — ignora
     if (holo.action === "add" && holo.shape) { spawn(holo.shape, holo); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
-    else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
+    else if (holo.action === "clear") { clearAll(); clearInk(); clearMeasure(); dbg("limpou"); }
     else if (holo.action === "dup") { dupSelected(); }
     else if (holo.action === "explode") { explodeSelected(); }
     else if (holo.action === "lock") { lockSelected(holo.on); }
     else if (holo.action === "mode") {
       st.drawMode = holo.mode === "draw";
       st.measureMode = holo.mode === "measure";
-      if (holo.mode === "normal" || holo.mode === "draw") clearMeasure();
-      if (holo.mode === "normal") clearInk();
+      if (holo.mode !== "measure") clearMeasure();   // sai da medida (ou vai pro normal/desenho)
+      if (holo.mode !== "draw") clearInk();          // sai do desenho (ou vai pro normal/medida)
+      st.measWas = false; st.twistPrev = null;
       dbg("modo " + (holo.mode || "normal"));
     }
     else if (holo.action === "clear_ink") { clearInk(); clearMeasure(); }

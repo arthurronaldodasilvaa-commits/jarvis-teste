@@ -123,6 +123,10 @@ _ROUTER_TEMPLATES = {
     "clipboard_ler": "o que tem na area de transferencia",
     "minimizar": "minimiza tudo",
     "dias_ate": "quantos dias faltam pro {arg}",
+    "modo_desenho": "modo desenho",
+    "modo_medida": "modo medida",
+    "modo_normal": "modo normal",
+    "limpar_desenho": "limpa o desenho e as medidas",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -151,6 +155,8 @@ cmd possíveis:
  wiki (arg=pessoa/conceito — fatos)   musica_atual   print   config
  quiz (arg=tema de estudo)   traduzir (arg="X pra <idioma>")   soletrar (arg=palavra)
  hora_mundo (arg=cidade)   clipboard_ler   minimizar   dias_ate (arg=data/feriado)
+ modo_desenho (desenhar no ar na câmera)   modo_medida (medir distância na câmera)
+ modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
@@ -177,6 +183,12 @@ Exemplos:
 "cadê meu spotify" -> {"cmd":"abrir","arg":"spotify"}
 "tá calor, sobe o som" -> {"cmd":"volume_up"}
 "apaga essas formas" -> {"cmd":"limpar"}
+"quero rabiscar em cima disso" -> {"cmd":"modo_desenho"}
+"deixa eu medir o tamanho" -> {"cmd":"modo_medida"}
+"chega de desenhar" -> {"cmd":"modo_normal"}
+"pode sair do modo medida" -> {"cmd":"modo_normal"}
+"apaga o que eu desenhei" -> {"cmd":"limpar_desenho"}
+"tira essas medidas da tela" -> {"cmd":"limpar_desenho"}
 "tá calor lá fora?" -> {"cmd":"clima"}
 "me atualiza das notícias" -> {"cmd":"noticias"}
 "me lembra de ligar pro dentista amanhã de manhã" -> {"cmd":"lembrete","arg":"ligar pro dentista amanhã de manhã"}

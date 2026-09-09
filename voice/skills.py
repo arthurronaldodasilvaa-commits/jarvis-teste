@@ -673,8 +673,11 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak=cfg["assistant"].get("attention_reply", "Pois não, senhor?"))
 
     if t in STOP_WORDS or (len(t.split()) <= 3 and any(w in t for w in STOP_WORDS)):
-        # exceção: "cancela ..." de desligamento tratado abaixo
-        if "cancel" not in t:
+        # exceções: "cancela ..." (desligamento) e "para de desenhar / chega de medir"
+        # (modos da câmera) — tratados mais abaixo
+        if "cancel" not in t and not re.search(
+                r"\b(desenh\w*|desenhar|caneta|pincel|lapis|risco\w*|tra[cç]o\w*|"
+                r"rabisc\w*|medi\w*|medir|regua|modo)\b", t):
             return Result(speak="Às ordens, senhor.", stop=True)
 
     # --- encadear 2 comandos: "abre o navegador e pesquisa X" ---
@@ -801,21 +804,35 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak="Feito, senhor.")
 
     # --- modos da câmera: desenho / medida / normal ---
+    # SAIR do modo vem primeiro: "sai do modo desenho" não pode reativar o desenho.
+    _cam_noun = re.search(r"\b(desenh\w*|desenhar|caneta|lapis|pincel|risco\w*|tra[cç]o\w*|"
+                          r"rabisc\w*|medi\w*|medir|regua|medi[cç]\w+|distancia)\b", t)
+    _exit_word = re.search(r"\bmodo\s+normal\b|volta\w*\s+ao\s+normal|"
+                           r"\bsai\w*\s+d[eoa]\b|\bsair\b|\bpar[ae]\s+de\b|\bparar?\b|"
+                           r"\bchega\s+de\b|\bpode\s+(parar|sair)\b|"
+                           r"\b(encerra\w*|termina\w*|acaba\w*|desativa\w*|desliga\w*|"
+                           r"fecha\w*|cancela\w*)\b", t)
+    if re.search(r"\bmodo\s+normal\b|volta\w*\s+ao\s+normal\b|"
+                 r"\bpar[ae]\s+de\s+(desenhar|medir)\b|\bchega\s+de\s+(desenhar|medir)\b", t) \
+            or (_cam_noun and _exit_word):
+        write_control(holo={"action": "mode", "mode": "normal", "n": int(time.time() * 1000)})
+        return Result(speak="Pronto, senhor — voltei ao modo normal.")
+    if re.search(r"\b(limpa\w*|apaga\w*|tira|remove\w*|some com|deleta\w*|zera\w*)\s+"
+                 r"(o\s+|a\s+|os\s+|as\s+|esse\s+|esses\s+|essa\s+|essas\s+|meu\s+|meus\s+|"
+                 r"minha\s+|minhas\s+|todo\s+|toda\s+|tudo\s+que\s+|o que\s+)*"
+                 r"(desenho\w*|tra[cç]o\w*|risco\w*|rabisc\w*|medida\w*|medi[cç]\w+)\b|"
+                 r"\b(limpa\w*|apaga\w*|tira)\s+(o|tudo|isso)?\s*(que\s+)?(eu\s+)?"
+                 r"(desenhei|risquei|tracei|marquei)\b", t):
+        write_control(holo={"action": "clear_ink", "n": int(time.time() * 1000)})
+        return Result(speak="Limpei o desenho e as medidas, senhor.")
     if re.search(r"\bmodo\s+(desenho|caneta|lapis|pincel)\b|deixa eu desenhar|quero desenhar|"
-                 r"ativa\w*\s+(o\s+)?desenho|desenhar? no ar", t):
+                 r"ativa\w*\s+(o\s+)?desenho|desenhar? no ar|come[cç]a\w*\s+a desenhar", t):
         write_control(holo={"action": "mode", "mode": "draw", "n": int(time.time() * 1000)})
         return Result(speak="Modo desenho, senhor. Aponte o indicador e desenhe no ar.")
     if re.search(r"\bmodo\s+(medi\w+|regua|distancia)\b|quero medir|deixa eu medir|"
-                 r"ativa\w*\s+(a\s+)?(medida|regua)|medir? (a )?distancia", t):
+                 r"ativa\w*\s+(a\s+)?(medida|regua)|medir? (a )?distancia|come[cç]a\w*\s+a medir", t):
         write_control(holo={"action": "mode", "mode": "measure", "n": int(time.time() * 1000)})
         return Result(speak="Modo medida, senhor. Pince dois pontos.")
-    if re.search(r"\bmodo\s+normal\b|sai\w*\s+do\s+(desenho|modo\s+(desenho|medida))|"
-                 r"volta\w*\s+ao\s+normal|para\w*\s+de\s+(desenhar|medir)", t):
-        write_control(holo={"action": "mode", "mode": "normal", "n": int(time.time() * 1000)})
-        return Result(speak="Modo normal, senhor.")
-    if re.search(r"\b(limpa\w*|apaga\w*)\s+(o\s+)?(desenho|traco|risco|as?\s+medidas?)\b", t):
-        write_control(holo={"action": "clear_ink", "n": int(time.time() * 1000)})
-        return Result(speak="Limpei, senhor.")
 
     # --- abrir o painel de configurações no app ---
     if re.search(r"\b(abr\w*|mostra\w*|ver as|entra n\w*)\s+(as\s+)?configura\w+|"
