@@ -70,7 +70,12 @@ def handle(t: str) -> str | None:
             webbrowser.open("https://www.google.com/maps/dir/?api=1&destination=" + quote_plus(dest))
             return f"Traçando a rota até {dest}, senhor."
 
-    is_maps = bool(_MAPS.search(t) or _PLACE.search(t) or _NEAR.search(t))
+    # _PLACE sozinho (só a palavra "empresa", "banco"…) não é um pedido de mapa.
+    # Precisa de um gatilho: verbo de busca, "perto de mim", nota alta, ou
+    # localização explícita ("em/no/na <lugar>").
+    place_cue = bool(_PLACE.search(t) and (
+        _VERB.search(t) or _NEAR.search(t) or _TOP.search(t) or _MAPS.search(t)))
+    is_maps = bool(_MAPS.search(t) or _NEAR.search(t) or place_cue)
     if not is_maps:
         return None
 

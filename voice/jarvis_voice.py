@@ -409,6 +409,9 @@ class Brain:
         self.url = a["ollama_url"].rstrip("/") + "/api/chat"
         self.model = a["model"]
         self.system = a["system_prompt"].strip()
+        know = a.get("knowledge", "").strip()
+        if know:                     # base de conhecimento do perfil (empresa, contexto…)
+            self.system += "\n\nContexto que você conhece:\n" + know
         self.num_predict = int(a.get("reply_num_predict", 110))
         self.keep_alive = a.get("keep_alive", "1h")
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))

@@ -19,7 +19,7 @@ Ordem de carga:  `config.toml`  →  `profiles/<ativo>.toml`  →  `secrets.toml
 
 | Seção | Chaves |
 |---|---|
-| `[assistant]` | `user_name`, `address`, `wake_word`, `attention_reply`, `system_prompt`, `reply_num_predict` |
+| `[assistant]` | `user_name`, `address`, `wake_word`, `attention_reply`, `system_prompt`, `reply_num_predict`, `knowledge` (base de conhecimento anexada ao prompt — ex: dados da empresa) |
 | `[arrival]` | `enabled`, `phrase`, `greeting`, `spotify` (a entrada temática é pessoal) |
 | `[tts]` | `sapi_voice` (outra voz) |
 | `[apps]` | adicionar atalhos de app extras (merge com os do base) |
@@ -27,5 +27,7 @@ Ordem de carga:  `config.toml`  →  `profiles/<ativo>.toml`  →  `secrets.toml
 ## Perfis atuais
 
 - **`arthur.toml`** — pessoal (praticamente igual ao base).
-- **`robson.toml`** — pai, instituto de treinamento corporativo: persona de
-  secretário executivo, sem a frase de chegada, + atalhos de Gmail/Agenda/Drive/Meet.
+- **`robson.toml`** — pai, **dono do Instituto CAM** (desenvolvimento humano/
+  corporativo). Persona de secretário executivo, `knowledge` com os dados da
+  empresa (fonte: institutocam.com.br), sem frase de chegada, + atalhos de
+  Gmail/Agenda/Drive/Meet/site.

@@ -75,6 +75,9 @@ Você é o Jarvis, assistente pessoal por voz. Fala com uma única pessoa, a que
 - O nome dele é Arthur. Só diga isso se ele perguntar o próprio nome; fora disso, "Senhor".
 - Tom cordial e discreto, estilo mordomo. Se não souber, diga que não sabe — não invente.
 """
+# Base de conhecimento do perfil (empresa, contexto pessoal…). É anexada ao
+# system_prompt. Útil por perfil — cada cliente descreve aqui o próprio negócio.
+knowledge = ""
 
 [tts]
 sapi_voice = "Microsoft Maria Desktop"
