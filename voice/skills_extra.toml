@@ -1,0 +1,37 @@
+# skills_extra.toml — comandos personalizados do Jarvis (sem programar)
+#
+# Cada [[skill]] tem:
+#   patterns  (obrigatório) lista de regex — casadas no texto SEM acento e minúsculo
+#   speak     frase que o Jarvis fala
+#   open      arquivo / pasta / link http(s):// / nome de app pra abrir
+#   run       comando no shell (roda escondido)
+#   then      outro comando pro Jarvis executar (ex: "modo cinema")
+#   confirm   true = pede "sim" antes de agir
+#
+# Detalhes: veja o topo de voice/skills_extra.py
+# É recarregado sozinho quando você salva o arquivo.
+
+# --- exemplos (descomente e ajuste) ---------------------------------------
+
+# [[skill]]
+# name = "chinelo"
+# patterns = ["cad[eê] (o )?(meu )?chinelo", "onde (esta|ta) (o )?chinelo"]
+# speak = "Debaixo da cama, senhor. Como sempre."
+
+# [[skill]]
+# name = "edital"
+# patterns = ["abre (o )?(meu )?edital", "mostra o edital"]
+# open = "E:/Estudos/edital.pdf"
+# speak = "Abrindo o edital, senhor."
+
+# [[skill]]
+# name = "foco"
+# patterns = ["modo foco", "hora de estudar", "bora estudar"]
+# then = "modo cinema"
+# speak = "Modo foco, senhor. Bons estudos."
+
+# [[skill]]
+# name = "playlist estudo"
+# patterns = ["p[oõ]e (a )?playlist de estudo", "musica pra estudar"]
+# open = "https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ"
+# speak = "Playlist de estudo no ar, senhor."

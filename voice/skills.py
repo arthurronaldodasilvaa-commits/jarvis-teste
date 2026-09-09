@@ -30,6 +30,12 @@ import weather
 import wiki
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
+try:
+    import skills_extra
+except Exception as _exc:  # noqa: BLE001
+    skills_extra = None
+    log(f"skills_extra não disponível: {_exc}")
+
 PROFILES_DIR = HERE / "profiles"
 
 
@@ -740,6 +746,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 return Result(speak=ans)
         if _meta_q:                       # meta sem casar item: dá a visão geral
             return Result(speak=_HELP[-2][1])
+
+    # --- catálogo declarativo (voice/skills_extra.toml) — o que o usuário
+    #     adicionou tem prioridade sobre a torre de regex abaixo ---
+    if skills_extra is not None:
+        _redisp = (lambda p: dispatch(p, cfg, speak, brain, _depth=_depth + 1)) \
+            if _depth < 2 else None
+        _cr = skills_extra.match(t, raw, Result, _redisp)
+        if _cr is not None:
+            return _cr
 
     # --- perfis: qual está ativo / trocar ---
     if re.search(r"\b(perfil|perfis)\b", t):
