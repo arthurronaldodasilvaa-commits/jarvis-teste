@@ -164,6 +164,7 @@ window.jarvisHolo = (() => {
   // ---------- interação ----------
   const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false };
   let dbgDot = [0, 0], dbgOn = false;
+  let selectorId = null;   // id da mão que é a "seletora" (fica grudado)
 
   function nearestOnScreen(px, py, maxDistPx) {
     let best = null, bd = maxDistPx;
@@ -180,7 +181,14 @@ window.jarvisHolo = (() => {
     hands.forEach((h) => { h.role = null; });
     if (!hands.length) { st.allPrev = null; st.rotPrev = null; return; }
 
-    let selH = hands.find((h) => h.gesture && h.gesture.pinch >= 0.9) || hands[0];
+    // SELETORA = grudada por identidade; muda só se a OUTRA mão pinçar
+    let selH = hands.find((h) => h.id === selectorId);
+    const pinchers = hands.filter((h) => h.gesture && h.gesture.pinch >= 0.9);
+    if (pinchers.length && (!selH || pinchers.indexOf(selH) < 0)) {
+      selH = pinchers[0];
+    }
+    if (!selH) selH = hands[0];
+    selectorId = selH.id;
     let modH = hands.find((h) => h !== selH) || null;
     selH.role = "selector"; if (modH) modH.role = "modifier";
 
@@ -305,8 +313,15 @@ window.jarvisHolo = (() => {
   let _errLogged = false;
   function tick(t, res) {
     if (!active) return;
+    try { _tick(t, res); } catch (e) {
+      if (!_errLogged) { _errLogged = true; dbg("ERRO tick: " + (e && e.message) + " | " + (e && (e.stack || "")).slice(0, 300)); }
+      try { renderer.render(scene, camera); } catch (_) { /* nada */ }
+    }
+  }
+
+  function _tick(t, res) {
     try { interact(res); } catch (e) {
-      if (!_errLogged) { _errLogged = true; dbg("ERRO interact: " + (e && e.message) + " | " + (e && e.stack || "")); }
+      if (!_errLogged) { _errLogged = true; dbg("ERRO interact: " + (e && e.message) + " | " + (e && (e.stack || "")).slice(0, 300)); }
     }
 
     // marcador da pinça

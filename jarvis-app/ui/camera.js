@@ -141,8 +141,10 @@ window.jarvisCam = (() => {
     raf = requestAnimationFrame(loop);
     if (!video.videoWidth) return;
     fxctx.clearRect(0, 0, fx.width, fx.height);
-    if (window.jarvisHands) window.jarvisHands.feed(video);
-    if (opt.skeleton) drawHands();
+    try {
+      if (window.jarvisHands) window.jarvisHands.feed(video);
+      if (opt.skeleton) drawHands();
+    } catch (e) { dbg("loop erro: " + (e && e.message)); }
   }
 
   return {

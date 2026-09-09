@@ -110,6 +110,20 @@ def rms(b: np.ndarray) -> float:
     return float(np.sqrt(np.mean(np.square(b, dtype=np.float32))) + 1e-9)
 
 
+def _collapse_repeats(text: str) -> str:
+    """Whisper às vezes trava repetindo a mesma frase — corta na 1ª ocorrência."""
+    t = text.strip()
+    if not t:
+        return t
+    # frase inteira repetida ("X. X. X.")
+    m = re.match(r"(.{6,80}?[.!?])\s*(?:\1\s*){2,}", t)
+    if m:
+        return m.group(1).strip()
+    # palavra/token repetido 4+ vezes seguidas
+    t = re.sub(r"\b(\w{2,})(\s+\1\b){3,}", r"\1", t)
+    return t.strip()
+
+
 # --------------------------------------------------------------------------
 class Mic:
     def __init__(self, device):
@@ -226,16 +240,18 @@ class Ears:
         segs, _ = self.wake.transcribe(
             audio, language=self.lang, beam_size=1, vad_filter=False,
             condition_on_previous_text=False, initial_prompt=self.initial_prompt,
+            no_repeat_ngram_size=3,
         )
-        return " ".join(s.text for s in segs).strip()
+        return _collapse_repeats(" ".join(s.text for s in segs).strip())
 
     def hear_command(self, audio: np.ndarray) -> str:
         """2ª passada — precisa."""
         segs, _ = self.cmd.transcribe(
             audio, language=self.lang, beam_size=self.beam, vad_filter=True,
             condition_on_previous_text=False, initial_prompt=self.initial_prompt,
+            no_repeat_ngram_size=3,
         )
-        return " ".join(s.text for s in segs).strip()
+        return _collapse_repeats(" ".join(s.text for s in segs).strip())
 
 
 # --------------------------------------------------------------------------

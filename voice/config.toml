@@ -8,8 +8,8 @@ input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
 
 # --- detecção de fala (VAD) ---
 speech_level = 0.018            # energia mínima pra considerar que você falou
-silence_timeout = 1.2          # silêncio (s) que encerra uma fala (maior = corta menos)
-max_utterance_seconds = 9.0
+silence_timeout = 1.1          # silêncio (s) que encerra uma fala (maior = corta menos)
+max_utterance_seconds = 7.0
 pre_roll_seconds = 0.6         # segundos de áudio antes do disparo (não cortar sílaba)
 min_utterance_seconds = 0.35   # ignora "falas" mais curtas que isso (clique, tosse)
 
