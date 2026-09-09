@@ -2,11 +2,15 @@
 
 ## Resumo em 1 parágrafo
 
-Já existe uma pasta pronta em **`installer/pacote/Jarvis/`** (~950 MB). Ela
-tem tudo: o Jarvis, o aplicativo, os modelos de voz e o instalador. Você só
-precisa **subir essa pasta no Google Drive**, **pegar o link** e **mandar pro
-seu pai**. Ele baixa, extrai e clica em `JarvisSetup.exe`. O instalador faz o
-resto sozinho, com uma tela por vez.
+Já existe uma pasta pronta em **`installer/pacote/Jarvis/`** (~1,1 GB — com
+voz neural Piper, HUD, modelos de estudo, clima, notícias, lembretes, tudo
+que foi feito em 09/09). Ela tem tudo: o Jarvis, o aplicativo, os modelos de
+voz e o instalador. Você só precisa **subir essa pasta no Google Drive**,
+**pegar o link** e **mandar pro seu pai**. Ele baixa, extrai e clica em
+`JarvisSetup.exe`. Perfil já vem em **robson** e voz em **piper**.
+
+> A pasta que você mandou pro seu pai ANTES não tem nenhuma das features
+> novas. Se quiser, sobe essa aqui por cima.
 
 ---
 

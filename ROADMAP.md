@@ -2,6 +2,10 @@
 
 Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 
+> **09/09 (tarde):** Claude aplicou sozinho ~todas as seções A–F enquanto o
+> Arthur estava fora. Ver `AUTONOMOUS_LOG.md`. Os `[ ]` que sobraram têm o
+> motivo escrito (asset que falta, chave paga, hardware).
+
 ---
 
 ## A. Módulos de estudo holográficos (linha "Homem de Ferro")   — `ui/models.js`
