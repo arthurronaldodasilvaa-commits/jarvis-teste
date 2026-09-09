@@ -398,7 +398,7 @@ class Mouth:
                 self.piper = (str(pexe), str(pvoice))
                 log(f"TTS: Piper ({Path(pvoice).name})")
             else:
-                log(f"TTS: Piper pedido mas não achei os arquivos — caindo pro SAPI")
+                log("TTS: Piper pedido mas não achei os arquivos — caindo pro SAPI")
 
         if not self.piper:
             self._spawn()

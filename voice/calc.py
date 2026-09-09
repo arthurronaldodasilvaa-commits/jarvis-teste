@@ -17,7 +17,7 @@ import operator
 import re
 import time
 
-from common import log, norm
+from common import log
 
 # ------------------------------------------------------------------ contas
 _WORDS = {

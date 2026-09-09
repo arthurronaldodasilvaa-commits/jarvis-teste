@@ -18,7 +18,7 @@ import re
 import time
 from datetime import datetime, timedelta
 
-from common import HERE, log, norm
+from common import HERE, log
 
 FILE = HERE / "reminders.json"
 
