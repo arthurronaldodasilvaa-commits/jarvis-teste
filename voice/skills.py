@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 import maps
+import reminders
 import spotify
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
@@ -75,6 +76,25 @@ def _write_active_profile(name: str) -> bool:
         return True
     except OSError:
         return False
+
+
+_WHEN_RX = re.compile(
+    r"\b(?:em|daqui a|dentro de|apos|depois de)\s+[\w ]+?\s*(?:segundos?|minutos?|min|horas?|h)\b(?:\s+e meia)?|"
+    r"\b\d+\s*(?:segundos?|minutos?|min|horas?)\b|"
+    r"\b(?:as|ao)\s+\d{1,2}\s*h?(?:\s*(?:e|:|h)\s*\d{1,2}|\s+\d{2}|\s*e meia)?"
+    r"(?:\s*(?:da (?:manha|tarde|noite)|horas?|hora))?|"
+    r"\bmeio[- ]?dia\b|\bmeia[- ]?noite\b|\bmeia hora\b|\bum quarto de hora\b|"
+    r"\b(?:uma )?hora e meia\b|\bamanha\b")
+
+
+def _reminder_msg(rest: str) -> str:
+    """Tira o pedaço de tempo e conectores, sobra a mensagem do lembrete."""
+    s = _WHEN_RX.sub(" ", rest)
+    s = re.sub(r"^\s*(?:de|pra|para|que|:|,|o|a|para que|pra que)\s+", " ", s)
+    s = re.sub(r"\s+(?:de|pra|para)\s*$", " ", s)
+    s = re.sub(r"\s{2,}", " ", s).strip(" ,.:;-")
+    # se sobrou só conectivo/lixo, considera timer sem descrição
+    return "" if len(s) < 3 or s in ("de", "pra", "para", "isso") else s
 
 CNW = 0x08000000  # CREATE_NO_WINDOW
 
@@ -337,6 +357,13 @@ _HELP = [
     (r"mud\w* (de )?perfil|troc\w* (de )?perfil|mud\w* (de )?usuario|outro perfil|"
      r"perfil de (outra|outro)",
      "Diga \"Jarvis, muda para o perfil\" e o nome, senhor. Eu reinicio já no perfil novo."),
+    (r"(cri\w*|marc\w*|por|poe|faz\w*) (um )?(lembrete|timer|alarme)|me lembr\w*|"
+     r"me avis\w*|me acord\w*|cronometr\w*",
+     "Diga \"Jarvis, me lembra de\" e o quê, mais um tempo — tipo \"em 20 minutos\" ou "
+     "\"às 15 horas\", senhor."),
+    (r"clim\w*|tempo (hoje|agora|la fora)|previs\w* do tempo|vai chov\w*|"
+     r"quantos graus|temperatura (hoje|agora|la fora)",
+     "Diga \"Jarvis, como está o tempo?\" — eu falo a temperatura e a previsão de hoje, senhor."),
 ]
 
 
@@ -456,6 +483,42 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                  "agosto", "setembro", "outubro", "novembro", "dezembro"]
         n = datetime.now()
         return Result(speak=f"Hoje é {dias[n.weekday()]}, {n.day} de {meses[n.month - 1]}, senhor.")
+
+    # --- lembretes / timers ---
+    if re.search(r"\b(meus lembretes|que lembretes|quais lembretes|tenho lembrete|"
+                 r"algum lembrete|lista de lembretes)\b", t):
+        pend = reminders.pending()
+        if not pend:
+            return Result(speak="Nenhum lembrete, senhor.")
+        agora = datetime.now()
+        linhas = []
+        for r in pend[:5]:
+            quando = datetime.fromtimestamp(r["at"])
+            q = quando.strftime("%H:%M") if quando.date() == agora.date() else quando.strftime("%d/%m %H:%M")
+            linhas.append(f"{r['text']} às {q}")
+        return Result(speak="Senhor: " + "; ".join(linhas) + ".")
+    if re.search(r"\b(cancela|apaga|limpa|tira)\w*\s+(os |todos os |meus )?(lembretes?|timers?|alarmes?)\b", t):
+        n = reminders.clear_all()
+        return Result(speak=("Limpei os lembretes, senhor." if n else "Não tinha lembrete, senhor."))
+    m = re.search(r"\b(me lembr\w+|lembr[ae]\s+(?:de\s+)?mim|me avis\w+|me acord\w+|me cham\w+|"
+                  r"p[oõ]e\s+(?:um\s+)?(?:lembrete|timer|alarme|despertador)|"
+                  r"timer\s+(?:de|pra|para)|cronometr\w+\s+(?:de|pra|para)|"
+                  r"alarme\s+(?:de|pra|para|das?)|despertador\s+(?:pra|para|das?))\b(.*)", t)
+    if m:
+        rest = m.group(2).strip()
+        when = reminders.parse_when(rest)
+        if not when:
+            return Result(speak="Pra quando, senhor? Diga um tempo, tipo 'em 20 minutos' ou 'às 15 horas'.")
+        ts, human = when
+        msg = _reminder_msg(rest)
+        reminders.add(msg or "(sem descrição)", ts)
+        prefixo = "Às" if (":" in human or "meio-dia" in human or "meia-noite" in human) else "Daqui a"
+        if prefixo == "Às":
+            human = human.replace(":", " e ").replace(" de amanhã", ", amanhã,")
+        if msg:
+            return Result(speak=f"Combinado, senhor. {prefixo} {human} eu aviso: {msg}.")
+        return Result(speak=f"Marcado pra {human}, senhor. Eu aviso." if prefixo == "Às"
+                      else f"Timer de {human}, senhor. Eu aviso quando terminar.")
 
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)

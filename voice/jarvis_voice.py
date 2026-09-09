@@ -419,6 +419,9 @@ Sobre você (o Jarvis) — use isto se o senhor perguntar como te usar:
 - Desligar/reiniciar o PC: "Jarvis, desliga o computador" — você pede confirmação, ele diz "sim";
   para abortar, "Jarvis, cancelar".
 - Trocar de perfil (quem você trata): "Jarvis, muda para o perfil <nome>" — você reinicia sozinho.
+- Lembretes: "Jarvis, me lembra de <X> em 20 minutos" / "às 15 horas". Timers: "Jarvis, timer de 10 minutos".
+- Clima: "Jarvis, como está o tempo?". Contas: "Jarvis, quanto é 15 por cento de 240?".
+  Conversão: "Jarvis, quantos quilômetros são 5 milhas?".
 Explique isso em 1 ou 2 frases, com um exemplo de comando entre aspas. Nunca invente comandos."""
 
 
@@ -697,6 +700,24 @@ def strip_wake_word(raw: str, n: str, wake: str) -> str | None:
     return re.sub(rf"(?i)^\s*{wake[:4]}\w*[\s,.:;!?-]*", "", raw).strip()
 
 
+def _reminder_loop(mouth: "Mouth") -> None:
+    """Checa lembretes vencidos a cada 15 s e fala."""
+    import reminders
+    time.sleep(20)
+    while True:
+        try:
+            for r in reminders.due():
+                txt = (r.get("text") or "").strip()
+                if txt and txt != "(sem descrição)":
+                    mouth.say(f"Senhor, lembrete: {txt}.")
+                else:
+                    mouth.say("Senhor, seu timer terminou.")
+                time.sleep(1.0)
+        except Exception as exc:  # noqa: BLE001
+            log(f"loop de lembretes: {exc}")
+        time.sleep(15)
+
+
 def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
     a = cfg["audio"]
     thr = float(a["speech_level"])
@@ -743,6 +764,7 @@ def main() -> None:
         hand_skeleton=bool(cfg.get("camera", {}).get("hand_skeleton", True)),
     )
     threading.Thread(target=hotkey_listener, daemon=True).start()
+    threading.Thread(target=_reminder_loop, args=(mouth,), daemon=True).start()
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))
