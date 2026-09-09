@@ -212,6 +212,62 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
     return None
 
 
+_MESES = {"janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,
+          "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10, "novembro": 11, "dezembro": 12}
+_FERIADOS = {  # nome -> (dia, mes)  — fixos
+    "natal": (25, 12), "reveillon": (31, 12), "ano novo": (1, 1), "fim do ano": (31, 12),
+    "virada do ano": (31, 12), "primeiro de maio": (1, 5), "dia do trabalho": (1, 5),
+    "sete de setembro": (7, 9), "independencia": (7, 9), "tiradentes": (21, 4),
+    "dia das criancas": (12, 10), "nossa senhora aparecida": (12, 10), "finados": (2, 11),
+    "proclamacao da republica": (15, 11), "consciencia negra": (20, 11),
+    "dia dos namorados": (12, 6), "dia das maes": (11, 5), "dia dos pais": (10, 8),
+    "sao joao": (24, 6), "halloween": (31, 10),
+}
+
+
+def _dias_ate(t: str) -> str | None:
+    from datetime import date
+    hoje = date.today()
+    alvo = None
+    nome = ""
+    for k, (d, mth) in _FERIADOS.items():
+        if k in t:
+            alvo = date(hoje.year, mth, d)
+            nome = k
+            break
+    if not alvo:
+        m = re.search(r"\b(\d{1,2})\s+de\s+([a-z]+)", t)
+        if m and m.group(2) in _MESES:
+            alvo = date(hoje.year, _MESES[m.group(2)], int(m.group(1)))
+            nome = f"{m.group(1)} de {m.group(2)}"
+        else:
+            m = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?", t)
+            if m:
+                y = int(m.group(3) or hoje.year)
+                if y < 100:
+                    y += 2000
+                try:
+                    alvo = date(y, int(m.group(2)), int(m.group(1)))
+                    nome = alvo.strftime("%d/%m")
+                except ValueError:
+                    return None
+    if not alvo:
+        return None
+    if alvo < hoje:
+        alvo = alvo.replace(year=alvo.year + 1)
+    n = (alvo - hoje).days
+    dsem = _DIA_SEMANA[alvo.weekday()]
+    if n == 0:
+        return "É hoje, senhor!"
+    if n == 1:
+        return f"Falta 1 dia, senhor. É amanhã, {dsem}."
+    return f"Faltam {n} dias, senhor. Cai " + ("num " if dsem in ("sábado", "domingo") else "numa ") + dsem + "."
+
+
+_DIA_SEMANA = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+               "sexta-feira", "sábado", "domingo"]
+
+
 def _clean_expr(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"[áàâã]", "a", s)
@@ -340,8 +396,52 @@ def open_target(spoken: str, cfg: dict, *, prefer_game: bool = False,
 # --------------------------------------------------------------------------
 # escrever / digitar
 # --------------------------------------------------------------------------
+# frases de pontuação faladas (2 palavras primeiro, depois 1) -> símbolo
+_DICT_MULTI = {
+    ("nova", "linha"): "\n", ("quebra", "linha"): "\n", ("novo", "paragrafo"): "\n\n",
+    ("ponto", "final"): ".", ("dois", "pontos"): ":", ("ponto", "virgula"): ";",
+    ("ponto", "interrogacao"): "?", ("ponto", "exclamacao"): "!",
+    ("abre", "parenteses"): "(", ("fecha", "parenteses"): ")",
+    ("abre", "aspas"): '"', ("fecha", "aspas"): '"',
+}
+_DICT_ONE = {
+    "virgula": ",", "ponto": ".", "interrogacao": "?", "exclamacao": "!",
+    "reticencias": "...", "travessao": "-", "hifen": "-", "parenteses": "",
+}
+_DICT_TRIPLE = {("ponto", "de", "interrogacao"): "?", ("ponto", "de", "exclamacao"): "!",
+                ("ponto", "e", "virgula"): ";"}
+
+
+def _apply_dictation(text: str) -> str:
+    words = text.split()
+    if not any(norm(w) in _DICT_ONE or norm(w) in ("nova", "novo", "dois", "abre", "fecha")
+               for w in words):
+        return text
+    out = []
+    i = 0
+    while i < len(words):
+        w0 = norm(words[i])
+        t3 = tuple(norm(x) for x in words[i:i + 3])
+        t2 = tuple(norm(x) for x in words[i:i + 2])
+        if len(t3) == 3 and t3 in _DICT_TRIPLE:
+            out.append(_DICT_TRIPLE[t3]); i += 3; continue
+        if len(t2) == 2 and t2 in _DICT_MULTI:
+            out.append(_DICT_MULTI[t2]); i += 2; continue
+        if w0 in _DICT_ONE:
+            if _DICT_ONE[w0]:
+                out.append(_DICT_ONE[w0])
+            i += 1; continue
+        out.append(words[i]); i += 1
+    s = " ".join(out)
+    s = re.sub(r"\s+([.,;:!?)])", r"\1", s)
+    s = re.sub(r"([(])\s+", r"\1", s)
+    s = re.sub(r"([.,;:!?])(?=[A-Za-zÀ-ÿ])", r"\1 ", s)
+    s = re.sub(r" *\n *", "\n", s)
+    return re.sub(r"[ \t]{2,}", " ", s).strip()
+
+
 def type_verbatim(text: str) -> Result:
-    paste_text(text)
+    paste_text(_apply_dictation(text))
     return Result(speak="")
 
 
@@ -481,6 +581,14 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         # exceção: "cancela ..." de desligamento tratado abaixo
         if "cancel" not in t:
             return Result(speak="Às ordens, senhor.", stop=True)
+
+    # --- velocidade da fala ---
+    if re.search(r"\bfal\w*\s+mais\s+(devagar|lento|calmo|pausad)|\bmais\s+devagar\b|"
+                 r"\bfal\w*\s+mais\s+(rapido|ligeiro|depressa)|\bmais\s+rapido\b", t):
+        mo = getattr(speak, "__self__", None)
+        if mo and hasattr(mo, "adjust_rate"):
+            faster = bool(re.search(r"\b(rapido|ligeiro|depressa)\b", t))
+            return Result(speak=mo.adjust_rate(faster))
 
     # --- repetir a última fala ---
     if re.search(r"\b(repete|repita|de novo|nao entendi|o que voce (disse|falou)|"
@@ -624,6 +732,12 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                  "agosto", "setembro", "outubro", "novembro", "dezembro"]
         n = datetime.now()
         return Result(speak=f"Hoje é {dias[n.weekday()]}, {n.day} de {meses[n.month - 1]}, senhor.")
+
+    # --- quantos dias até <data/feriado> ---
+    if re.search(r"\bquantos?\s+dias?\s+(faltam?|ate|pra|para)\b|\bdias?\s+ate\b", t):
+        fala = _dias_ate(t)
+        if fala:
+            return Result(speak=fala)
 
     # --- lembretes / timers ---
     if re.search(r"\b(meus lembretes|que lembretes|quais lembretes|tenho lembrete|"

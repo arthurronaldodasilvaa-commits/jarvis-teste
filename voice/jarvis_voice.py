@@ -349,6 +349,7 @@ class Mouth:
         t = cfg["tts"]
         self.voice = t.get("sapi_voice", "")
         self.rate = int(t.get("sapi_rate", 0))
+        self.length_scale = float(t.get("piper_length_scale", 1.0))   # >1 = mais devagar
         self.speaking = False
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
@@ -442,11 +443,20 @@ class Mouth:
                        input=text, text=True, timeout=60, creationflags=CNW,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+    def adjust_rate(self, faster: bool) -> str:
+        step = 0.12
+        self.length_scale = max(0.6, min(1.8, self.length_scale + (-step if faster else step)))
+        self.rate = max(-6, min(6, self.rate + (1 if faster else -1)))
+        if self._proc:                       # SAPI worker: recria com a nova taxa
+            self.close(); self._proc = None; self._spawn()
+        return "Assim melhor, senhor?" if not faster else "Certo, mais rápido, senhor."
+
     def _piper_say(self, text: str) -> bool:
         exe, voice = self.piper
         try:
             r = subprocess.run(
-                [exe, "--model", voice, "--output_file", str(self._wav)],
+                [exe, "--model", voice, "--length_scale", f"{self.length_scale:.2f}",
+                 "--output_file", str(self._wav)],
                 input=text.encode("utf-8"), timeout=45, creationflags=CNW,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )

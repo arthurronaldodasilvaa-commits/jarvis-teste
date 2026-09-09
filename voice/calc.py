@@ -282,5 +282,50 @@ def _pretty(u: str) -> str:
             "libra": "libras", "polegada": "polegadas", "jarda": "jardas"}.get(u, u)
 
 
+_COINS = {
+    "bitcoin": "bitcoin", "btc": "bitcoin",
+    "ethereum": "ethereum", "eth": "ethereum", "ether": "ethereum",
+    "solana": "solana", "sol": "solana",
+    "cardano": "cardano", "ada": "cardano",
+    "dogecoin": "dogecoin", "doge": "dogecoin",
+    "ripple": "ripple", "xrp": "ripple",
+    "bnb": "binancecoin", "binance": "binancecoin",
+    "litecoin": "litecoin", "ltc": "litecoin",
+    "polkadot": "polkadot", "monero": "monero",
+}
+_COIN_CACHE: dict = {}
+
+
+def crypto(t: str) -> str | None:
+    if not re.search(r"\b(bitcoin|btc|ethereum|eth|ether|solana|\bsol\b|cardano|ada|"
+                     r"dogecoin|doge|ripple|xrp|bnb|binance|litecoin|ltc|polkadot|monero|"
+                     r"cripto|criptomoeda)\b", t):
+        return None
+    if not re.search(r"\b(quanto|preco|cotacao|vale|ta valendo|esta|cust\w+)\b", t):
+        return None
+    coin = next((cid for w, cid in _COINS.items() if re.search(rf"\b{w}\b", t)), None)
+    if not coin:
+        return None
+    hit = _COIN_CACHE.get(coin)
+    if hit and hit[1] > time.time():
+        return hit[0]
+    try:
+        import httpx
+        j = httpx.get("https://api.coingecko.com/api/v3/simple/price",
+                      params={"ids": coin, "vs_currencies": "brl,usd",
+                              "include_24hr_change": "true"}, timeout=8).json()[coin]
+        brl, usd = j["brl"], j["usd"]
+        chg = j.get("brl_24h_change", 0)
+        seta = "subindo" if chg > 0.3 else ("caindo" if chg < -0.3 else "estável")
+        nome = next(w for w, c in _COINS.items() if c == coin and len(w) > 3)
+        out = (f"{nome.capitalize()}: {_fmt(round(brl, 2))} reais "
+               f"(cerca de {_fmt(round(usd, 2))} dólares), {seta} {abs(chg):.1f} por cento hoje, senhor.")
+        _COIN_CACHE[coin] = (out, time.time() + 120)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log(f"calc/crypto: {exc}")
+        return "Não consegui a cotação da cripto agora, senhor."
+
+
 def handle(t: str) -> str | None:
-    return convert(t) or calc(t)
+    return crypto(t) or convert(t) or calc(t)
