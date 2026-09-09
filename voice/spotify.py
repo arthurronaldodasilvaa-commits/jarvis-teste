@@ -103,21 +103,22 @@ def play_uri(uri: str, cfg: dict) -> None:
         ctypes.windll.user32.keybd_event(0xB3, 0, 2, 0)
 
 
-def play(query: str, cfg: dict):
-    """Toca a música pelo nome. Retorna (ok: bool, fala: str)."""
+def play(query: str, cfg: dict) -> tuple[bool, str]:
+    """Toca a música pelo nome. Retorna (ok, fala). Em caso de sucesso a fala
+    fica vazia (toca calado), a menos que [spotify].announce = true."""
+    from urllib.parse import quote_plus
+
     if not configured(cfg):
-        from urllib.parse import quote_plus
         os.startfile("spotify:search:" + quote_plus(query))  # noqa: S606
-        return False, (f"Abri a busca por {query} no Spotify, senhor. "
-                       "Configure a chave do Spotify pra eu tocar direto.")
+        return False, f"Abri a busca por {query}, senhor. Falta a chave do Spotify no secrets.toml."
     try:
         hit = search_track(query, cfg)
     except Exception as exc:  # noqa: BLE001
-        from urllib.parse import quote_plus
         os.startfile("spotify:search:" + quote_plus(query))  # noqa: S606
         return False, f"Não consegui buscar no Spotify agora, senhor. ({exc.__class__.__name__})"
     if not hit:
         return False, f"Não achei {query} no Spotify, senhor."
     uri, label = hit
     play_uri(uri, cfg)
-    return True, f"Tocando {label}, senhor."
+    fala = f"Tocando {label}, senhor." if _cfg(cfg).get("announce", False) else ""
+    return True, fala

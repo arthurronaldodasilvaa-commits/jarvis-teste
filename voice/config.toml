@@ -39,8 +39,11 @@ greeting = "Bom dia, senhor. Com o que posso te ajudar?"
 client_id = ""
 client_secret = ""
 market = "BR"
-force_play = true       # manda um "play" se o Spotify já estava aberto e não começou sozinho
-wait_seconds = 3.0
+# Abrir spotify:track: já toca sozinho. Só ligue force_play se a faixa CARREGAR
+# mas não começar — aí ele manda um "play" depois de wait_seconds.
+force_play = false
+wait_seconds = 2.5
+announce = false        # false = toca calado; true = fala "Tocando X, senhor"
 
 [wake]
 # Reconhecimento de voz em 2 estágios (economiza MUITA CPU quando você não
