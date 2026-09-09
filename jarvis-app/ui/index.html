@@ -107,14 +107,10 @@
     font-size: 12px; letter-spacing: 4px; text-transform: uppercase;
     text-shadow: 0 0 8px var(--neon); pointer-events: none;
   }
-  #cam-motion-wrap {
-    position: fixed; z-index: 3; bottom: 74px; left: 50%; transform: translateX(-50%);
-    width: 220px; height: 3px; background: rgba(70,214,255,0.15); pointer-events: none;
-  }
-  #cam-motion {
-    height: 100%; width: 100%; transform-origin: left center; transform: scaleX(0);
-    background: var(--neon); box-shadow: 0 0 10px var(--neon);
-    transition: transform .12s linear;
+  #cam-help {
+    position: fixed; z-index: 3; bottom: 70px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.45;
+    text-shadow: 0 0 6px var(--neon); pointer-events: none; white-space: nowrap;
   }
 
   /* alterna entre cérebro e câmera */
@@ -123,7 +119,7 @@
   body:not(.camera) #cam-tint,
   body:not(.camera) .cam-bracket,
   body:not(.camera) #cam-label,
-  body:not(.camera) #cam-motion-wrap { display: none; }
+  body:not(.camera) #cam-help { display: none; }
   body.camera #scene, body.camera #fx, body.camera #brand, body.camera #hint { display: none; }
 </style>
 </head>
@@ -137,7 +133,7 @@
   <div class="cam-bracket tl"></div><div class="cam-bracket tr"></div>
   <div class="cam-bracket bl"></div><div class="cam-bracket br"></div>
   <div id="cam-label">Câmera</div>
-  <div id="cam-motion-wrap"><div id="cam-motion"></div></div>
+  <div id="cam-help">👌 seleciona &nbsp;·&nbsp; ✊ move tudo &nbsp;·&nbsp; 2× 👌 escala &nbsp;·&nbsp; 🖐 varre = apaga &nbsp;·&nbsp; ☝️ aponta &nbsp;·&nbsp; ✌️ gira</div>
 
   <div id="brand" class="hud">J.A.R.V.I.S</div>
   <div id="status" class="hud">Iniciando</div>
@@ -156,6 +152,7 @@
   <script src="lib/mp_hands/hands.js"></script>
   <script src="gestures.js"></script>
   <script src="handtrack.js"></script>
+  <script src="trig.js"></script>
   <script src="holograms.js"></script>
   <script src="camera.js"></script>
   <script src="hologram.js"></script>

@@ -137,6 +137,10 @@ class Api:
         except OSError:
             pass
 
+    def toggle_fullscreen(self) -> None:
+        if webview.windows:
+            webview.windows[0].toggle_fullscreen()
+
     def close(self) -> None:
         for w in webview.windows:
             w.destroy()
@@ -152,13 +156,14 @@ def main() -> None:
     webview.create_window(
         WINDOW_TITLE,
         url,
-        width=960,
-        height=720,
+        width=1280,
+        height=800,
+        fullscreen="--windowed" not in sys.argv,   # tela cheia por padrão
         frameless=True,
         easy_drag=True,
         background_color="#000000",
         js_api=Api(),
-        min_size=(480, 360),
+        min_size=(640, 420),
     )
     webview.start(debug=dev, private_mode=False)
 

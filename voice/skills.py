@@ -258,11 +258,27 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
                  r"(tudo|os?\s+holograma\w*|as?\s+forma\w*|a\s+tela)\b", t):
         write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
         return Result(speak="")
-    m = re.search(r"\b(cria\w*|criar|faz\w*|adiciona\w*|gera\w*|desenha\w*|projeta\w*|poe|monta\w*)\s+"
+
+    _mk = ("cria\\w*|criar|faz\\w*|adiciona\\w*|gera\\w*|desenha\\w*|projeta\\w*|"
+           "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*")
+    _trig = None
+    if re.search(rf"\b(?:{_mk})\b.*\btriangulo\s+retangulo\b|\btriangulo retangulo\b", t):
+        _trig = "triangulo"
+    elif re.search(rf"\b(?:{_mk})\b.*\b(tabela|quadro).*(angulos?\s+notave|angulos? notave)|"
+                   r"\bangulos?\s+notave\w*\b", t):
+        _trig = "tabela_angulos"
+    elif re.search(rf"\b(?:{_mk})\b.*\brela\w+\s+trigonom|\btabela\s+de\s+rela\w+\b|"
+                   r"\brela\w+\s+trigonometrica\w*\b", t):
+        _trig = "tabela_relacoes"
+    if _trig:
+        write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
+        return Result(speak="")
+
+    m = re.search(rf"\b(?:{_mk})\s+"
                   r"(?:um\s+|uma\s+|o\s+|a\s+|mais\s+um\s+|outro\s+|outra\s+)?"
                   r"(?:holograma\s+(?:de\s+)?(?:um\s+|uma\s+)?|forma\s+de\s+(?:um\s+|uma\s+)?)?([a-zç]+)", t)
     if m:
-        shape = _SHAPES.get(m.group(2)) or _SHAPES.get(norm(m.group(2)))
+        shape = _SHAPES.get(m.group(1)) or _SHAPES.get(norm(m.group(1)))
         if shape:
             write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
             return Result(speak="")

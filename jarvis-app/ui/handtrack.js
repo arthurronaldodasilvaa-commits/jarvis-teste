@@ -26,17 +26,22 @@ window.jarvisHands = (() => {
     let _logAt = 0;
     hands.onResults((res) => {
       const arr = res.multiHandLandmarks || [];
+      let hs = arr.map((lm, i) => ({
+        landmarks: lm,
+        handed: (res.multiHandedness && res.multiHandedness[i]) ? res.multiHandedness[i].label : "?",
+        score: (res.multiHandedness && res.multiHandedness[i]) ? res.multiHandedness[i].score : 1,
+        gesture: window.jarvisGestures ? window.jarvisGestures.classify(lm) : null,
+      }));
+      // MediaPipe às vezes acha 2 mãos onde só tem 1 — junta as que têm o pulso
+      // quase no mesmo lugar, mantendo a mais confiante.
+      if (hs.length === 2) {
+        const d = Math.hypot(hs[0].landmarks[0].x - hs[1].landmarks[0].x,
+                             hs[0].landmarks[0].y - hs[1].landmarks[0].y);
+        if (d < 0.13) hs = [hs[0].score >= hs[1].score ? hs[0] : hs[1]];
+      }
       const now = performance.now();
-      if (now - _logAt > 4000) { _logAt = now; dbg("rastreando " + arr.length + " mão(s)"); }
-      latest = {
-        hands: arr.map((lm, i) => ({
-          landmarks: lm,   // 21 × {x,y,z}  (x,y normalizados 0..1 do frame)
-          handed: (res.multiHandedness && res.multiHandedness[i])
-            ? res.multiHandedness[i].label : "?",
-          gesture: window.jarvisGestures ? window.jarvisGestures.classify(lm) : null,
-        })),
-        t: performance.now(),
-      };
+      if (now - _logAt > 4000) { _logAt = now; dbg("rastreando " + hs.length + " mão(s)"); }
+      latest = { hands: hs, t: now };
       busy = false;
     });
     try {

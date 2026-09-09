@@ -184,8 +184,12 @@
   }
   setInterval(pollState, 250);
 
-  // ---------- fechar ----------
-  addEventListener("keydown", (e) => { if (e.key === "Escape") closeApp(); });
+  // ---------- teclas ----------
+  addEventListener("keydown", (e) => {
+    const api = window.pywebview && window.pywebview.api;
+    if (e.key === "Escape") closeApp();
+    else if (e.key === "F11") { if (api && api.toggle_fullscreen) api.toggle_fullscreen(); }
+  });
   document.getElementById("close").addEventListener("click", closeApp);
   function closeApp() {
     const api = window.pywebview && window.pywebview.api;
