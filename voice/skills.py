@@ -26,6 +26,7 @@ import news
 import reminders
 import spotify
 import weather
+import wiki
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
 PROFILES_DIR = HERE / "profiles"
@@ -708,15 +709,34 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             tap(VK["VOL_DOWN"], 6)
             return Result(speak="")
 
+    # --- "que música é essa?" ---
+    if re.search(r"\b(que (musica|som|faixa) (e|esta) (essa|tocando)|qual (musica|nome da musica)|"
+                 r"nome dess[ae] (musica|som)|quem (canta|toca) iss[oa]|que (musica|som) e ess[ae])\b", t):
+        import media
+        return Result(speak=media.now_playing())
+
     # --- controle de mídia ---
-    if re.search(r"\b(proxima|pula|avanca)\b.*\b(musica|faixa|som)\b|\bpula essa\b", t):
+    if re.search(r"\b(proxima|pula|avanca|passa)\b.*\b(musica|faixa|som)\b|\bpula essa\b|"
+                 r"\bproxima musica\b", t):
         tap(VK["MEDIA_NEXT"]); return Result(speak="")
-    if re.search(r"\b(volta|anterior)\b.*\b(musica|faixa)\b", t):
+    if re.search(r"\b(volta|anterior)\b.*\b(musica|faixa)\b|\bmusica anterior\b", t):
         tap(VK["MEDIA_PREV"]); return Result(speak="")
     if re.search(r"\bpausa\w*\b|\bpara a musica\b|\bpara o som\b", t):
         tap(VK["MEDIA_PLAY"]); return Result(speak="")
     if re.fullmatch(r"(toca|continua|retoma|play)\w*", t):
         tap(VK["MEDIA_PLAY"]); return Result(speak="")
+    if re.search(r"\b(do comeco|desde o inicio|de novo essa|reinicia (a )?musica|recomeca)\b", t):
+        import media
+        media.restart_track(); return Result(speak="")
+    m = re.search(r"\b(adianta\w*|avanca\w*|pula|volta\w*|retrocede\w*)\s+(\d{1,3})\s+"
+                  r"(segundos?|minutos?)\b", t)
+    if m:
+        import media
+        secs = int(m.group(2)) * (60 if m.group(3).startswith("min") else 1)
+        if m.group(1).startswith(("volta", "retro")):
+            secs = -secs
+        media.seek(secs)
+        return Result(speak="")
 
     # --- bloquear tela ---
     if re.search(r"\bbloqueia?\b.*\b(tela|pc|computador|maquina)\b|\btrava a tela\b", t):
@@ -873,6 +893,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                           + " na fila, senhor. Abri o arquivo pro desenvolvedor.")
         resumo = "; ".join(re.sub(r"^-\s*(\[[^\]]*\]\s*)?", "", ln).strip() for ln in linhas[:4])
         return Result(speak=f"Senhor, {len(linhas)} na fila: {resumo}.")
+
+    # --- fato rápido da Wikipédia ("quem foi X", "o que é Y") ---
+    if re.match(r"^(quem (foi|e|era|s[aã]o)|o que (e|era|foi|significa)|"
+                r"me (fala|conta|explica) (sobre|o que|quem)|defini\w+ de|significado de)\b",
+                norm(raw)):
+        write_app_state(phase="searching")
+        fato = wiki.lookup(raw)
+        if fato:
+            return Result(speak=fato)
 
     # --- nada bateu: o LLM tenta traduzir o pedido num COMANDO ---
     _is_question = re.search(r"\b(por ?que|porque|qual|quais|quem|quanto\s+(custa|vale)|"
