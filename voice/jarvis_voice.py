@@ -101,6 +101,17 @@ _ROUTER_TEMPLATES = {
     "anotar": "anota {arg}",
     "modo_cinema": "modo cinema",
     "fechar": "fechar {arg}",
+    "clima": "como esta o tempo",
+    "noticias": "quais as noticias",
+    "lembrete": "me lembra {arg}",
+    "conta": "quanto e {arg}",
+    "converter": "converte {arg}",
+    "cripto": "quanto ta o {arg}",
+    "wiki": "o que e {arg}",
+    "musica_atual": "que musica e essa",
+    "print": "tira um print",
+    "config": "abre as configuracoes",
+    "quiz": "me faz uma pergunta sobre {arg}",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -124,6 +135,10 @@ cmd possíveis:
  bloquear   suspender   desligar   reiniciar
  escrever (arg=assunto)   digitar (arg=texto)   anotar (arg=nota)
  modo_cinema   fechar (arg=app)
+ clima   noticias   lembrete (arg=o quê + quando)   conta (arg=expressão)
+ converter (arg=X unidade em unidade)   cripto (arg=bitcoin/ethereum/...)
+ wiki (arg=pessoa/conceito — fatos)   musica_atual   print   config
+ quiz (arg=tema de estudo)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
@@ -150,12 +165,20 @@ Exemplos:
 "cadê meu spotify" -> {"cmd":"abrir","arg":"spotify"}
 "tá calor, sobe o som" -> {"cmd":"volume_up"}
 "apaga essas formas" -> {"cmd":"limpar"}
+"tá calor lá fora?" -> {"cmd":"clima"}
+"me atualiza das notícias" -> {"cmd":"noticias"}
+"me lembra de ligar pro dentista amanhã de manhã" -> {"cmd":"lembrete","arg":"ligar pro dentista amanhã de manhã"}
+"quanto é 12 vezes 15" -> {"cmd":"conta","arg":"12 vezes 15"}
+"quantos quilos são 10 libras" -> {"cmd":"converter","arg":"10 libras em quilos"}
+"quanto tá valendo o ethereum" -> {"cmd":"cripto","arg":"ethereum"}
+"quem foi Ayrton Senna" -> {"cmd":"wiki","arg":"Ayrton Senna"}
+"que música tá tocando" -> {"cmd":"musica_atual"}
+"me testa sobre história do Brasil" -> {"cmd":"quiz","arg":"história do Brasil"}
 "qual a capital da França" -> {"cmd":"conversa"}
-"como está o tempo hoje" -> {"cmd":"conversa"}
-"vai chover amanhã?" -> {"cmd":"conversa"}
 "me conta uma piada" -> {"cmd":"conversa"}
+"o que você acha disso" -> {"cmd":"conversa"}
 
-'hora' é só para horário do relógio; tempo/clima/previsão é conversa."""
+'hora' é o horário do relógio; 'clima' é tempo/temperatura/previsão."""
 
 
 def _is_affirm(n: str) -> bool:
