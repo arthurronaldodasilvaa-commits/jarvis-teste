@@ -28,7 +28,7 @@ Ordem de carga:  `config.toml`  →  `profiles/<ativo>.toml`  →  `secrets.toml
 
 - **`arthur.toml`** — pessoal (praticamente igual ao base).
 - **`robson.toml`** — pai, **dono do Instituto CAM** (sigla de "Corpo Ativa
-  Mente"; apresentado às empresas como "Consciência, Ação, Mudança" —
+  Mente"; método/tríade CAM = Consciência, Ação, Mudança —
   desenvolvimento humano/corporativo). Persona de secretário executivo,
   `knowledge` com os dados da empresa (fonte: institutocam.com.br + correções
   do Arthur), sem frase de chegada, + atalhos de Gmail/Agenda/Drive/Meet/site.
