@@ -129,3 +129,18 @@ esses não dispararam.
 - Verificado por dispatch: 73 comandos, 0 exceções.
 - A partir daqui entro em cadência leve: checo a saúde do daemon de tempos
   em tempos e faço polimento pequeno, esperando você voltar e mandar parar.
+
+## Encerramento (09/09, ~18h46)
+
+Arthur voltou e mandou parar ("cheguei, ao finalizar esta tarefa, pare e me
+diga tudo que aconteceu"). **Loop encerrado.**
+
+Estado na hora de encerrar:
+- Daemon de voz: vivo (pythonw 19940, ~524 MB, Whisper+Piper+LLM carregados),
+  escrevendo `state.json` a cada segundo. Status OUVINDO, fase idle.
+- Ollama: responde 200.
+- Jarvis App: aberto (você já estava testando às 18h43–18h44).
+- Git: branch `master`, árvore limpa, 34 commits desde o início da rodada.
+- Correção final: checkboxes da seção D e "notícias" no ROADMAP estavam
+  `[ ]` mas o trabalho existe desde os commits 274ebba/351d280 — marquei certo.
+- Nada foi enviado pra fora da máquina.
