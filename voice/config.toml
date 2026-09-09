@@ -9,7 +9,7 @@
 # funcionalidades continuam iguais pra qualquer perfil.
 # "" = usa só este config.toml. Um perfil é um  profiles/<nome>.toml.
 # Também dá pra forçar por  --profile robson  ou env  JARVIS_PROFILE.
-active = ""
+active = "arthur"
 
 [audio]
 input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
@@ -63,12 +63,21 @@ address = "Senhor"
 user_name = "Arthur"
 wake_word = "jarvis"           # precisa vir no INÍCIO da fala pra ele agir
 attention_reply = "Olá senhor, com o que posso ajudar?"
+provider = "ollama"           # ollama | openai | anthropic  (ver voice/llm.py)
 ollama_url = "http://localhost:11434"
 model = "qwen3.5:2b"
 reply_num_predict = 110        # respostas faladas: curtas
 compose_num_predict = 600      # tamanho máx. de textos que ele redige
 keepwarm_minutes = 10          # ping no Ollama a cada N min p/ o modelo não descarregar (0 = desliga)
 keep_alive = "1h"             # quanto tempo o Ollama segura o modelo na RAM após cada uso
+
+# --- trocar de backend (opcional) -----------------------------------------
+# fallback_provider = "openai"        # se o principal falhar/timeout, tenta este
+# openai_url   = "http://localhost:1234/v1"   # LM Studio / llama.cpp / vLLM / OpenRouter
+# openai_model = "qwen2.5-7b-instruct"
+# openai_api_key = ""                  # (melhor pôr em secrets.toml)
+# anthropic_model = "claude-3-5-haiku-latest"
+# anthropic_api_key = ""               # (melhor pôr em secrets.toml)
 system_prompt = """
 Você é o Jarvis, assistente pessoal por voz. Fala com uma única pessoa, a quem chama sempre de "Senhor".
 - Responda em português do Brasil, curto: 1 ou 2 frases. É voz — nada de listas, markdown ou emojis.
@@ -96,7 +105,7 @@ ready_line = ""
 
 [location]
 # Cidade padrão pro clima ("Jarvis, como está o tempo?"). Vazio = detecta pelo IP.
-city = ""
+city = "Blumenau"
 
 [perf]
 log_max_kb = 512              # ao iniciar, corta o jarvis_voice.log se passar disso
@@ -119,7 +128,7 @@ auto_return_seconds = 0      # 0 = nunca; >0 = volta pro cérebro se ninguém ap
 [danger]
 # Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
 # Deixe 'false' para bloquear de vez.
-allow_shutdown = true
+allow_shutdown = false
 allow_restart = true
 allow_suspend = true
 allow_close = true            # "jarvis, fecha isso" (Alt+F4) / "fecha o <app>"

@@ -567,12 +567,11 @@ Explique isso em 1 ou 2 frases, com um exemplo de comando entre aspas. Nunca inv
 # --------------------------------------------------------------------------
 class Brain:
     def __init__(self, cfg: dict):
-        import httpx
+        import llm
 
         a = cfg["assistant"]
-        self._httpx = httpx
-        self.url = a["ollama_url"].rstrip("/") + "/api/chat"
-        self.model = a["model"]
+        self._llm = llm.Router(a)
+        self.model = self._llm.model
         self.system = a["system_prompt"].strip()
         know = a.get("knowledge", "").strip()
         if know:                     # base de conhecimento do perfil (empresa, contexto…)
@@ -581,21 +580,12 @@ class Brain:
                         "responda com o comando entre aspas (ex: \"Jarvis, modo cinema\" para parar de "
                         "ouvir). Fora isso, não fique sugerindo comandos.")
         self.num_predict = int(a.get("reply_num_predict", 110))
-        self.keep_alive = a.get("keep_alive", "1h")
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
         self._hist: deque = deque(maxlen=6)   # últimas 3 trocas (user/assistant)
         self.last_reply = ""
 
     def _post(self, messages, num_predict, temperature=0.4):
-        r = self._httpx.post(
-            self.url,
-            json={"model": self.model, "messages": messages, "stream": False,
-                  "think": False, "keep_alive": self.keep_alive,
-                  "options": {"temperature": temperature, "num_predict": num_predict}},
-            timeout=90,
-        )
-        msg = r.json().get("message", {}).get("content", "")
-        return re.sub(r"<think>.*?</think>", "", msg, flags=re.S).strip()
+        return self._llm.chat(messages, num_predict, temperature)
 
     def warmup(self) -> None:
         try:
@@ -612,11 +602,7 @@ class Brain:
             while True:
                 time.sleep(self.keepwarm_minutes * 60)
                 try:
-                    self._httpx.post(self.url, json={
-                        "model": self.model, "messages": [{"role": "user", "content": "."}],
-                        "stream": False, "think": False, "keep_alive": self.keep_alive,
-                        "options": {"num_predict": 1},
-                    }, timeout=30)
+                    self._llm.ping()
                 except Exception:  # noqa: BLE001
                     pass
 
