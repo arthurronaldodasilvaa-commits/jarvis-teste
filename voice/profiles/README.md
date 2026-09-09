@@ -1,33 +1,31 @@
 # Perfis
 
-Cada arquivo `<nome>.toml` aqui é um **perfil**: sobrescreve só o que muda
-em relação ao `../config.toml` (mesma ideia do `secrets.toml`).
+Um perfil muda só **como o Jarvis chama e trata a pessoa** — nome, tratamento,
+persona (`system_prompt`), voz, frase de chegada. **Todas as funcionalidades
+continuam disponíveis em qualquer perfil** (hologramas, música, jogos, mapas…).
+
+Cada arquivo `<nome>.toml` sobrescreve só o que muda em relação ao
+`../config.toml` (mesma ideia do `secrets.toml`).
 
 Ativar um perfil:
 
-- no `config.toml`:  `[profile] active = "pai"`
-- ou na linha de comando:  `pythonw jarvis_voice.py --profile pai`
-- ou por variável de ambiente:  `JARVIS_PROFILE=pai`
+- no `config.toml`:  `[profile] active = "robson"`
+- ou na linha de comando:  `pythonw jarvis_voice.py --profile robson`
+- ou por variável de ambiente:  `JARVIS_PROFILE=robson`
 
 Ordem de carga:  `config.toml`  →  `profiles/<ativo>.toml`  →  `secrets.toml`
 
-## O que um perfil pode mudar
+## O que faz sentido um perfil mudar
 
-Qualquer chave do `config.toml`. Os pontos mais úteis:
-
-| Seção | Pra quê |
+| Seção | Chaves |
 |---|---|
-| `[assistant]` | persona, `system_prompt`, `wake_word`, `address`, `attention_reply` |
-| `[skills]` | ligar/desligar blocos: `games`, `holograms`, `music`, `maps`, `media_keys`, `compose`, `web_search` |
-| `[arrival]` | `enabled = false` desliga a frase de chegada |
-| `[apps]` | adiciona apps; `drop_apps = ["steam"]` remove os herdados do base |
-| `[tts]` | outra voz (`sapi_voice`) |
-
-`drop_apps` é uma lista especial (não é chave normal): remove do índice de
-apps os nomes herdados do `config.toml` que não fazem sentido no perfil.
+| `[assistant]` | `user_name`, `address`, `wake_word`, `attention_reply`, `system_prompt`, `reply_num_predict` |
+| `[arrival]` | `enabled`, `phrase`, `greeting`, `spotify` (a entrada temática é pessoal) |
+| `[tts]` | `sapi_voice` (outra voz) |
+| `[apps]` | adicionar atalhos de app extras (merge com os do base) |
 
 ## Perfis atuais
 
-- **`arthur.toml`** — pessoal, tudo ligado (praticamente igual ao base).
-- **`pai.toml`** — instituto de desenvolvimento pessoal, foco trabalho:
-  sem jogos, sem hologramas, sem música/entrada temática.
+- **`arthur.toml`** — pessoal (praticamente igual ao base).
+- **`robson.toml`** — pai, instituto de treinamento corporativo: persona de
+  secretário executivo, sem a frase de chegada, + atalhos de Gmail/Agenda/Drive/Meet.

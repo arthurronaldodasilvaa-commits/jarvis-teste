@@ -4,21 +4,12 @@
 # ============================================================
 
 [profile]
-# Perfil ativo. "" = usa só este config.toml (perfil do Arthur, tudo ligado).
-# Um perfil é um  profiles/<nome>.toml  que sobrescreve só o que muda.
-# Também dá pra forçar por linha de comando ( --profile pai ) ou env ( JARVIS_PROFILE ).
+# Quem está usando. Muda só COMO o Jarvis chama e trata a pessoa
+# (nome, tratamento, persona, voz, frase de chegada) — todas as
+# funcionalidades continuam iguais pra qualquer perfil.
+# "" = usa só este config.toml. Um perfil é um  profiles/<nome>.toml.
+# Também dá pra forçar por  --profile robson  ou env  JARVIS_PROFILE.
 active = ""
-
-[skills]
-# Liga/desliga blocos de habilidade por perfil. (As ações perigosas
-# — desligar/reiniciar/fechar — têm os próprios flags em [danger].)
-games      = true    # "joga <jogo>", abrir jogos da Steam
-holograms  = true    # câmera + formas 3D + modelos de estudo (trigonometria…)
-music      = true    # tocar música no Spotify
-maps       = true    # Google Maps por voz (rota, buscar lugar/empresa)
-media_keys = true    # volume, próxima faixa, pausar mídia
-compose    = true    # redigir textos no Bloco de Notas
-web_search = true    # "pesquisa <x> no Google"
 
 [audio]
 input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
