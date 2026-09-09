@@ -295,14 +295,21 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="Às ordens, senhor.", stop=True)
 
     # --- "manual": "como eu faço X com você?" -> instrução (não executa nada) ---
-    if re.search(r"\b(como|de que jeito|de que forma|como que|nao sei como|"
-                 r"qual (a |o )?(forma|maneira|jeito|palavra|comando|nome)|"
-                 r"me ensin\w*|me explic\w*|o que voce (faz|sabe)|"
-                 r"(pra|para) que (voce )?serve|quais?\s+.*comando|suas funcoes|"
-                 r"o que (da (pra|para)|posso) (faz|ped|dizer|fal))\w*", t):
+    # Só entra se a pergunta é sobre COMO usar o Jarvis (menciona "você/te/jarvis"
+    # ou é uma pergunta meta), pra não roubar comandos reais tipo "como chegar em X".
+    _asks_how = re.search(r"\b(como|de que jeito|de que forma|como que|nao sei como|"
+                          r"qual (a |o )?(forma|maneira|jeito|palavra|comando|nome)|"
+                          r"me ensin\w*|me explic\w*)\b", t)
+    _about_jarvis = re.search(r"\b(voce|vc|contigo|te |ti |o jarvis|no jarvis|com voce)\b", t)
+    _meta_q = re.search(r"\bo que (voce )?(faz|sabe faz\w*)|(pra|para) que (voce )?serve|"
+                        r"quais?\s+.*comando|suas funcoes|lista de comando|"
+                        r"o que (da (pra|para)|posso) (faz|ped|dizer|fal)\w*", t)
+    if _meta_q or (_asks_how and _about_jarvis):
         for pat, ans in _HELP:
             if re.search(rf"\b(?:{pat})", t):
                 return Result(speak=ans)
+        if _meta_q:                       # meta sem casar item: dá a visão geral
+            return Result(speak=_HELP[-2][1])
 
     # --- pausar a escuta ("modo cinema") ---
     if re.search(r"\bmod[eo]s?\s+(de\s+)?cinema\b|\bmod[eo]s?\s+filme\b|\bmod[eo]s?\s+soneca\b|"
