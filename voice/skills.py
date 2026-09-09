@@ -24,6 +24,58 @@ import maps
 import spotify
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
+PROFILES_DIR = HERE / "profiles"
+
+
+def list_profiles() -> list[dict]:
+    """[{name, label}] — perfis em profiles/*.toml. label vem do cabeçalho
+    '# Perfil: <Nome> | <descrição>' ou, na falta, do nome do arquivo."""
+    out = []
+    for p in sorted(PROFILES_DIR.glob("*.toml")) if PROFILES_DIR.is_dir() else []:
+        label = p.stem.capitalize()
+        try:
+            head = p.read_text(encoding="utf-8")[:400]
+            m = re.search(r"#\s*Perfil:\s*(.+)", head)
+            if m:
+                label = m.group(1).strip().rstrip(".")[:80]
+        except OSError:
+            pass
+        out.append({"name": p.stem, "label": label})
+    return out
+
+
+def _resolve_profile(spoken: str) -> str | None:
+    n = norm(spoken)
+    names = {pr["name"] for pr in list_profiles()}
+    for name in names:
+        if name in n:
+            return name
+    alias = {"pai": "robson", "meu pai": "robson", "trabalho": "robson",
+             "pessoal": "arthur", "eu": "arthur", "meu": "arthur"}
+    for k, v in alias.items():
+        if re.search(rf"\b{k}\b", n) and v in names:
+            return v
+    return None
+
+
+def _write_active_profile(name: str) -> bool:
+    cfgp = HERE / "config.toml"
+    try:
+        txt = cfgp.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    new, k = re.subn(r'(?m)^(\s*active\s*=\s*)"[^"]*"', rf'\g<1>"{name}"', txt, count=1)
+    if k == 0:
+        if re.search(r"(?m)^\[profile\]\s*$", new):
+            new = re.sub(r"(?m)^(\[profile\]\s*\n)", rf'\1active = "{name}"\n', new, count=1)
+        else:
+            new = f'[profile]\nactive = "{name}"\n\n' + new
+    try:
+        cfgp.write_text(new, encoding="utf-8")
+        return True
+    except OSError:
+        return False
+
 CNW = 0x08000000  # CREATE_NO_WINDOW
 
 
@@ -35,6 +87,7 @@ class Result:
     to_llm: str = ""                      # se preenchido, o loop manda pro LLM
     stop: bool = False
     fallback: bool = False                # True = não achou nada certo (só chutou uma busca web)
+    restart: bool = False                 # True = o loop deve reiniciar o daemon (troca de perfil)
 
 
 # --------------------------------------------------------------------------
@@ -281,6 +334,9 @@ _HELP = [
      r"palavra (de ativacao|magica|chave)|como come[cç]\w*|te acion\w*",
      "É só dizer \"Jarvis\" no começo da frase, senhor. \"Jarvis\" sozinho eu respondo; "
      "\"Jarvis\" com um pedido eu executo."),
+    (r"mud\w* (de )?perfil|troc\w* (de )?perfil|mud\w* (de )?usuario|outro perfil|"
+     r"perfil de (outra|outro)",
+     "Diga \"Jarvis, muda para o perfil\" e o nome, senhor. Eu reinicio já no perfil novo."),
 ]
 
 
@@ -312,6 +368,24 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 return Result(speak=ans)
         if _meta_q:                       # meta sem casar item: dá a visão geral
             return Result(speak=_HELP[-2][1])
+
+    # --- perfis: qual está ativo / trocar ---
+    if re.search(r"\b(perfil|perfis)\b", t):
+        ativo = str(cfg.get("profile", {}).get("active", "")) or "padrão"
+        if re.search(r"\b(qual|que|quem|mostra|lista|quais)\b", t) and not re.search(
+                r"\b(muda|mudar|troca|trocar|ativa|ativar|usa|usar|passa|passar|poe|por|coloca)\b", t):
+            nomes = ", ".join(p["name"] for p in list_profiles())
+            return Result(speak=f"Perfil ativo: {ativo}, senhor. Disponíveis: {nomes}.")
+        alvo = _resolve_profile(t)
+        if not alvo:
+            nomes = ", ".join(p["name"] for p in list_profiles())
+            return Result(speak=f"Qual perfil, senhor? Tenho: {nomes}.")
+        if alvo == norm(ativo):
+            return Result(speak=f"O perfil {alvo} já está ativo, senhor.")
+        if not _write_active_profile(alvo):
+            return Result(speak="Não consegui alterar a configuração, senhor.")
+        return Result(speak=f"Perfil {alvo} ativado, senhor. Vou reiniciar agora.",
+                      restart=True)
 
     # --- pausar a escuta ("modo cinema") ---
     if re.search(r"\bmod[eo]s?\s+(de\s+)?cinema\b|\bmod[eo]s?\s+filme\b|\bmod[eo]s?\s+soneca\b|"

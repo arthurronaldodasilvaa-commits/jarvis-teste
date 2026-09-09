@@ -1,88 +1,102 @@
-# Montar o pacote do Jarvis (para o Arthur)
+# Mandar o Jarvis pro seu pai — o que VOCÊ (Arthur) precisa fazer
 
-Objetivo: gerar uma pasta que o seu pai baixa do Google Drive e instala
-com dois cliques, sem terminal, sem sua ajuda.
+## Resumo em 1 parágrafo
 
-O resultado é uma pasta assim:
-
-```
-Jarvis/
-  JarvisSetup.exe            <- ele clica aqui
-  LEIA-ME.txt
-  payload/
-    voice/      JarvisVoice.exe + _internal/ + config.toml + profiles/
-    jarvis-app/ JarvisApp.exe
-    models/     faster-whisper-tiny/ , faster-whisper-small/
-    ollama/     OllamaSetup.exe
-```
+Já existe uma pasta pronta em **`installer/pacote/Jarvis/`** (~950 MB). Ela
+tem tudo: o Jarvis, o aplicativo, os modelos de voz e o instalador. Você só
+precisa **subir essa pasta no Google Drive**, **pegar o link** e **mandar pro
+seu pai**. Ele baixa, extrai e clica em `JarvisSetup.exe`. O instalador faz o
+resto sozinho, com uma tela por vez.
 
 ---
 
-## Pré-requisitos (uma vez)
+## O que já está feito (eu fiz)
 
-- Python + `uv` já instalados (você já tem).
-- Dependências de build no venv de voz:
-  ```
-  uv pip install --python ..\src\.venv\Scripts\python.exe pyinstaller huggingface_hub
-  ```
-- Baixe o instalador do Ollama e salve **nesta pasta** (`installer/`) como
-  `OllamaSetup.exe`:
-  <https://ollama.com/download/OllamaSetup.exe>
-  (Se não fizer isso, o instalador manda o usuário baixar do site — funciona,
-  mas é um passo a mais pra ele.)
+- [x] Congelei o Jarvis num `.exe` que roda **sem Python instalado**
+      (`payload/voice/JarvisVoice.exe` — testado, sobe voz + LLM)
+- [x] Incluí o aplicativo holográfico (`payload/jarvis-app/JarvisApp.exe`)
+- [x] Baixei e empacotei os modelos de voz (`payload/models/`, ~540 MB)
+- [x] Gerei o instalador com janela (`JarvisSetup.exe`)
+- [x] Deixei o perfil **robson** como padrão no pacote
+- [x] Montei a pasta final em `installer/pacote/Jarvis/`
 
-## Antes de gerar: escolha o perfil
+## O que falta — 3 passos, todos SEUS
 
-Edite `..\voice\config.toml` e deixe:
+### 1. Subir no Google Drive
 
-```toml
-[profile]
-active = "robson"
+1. Abra o Drive no navegador.
+2. Arraste a pasta **`E:\OpenJarvis\installer\pacote\Jarvis`** inteira pra
+   dentro do Drive. (São ~950 MB, leva alguns minutos.)
+3. Espere terminar de subir (100%).
+
+### 2. Compartilhar
+
+1. Botão direito na pasta `Jarvis` no Drive → **Compartilhar** → **Compartilhar**.
+2. Em "Acesso geral", troque pra **"Qualquer pessoa com o link"**.
+3. **Copiar link**.
+
+### 3. Mandar pro seu pai
+
+Manda essa mensagem junto com o link:
+
+> Pai, clica no link. Vai abrir uma pasta no Google Drive. No topo tem um
+> botão **Baixar** — clica nele, ele vai baixar um arquivo `.zip`.
+> Quando terminar, acha o arquivo (fica em Downloads), clica com o botão
+> direito → **Extrair tudo** → **Extrair**.
+> Abre a pasta que apareceu, entra em `Jarvis`, e dá dois cliques em
+> **`JarvisSetup.exe`**.
+> Se o Windows mostrar uma tela azul dizendo "protegeu o seu PC", clica em
+> **Mais informações** e depois em **Executar assim mesmo** — é seguro.
+> Daí é só ir clicando em **Avançar**.
+
+---
+
+## Como ele escolhe o perfil (robson / arthur)
+
+- **Durante a instalação:** tem uma tela "Quem vai usar o Jarvis" — já vem
+  com **Robson** marcado. Ele só clica em Avançar.
+- **Depois, por voz, a qualquer momento:**
+  - "Jarvis, qual perfil está ativo?"
+  - "Jarvis, muda para o perfil arthur"  (ou "robson")
+  - O Jarvis grava e **reinicia sozinho** já no perfil novo (~5 segundos).
+
+Pra criar um perfil de outra pessoa: copie `voice/profiles/robson.toml`,
+renomeie (ex: `maria.toml`), ajuste o nome/persona lá dentro, e rode o
+`build_package.bat` de novo — ela vai aparecer na lista da instalação.
+
+---
+
+## Teste antes de mandar (recomendado, 10 min)
+
+Rode `installer\pacote\Jarvis\JarvisSetup.exe` você mesmo:
+
+1. Escolha um disco com espaço (pode ser o mesmo, ele instala em `X:\Jarvis`).
+2. Vá até o fim.
+3. No passo do Ollama: se você já tem o Ollama, ele detecta e só baixa o
+   modelo. Se não, clica em "Instalar o Ollama" (abre o download), instala,
+   volta e clica em "Já instalei / verificar".
+4. Confirma que no fim o Jarvis abre e responde a "Jarvis, que horas são".
+5. Pra desinstalar o teste: apague a pasta `X:\Jarvis` e os atalhos "Jarvis"
+   (área de trabalho, menu Iniciar, e `shell:startup`).
+
+## Regerar o pacote (se mudar algo no código)
+
+Na pasta `installer/`:
+
+```
+build_voice.bat          REM  o daemon de voz  (~2 min)
+..\jarvis-app\build.bat  REM  o aplicativo
+build_setup.bat          REM  o instalador
+build_package.bat        REM  junta tudo em pacote\Jarvis\
 ```
 
-Assim o Jarvis instalado já trata seu pai pelo perfil dele (persona de
-secretário executivo, conhecimento do Instituto CAM, sem a frase de chegada).
-Para outro cliente, crie `..\voice\profiles\<nome>.toml` e ponha o nome dele aqui.
+(Se `build_package.bat` não rodar direto, os passos manuais estão no
+histórico do git, commit do instalador.)
 
-## Gerar (na pasta `installer/`)
+## Sobre o Ollama (1,5 GB)
 
-```
-build_voice.bat            REM  -> dist\JarvisVoice\      (~1 min, pesado)
-..\jarvis-app\build.bat    REM  -> ..\jarvis-app\dist\JarvisApp.exe
-build_setup.bat            REM  -> dist\JarvisSetup.exe
-build_package.bat          REM  -> pacote\Jarvis\   (junta tudo)
-```
-
-`build_package.bat` também roda `prep_models.py`, que baixa os modelos de voz
-(~500 MB no total) e coloca cópias limpas em `payload/models/`.
-
-## Subir pro Drive
-
-1. Suba a pasta **`pacote\Jarvis`** inteira pro Google Drive (arrastar e soltar).
-   São ~1,5–2 GB. Deixe como uma pasta só chamada `Jarvis`.
-2. Botão direito na pasta → **Compartilhar** → gere o link ("qualquer pessoa
-   com o link pode ver").
-3. Mande pro seu pai:
-   > "Pai, abre esse link, clica em **Baixar** (vai baixar um .zip),
-   > extrai, entra na pasta e clica em **JarvisSetup.exe**. Depois é só ir
-   > clicando em Avançar."
-
-O Google Drive baixa a pasta como um `.zip` automaticamente. Ele extrai
-(botão direito → Extrair tudo) e roda o `JarvisSetup.exe` de dentro.
-
-## Teste antes de mandar
-
-Rode `pacote\Jarvis\JarvisSetup.exe` você mesmo, num disco de teste, e vá até
-o fim. Confirme que:
-
-- copiou pra `X:\Jarvis\`
-- o Ollama instala e o modelo baixa
-- o teste de microfone mostra barra verde
-- a amostra de voz toca
-- no fim, o Jarvis abre e responde a "Jarvis, que horas são"
-
-## Atualizar depois
-
-Regere só o que mudou (`build_voice.bat` se mexeu no código de voz, etc.),
-rode `build_package.bat` de novo, e substitua a pasta no Drive. O instalador
-por cima reinstala limpo.
+Não vai no pacote — seria grande demais. O instalador abre o download
+oficial no navegador e guia seu pai a instalar (2 cliques: baixar → Install).
+Se quiser embutir mesmo assim: baixe
+<https://ollama.com/download/OllamaSetup.exe> e salve em
+`installer\pacote\Jarvis\payload\ollama\OllamaSetup.exe` antes de subir.

@@ -83,6 +83,7 @@ class Wizard(tk.Tk):
             "dest_root": None,       # Path do disco escolhido (ex: F:\)
             "install_dir": None,     # <disco>\Jarvis
             "model": read_model_name(),
+            "profile": "",           # perfil padrão escolhido
             "mic": None,
             "camera": None,
             "voice": None,
@@ -92,9 +93,9 @@ class Wizard(tk.Tk):
 
         self._build_chrome()
         self.steps: list[Step] = [
-            WelcomeStep(self), TermsStep(self), DriveStep(self), InstallStep(self),
-            OllamaStep(self), MicStep(self), CameraStep(self), VoiceStep(self),
-            DoneStep(self),
+            WelcomeStep(self), TermsStep(self), ProfileStep(self), DriveStep(self),
+            InstallStep(self), OllamaStep(self), MicStep(self), CameraStep(self),
+            VoiceStep(self), DoneStep(self),
         ]
         self.idx = 0
         self._show(0)
@@ -276,7 +277,45 @@ class TermsStep(Step):
         return bool(getattr(self, "var", None) and self.var.get())
 
 
-# ---- 3. disco -------------------------------------------------------
+# ---- 3. perfil (quem vai usar) ------------------------------------
+class ProfileStep(Step):
+    def build(self) -> None:
+        self.title("Quem vai usar o Jarvis")
+        self.para("O perfil define como o Jarvis chama e trata você. Todas as funções "
+                  "ficam iguais — dá pra trocar depois falando \"Jarvis, muda de perfil\".\n",
+                  fg=DIM)
+        self.var = tk.StringVar(value="")
+        self.holder = tk.Frame(self, bg=BG)
+        self.holder.pack(fill="x", pady=4)
+
+    def enter(self) -> None:
+        for w in self.holder.winfo_children():
+            w.destroy()
+        profs = L.list_profiles(payload_dir("voice"))
+        if not profs:
+            self.para("(nenhum perfil encontrado — vai usar a configuração padrão)", fg=AMBER)
+            self.wiz.state["profile"] = ""
+            self.wiz.refresh_nav()
+            return
+        for p in profs:
+            tk.Radiobutton(self.holder, text=f"   {p['label']}", value=p["name"],
+                           variable=self.var, font=self.wiz.f_h2, fg=INK, bg=BG,
+                           selectcolor=PANEL, activebackground=BG, activeforeground=CYAN,
+                           wraplength=APP_W - 130, justify="left",
+                           command=self._pick).pack(anchor="w", pady=5)
+        pref = next((p["name"] for p in profs if p["name"] == "robson"), profs[0]["name"])
+        self.var.set(pref)
+        self._pick()
+
+    def _pick(self) -> None:
+        self.wiz.state["profile"] = self.var.get()
+        self.wiz.refresh_nav()
+
+    def can_advance(self) -> bool:
+        return True     # sem perfil = configuração padrão, tudo bem
+
+
+# ---- 4. disco -------------------------------------------------------
 class DriveStep(Step):
     def build(self) -> None:
         self.title("Onde instalar")
@@ -364,9 +403,10 @@ class InstallStep(Step):
             if cfgp.exists():
                 txt = cfgp.read_text(encoding="utf-8")
                 txt = L.set_whisper_paths(txt, dest / "models")
-                txt = L.patch_config(txt, {
-                    "exe_path": str(dest / "jarvis-app" / "JarvisApp.exe"),
-                })
+                patch = {"exe_path": str(dest / "jarvis-app" / "JarvisApp.exe")}
+                if st.get("profile"):
+                    patch["active"] = st["profile"]
+                txt = L.patch_config(txt, patch)
                 cfgp.write_text(txt, encoding="utf-8")
             # launcher + atalhos
             self._set("criando atalhos…", 0.99)
@@ -448,16 +488,18 @@ class OllamaStep(Step):
 
     def _install(self) -> None:
         inst = payload_dir("ollama") / "OllamaSetup.exe"
-        if not inst.exists():
-            # sem instalador embutido: manda pro site
-            import webbrowser
-            webbrowser.open("https://ollama.com/download/windows")
-            self.tip.config(text="Abri o site do Ollama no navegador. Baixe, instale, e clique "
-                                 "em \"Já instalei / verificar\".")
+        if inst.exists():
+            L.run_ollama_installer(str(inst))
+            self.tip.config(text="Abri o instalador do Ollama. Na janela que apareceu, clique "
+                                 "em INSTALL e espere a barra encher. Quando fechar sozinha, "
+                                 "volte aqui e clique em \"Já instalei / verificar\".")
             return
-        L.run_ollama_installer(str(inst))
-        self.tip.config(text="Abri o instalador do Ollama. Clique em Install, espere terminar, "
-                             "e então clique em \"Já instalei / verificar\".")
+        # sem instalador embutido: baixa direto do site
+        import webbrowser
+        webbrowser.open("https://ollama.com/download/OllamaSetup.exe")
+        self.tip.config(text="Começou a baixar o \"OllamaSetup.exe\" (fica na pasta Downloads / "
+                             "ou aparece embaixo no navegador). Quando terminar, clique nele, "
+                             "depois em INSTALL. Terminou? Clique em \"Já instalei / verificar\".")
 
     def _pull(self) -> None:
         self.b_install.set_enabled(False)
@@ -632,6 +674,7 @@ class DoneStep(Step):
                   'Diga  "Jarvis, abre o navegador"  →  ele abre',
                   'Diga  "Jarvis, modo cinema"  →  ele para de ouvir',
                   'Aperte  Ctrl + Alt + J  →  ele volta a ouvir',
+                  'Diga  "Jarvis, muda de perfil"  →  troca de usuário',
                   'Pergunte  "Jarvis, o que você sabe fazer?"  →  ele te explica'):
             tk.Label(card, text="   " + t, font=self.wiz.f_h2, fg=INK, bg=PANEL,
                      anchor="w", justify="left").pack(fill="x", pady=5, padx=8)

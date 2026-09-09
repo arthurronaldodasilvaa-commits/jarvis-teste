@@ -418,6 +418,7 @@ Sobre você (o Jarvis) — use isto se o senhor perguntar como te usar:
 - Volume: "Jarvis, aumenta o volume". Textos: "Jarvis, escreve um texto sobre <assunto>".
 - Desligar/reiniciar o PC: "Jarvis, desliga o computador" — você pede confirmação, ele diz "sim";
   para abortar, "Jarvis, cancelar".
+- Trocar de perfil (quem você trata): "Jarvis, muda para o perfil <nome>" — você reinicia sozinho.
 Explique isso em 1 ou 2 frases, com um exemplo de comando entre aspas. Nunca invente comandos."""
 
 
@@ -886,6 +887,28 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
     elif res.speak:
         mouth.say(res.speak)
     mic.drain()
+    if getattr(res, "restart", False):
+        relaunch_self()
+
+
+def relaunch_self() -> None:
+    """Sobe uma nova instância e encerra esta (usado na troca de perfil).
+    Espera alguns segundos pro mutex de instância única liberar."""
+    if getattr(sys, "frozen", False):
+        cmd = f'"{sys.executable}"'
+    else:
+        cmd = f'"{sys.executable}" "{Path(__file__).resolve()}"'
+    log("reiniciando pra aplicar o novo perfil…")
+    try:
+        subprocess.Popen(f'cmd /c timeout /t 4 /nobreak >nul & start "" {cmd}',
+                         shell=True, creationflags=0x00000008,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+    except Exception as exc:  # noqa: BLE001
+        log(f"falha ao reiniciar: {exc}")
+        return
+    time.sleep(0.5)
+    os._exit(0)
 
 
 if __name__ == "__main__":

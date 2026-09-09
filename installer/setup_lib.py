@@ -22,6 +22,26 @@ from pathlib import Path
 CNW = 0x08000000  # CREATE_NO_WINDOW — não pisca janela de console
 
 # --------------------------------------------------------------------------
+# perfis  (profiles/<nome>.toml no payload)
+# --------------------------------------------------------------------------
+def list_profiles(voice_dir: Path) -> list[dict]:
+    """[{name, label}] lendo o cabeçalho '# Perfil: <Nome> | <desc>'."""
+    pdir = voice_dir / "profiles"
+    out = []
+    if pdir.is_dir():
+        for p in sorted(pdir.glob("*.toml")):
+            label = p.stem.capitalize()
+            try:
+                m = re.search(r"#\s*Perfil:\s*(.+)", p.read_text(encoding="utf-8")[:400])
+                if m:
+                    label = m.group(1).strip().rstrip(".")[:80]
+            except OSError:
+                pass
+            out.append({"name": p.stem, "label": label})
+    return out
+
+
+# --------------------------------------------------------------------------
 # discos
 # --------------------------------------------------------------------------
 def list_drives() -> list[dict]:
@@ -277,10 +297,8 @@ def patch_config(text: str, changes: dict[str, str]) -> str:
             continue
         v = str(val).replace("\\", "\\\\").replace('"', '\\"')
         pat = re.compile(rf'^(\s*{re.escape(key)}\s*=\s*)".*?"(\s*(?:#.*)?)$', re.M)
-        if pat.search(text):
-            text = pat.sub(rf'\g<1>"{v}"\g<2>', text, count=1)
-        else:  # chave não existe ainda — não força (evita quebrar seção)
-            pass
+        # replacement como função: re.sub NÃO processa as barras invertidas de v
+        text = pat.sub(lambda m, v=v: f'{m.group(1)}"{v}"{m.group(2)}', text, count=1)
     return text
 
 

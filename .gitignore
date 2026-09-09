@@ -38,3 +38,4 @@ secrets.toml
 !installer/*.spec
 installer/pacote/
 installer/OllamaSetup.exe
+installer/JarvisSetup.spec
