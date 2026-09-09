@@ -31,9 +31,19 @@ sequence = [
   "app:steam",
   "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
 ]
-spotify_force_play = true
-spotify_wait_seconds = 4.0
 greeting = "Bom dia, senhor. Com o que posso te ajudar?"
+
+[spotify]
+# "jarvis, tocar <música>" toca DE VERDADE se você preencher aqui.
+# Crie um app em https://developer.spotify.com/dashboard (2 min, de graça):
+#   - qualquer nome/descrição, Redirect URI: http://localhost (não é usado)
+#   - copie o Client ID e o Client Secret
+# Sem isso, "tocar <música>" só abre a busca (aí você clica).
+client_id = ""
+client_secret = ""
+market = "BR"
+force_play = true      # manda um "play" se o Spotify já estava aberto
+wait_seconds = 3.5
 
 [wake]
 # Reconhecimento de voz em 2 estágios (economiza MUITA CPU quando você não

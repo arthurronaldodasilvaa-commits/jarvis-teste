@@ -459,15 +459,9 @@ def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
 
 def _run_action(action: str, cfg: dict) -> None:
     try:
-        if action.startswith("spotify:track:"):
-            was = "spotify.exe" in subprocess.run(
-                ["tasklist", "/fi", "imagename eq Spotify.exe"],
-                capture_output=True, text=True, creationflags=CNW).stdout.lower()
-            os.startfile(action)  # noqa: S606
-            if was and cfg["arrival"].get("spotify_force_play", True):
-                time.sleep(float(cfg["arrival"].get("spotify_wait_seconds", 4.0)))
-                ctypes.windll.user32.keybd_event(0xB3, 0, 0, 0)
-                ctypes.windll.user32.keybd_event(0xB3, 0, 2, 0)
+        if action.startswith(("spotify:track:", "spotify:playlist:", "spotify:album:")):
+            import spotify
+            spotify.play_uri(action, cfg)
         else:
             kind, _, rest = action.partition(":")
             if kind == "app":

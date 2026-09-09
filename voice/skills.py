@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import quote_plus
 
+import spotify
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
 
 CNW = 0x08000000  # CREATE_NO_WINDOW
@@ -318,12 +319,14 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         return Result(speak=f"Pesquisando {q}, senhor.")
 
     # --- tocar música (Spotify) ---
-    m = re.search(r"(?:toc\w+|coloc\w+|bota\w*)\s+(?:a\s+musica\s+|a\s+|o\s+)?(.+?)"
-                  r"(?:\s+no\s+spotify)?$", t)
-    if m and "spotify" in t or (m and re.search(r"\bmusica\b|\bsom\b", t)):
-        song = m.group(1).strip()
-        os.startfile("spotify:search:" + quote_plus(song))  # noqa: S606
-        return Result(speak=f"Busquei {song} no Spotify, senhor.")
+    m = re.search(r"^(?:toc\w+|coloc\w+|bota\w*|p(?:oe|õe)|manda|escut\w+|ouvir|ouve|"
+                  r"quero\s+ouvir|quero\s+escutar|poe\s+pra\s+tocar)\s+"
+                  r"(?:a\s+musica\s+|a\s+|o\s+|umas?\s+)?(.+)", t)
+    if m:
+        song = re.sub(r"\s+(?:no|pelo|pela|la\s+no)\s+spotify$", "", m.group(1)).strip()
+        if song:
+            ok, fala = spotify.play(song, cfg)
+            return Result(speak=fala)
 
     # --- redigir um texto (LLM -> Bloco de Notas) ---
     m = re.search(r"^(?:escrev\w+|redi[jg]\w*|reda\w*|faz\w*\s+um\s+texto|cria\w*\s+um\s+texto|"
