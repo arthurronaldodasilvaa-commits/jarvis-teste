@@ -46,6 +46,19 @@ _STEAM_LIBS = [
 ]
 _SKIP_GAMES = {"steamworks common redistributables", "steam linux runtime"}
 
+# formas holográficas que a câmera sabe criar
+_SHAPES = {
+    "cubo": "cube", "quadrado": "cube", "caixa": "cube", "bloco": "cube",
+    "esfera": "sphere", "bola": "sphere", "globo": "sphere", "circulo": "sphere",
+    "piramide": "pyramid", "pirâmide": "pyramid",
+    "cone": "cone", "sorvete": "cone",
+    "cilindro": "cylinder", "tubo": "cylinder", "lata": "cylinder",
+    "toro": "torus", "toroide": "torus", "donut": "torus", "rosquinha": "torus",
+    "rosca": "torus", "anel": "torus", "argola": "torus",
+    "octaedro": "octahedron", "diamante": "octahedron", "losango": "octahedron",
+    "prisma": "prism", "hexagono": "prism", "hexágono": "prism",
+}
+
 _games: dict[str, str] = {}      # nome_normalizado -> appid
 _lnks: dict[str, str] = {}       # nome_normalizado -> caminho .lnk
 
@@ -239,6 +252,20 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
                  r"\bvolta\w*\s+(pro|para o|ao)\s+cerebro\b|\bmodo cerebro\b|\bfecha\w* a webcam\b", t):
         write_control(view="brain")
         return Result(speak="")
+
+    # --- criar / limpar hologramas na tela da câmera ---
+    if re.search(r"\b(limpa\w*|apaga\w*|remove\w*|tira|deleta\w*|zera)\s+"
+                 r"(tudo|os?\s+holograma\w*|as?\s+forma\w*|a\s+tela)\b", t):
+        write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
+        return Result(speak="")
+    m = re.search(r"\b(cria\w*|criar|faz\w*|adiciona\w*|gera\w*|desenha\w*|projeta\w*|poe|monta\w*)\s+"
+                  r"(?:um\s+|uma\s+|o\s+|a\s+|mais\s+um\s+|outro\s+|outra\s+)?"
+                  r"(?:holograma\s+(?:de\s+)?(?:um\s+|uma\s+)?|forma\s+de\s+(?:um\s+|uma\s+)?)?([a-zç]+)", t)
+    if m:
+        shape = _SHAPES.get(m.group(2)) or _SHAPES.get(norm(m.group(2)))
+        if shape:
+            write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
+            return Result(speak="")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):

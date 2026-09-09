@@ -86,11 +86,11 @@
     filter: brightness(0.72) contrast(1.12) saturate(1.25);
   }
   #cam-fx {
-    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    position: fixed; inset: 0; z-index: 3; pointer-events: none;
     transform: scaleX(-1);
   }
   #cam-tint {
-    position: fixed; inset: 0; z-index: 2; pointer-events: none;
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
     background: radial-gradient(ellipse at center, rgba(40,150,190,0.10), rgba(0,20,30,0.55) 100%);
     mix-blend-mode: screen;
   }
@@ -154,7 +154,9 @@
 
   <script src="lib/three.min.js"></script>
   <script src="lib/mp_hands/hands.js"></script>
+  <script src="gestures.js"></script>
   <script src="handtrack.js"></script>
+  <script src="holograms.js"></script>
   <script src="camera.js"></script>
   <script src="hologram.js"></script>
 </body>

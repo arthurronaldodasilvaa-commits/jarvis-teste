@@ -106,8 +106,9 @@ class Api:
     def get_status(self) -> dict:
         s = _read_json(STATE_FILE, {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE"})
         ctl = _read_json(CONTROL_FILE, {"paused": False, "view": "brain"})
-        s["paused"] = bool(ctl.get("paused", False))
-        s["view"] = ctl.get("view", "brain")
+        s.update(ctl)                        # paused, view, holo, ...
+        s.setdefault("view", "brain")
+        s["paused"] = bool(s.get("paused", False))
         return s
 
     def _write_control(self, **changes) -> dict:

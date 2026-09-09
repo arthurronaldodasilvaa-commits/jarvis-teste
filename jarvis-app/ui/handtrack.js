@@ -33,6 +33,7 @@ window.jarvisHands = (() => {
           landmarks: lm,   // 21 × {x,y,z}  (x,y normalizados 0..1 do frame)
           handed: (res.multiHandedness && res.multiHandedness[i])
             ? res.multiHandedness[i].label : "?",
+          gesture: window.jarvisGestures ? window.jarvisGestures.classify(lm) : null,
         })),
         t: performance.now(),
       };

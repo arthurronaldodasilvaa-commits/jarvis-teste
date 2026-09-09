@@ -125,8 +125,29 @@ window.jarvisCam = (() => {
         fxctx.arc(x, y, rad, 0, Math.PI * 2);
         fxctx.fill();
       }
+
+      // gesto
+      const g = h.gesture;
+      if (g && g.name && g.name !== "?") {
+        const [wx, wy] = coverMap(lm[0].x, lm[0].y);
+        fxctx.shadowBlur = 6;
+        fxctx.fillStyle = "rgba(160,240,255,0.95)";
+        fxctx.font = "600 14px Segoe UI, monospace";
+        fxctx.textAlign = "center";
+        fxctx.fillText(window.jarvisGestures.label(g.name), wx, wy + 34);
+        // anel na pinça
+        if (g.pinch > 0.15 && g.pinchAt) {
+          const [px, py] = coverMap(g.pinchAt.x, g.pinchAt.y);
+          fxctx.strokeStyle = "rgba(180,245,255," + (0.4 + 0.5 * g.pinch) + ")";
+          fxctx.lineWidth = 2;
+          fxctx.beginPath();
+          fxctx.arc(px, py, 14 + 10 * (1 - g.pinch), 0, Math.PI * 2);
+          fxctx.stroke();
+        }
+      }
     }
     fxctx.shadowBlur = 0;
+    fxctx.textAlign = "left";
     fxctx.globalCompositeOperation = "source-over";
   }
 
@@ -186,8 +207,9 @@ window.jarvisCam = (() => {
   }
 
   return {
-    start, stop, configure,
+    start, stop, configure, coverMap,
     active: () => !!stream,
     motion: () => motionLevel,
+    videoAspect: () => (video.videoWidth ? video.videoWidth / video.videoHeight : 16 / 9),
   };
 })();

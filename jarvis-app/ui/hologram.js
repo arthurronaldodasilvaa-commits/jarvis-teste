@@ -130,6 +130,7 @@
     renderer.domElement.style.display = cam ? "none" : "block";
     const lbl = document.getElementById("cam-btn-label");
     if (lbl) lbl.textContent = cam ? "Cérebro" : "Câmera";
+    if (window.jarvisHolo) window.jarvisHolo.setActive(cam);
     if (cam) window.jarvisCam.start(state.cameraMatch);
     else window.jarvisCam.stop();
   }
@@ -175,6 +176,7 @@
       if (s.status) state.status = s.status;
       if (s.camera_match) state.cameraMatch = s.camera_match;
       window.jarvisCam.configure(s);
+      if (window.jarvisHolo && s.holo) window.jarvisHolo.onControl(s.holo);
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
       if (s.view === "camera" || s.view === "brain") applyView(s.view);
@@ -196,8 +198,19 @@
   let _skip = false;
   function tick() {
     requestAnimationFrame(tick);
-    if (state.view === "camera") { statusEl.textContent = "CÂMERA ATIVA"; return; }
     const t = clock.getElapsedTime();
+    if (state.view === "camera") {
+      const g = window.jarvisHands && window.jarvisHands.results();
+      let extra = "";
+      if (g && g.hands && g.hands.length) {
+        const names = g.hands.map((h) => h.gesture && h.gesture.name).filter(Boolean);
+        if (names.length) extra = " · " + names.map((n) => window.jarvisGestures.label(n)).join(" / ");
+      }
+      const n = window.jarvisHolo ? window.jarvisHolo.count() : 0;
+      statusEl.textContent = "CÂMERA ATIVA" + (n ? " · " + n + " forma" + (n > 1 ? "s" : "") : "") + extra;
+      if (window.jarvisHolo) window.jarvisHolo.tick(t, g);
+      return;
+    }
 
     const idle = state.speakLevel < 0.01 && !state.speaking
               && Math.abs(state.pausedLevel - (state.paused ? 1 : 0)) < 0.01;
