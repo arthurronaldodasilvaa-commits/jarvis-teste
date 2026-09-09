@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import quote_plus
 
+import calc
 import maps
 import reminders
 import spotify
@@ -538,6 +539,11 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             if cand and cand not in ("casa", "mim", "voce", "cidade", "regiao"):
                 cidade = cand
         return Result(speak=weather.report(cfg, cidade, dia))
+
+    # --- contas / porcentagem / conversão de unidades e moeda ---
+    fala = calc.handle(t)
+    if fala is not None:
+        return Result(speak=fala)
 
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)
