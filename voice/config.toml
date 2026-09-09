@@ -34,16 +34,13 @@ sequence = [
 greeting = "Bom dia, senhor. Com o que posso te ajudar?"
 
 [spotify]
-# "jarvis, tocar <música>" toca DE VERDADE se você preencher aqui.
-# Crie um app em https://developer.spotify.com/dashboard (2 min, de graça):
-#   - qualquer nome/descrição, Redirect URI: http://localhost (não é usado)
-#   - copie o Client ID e o Client Secret
-# Sem isso, "tocar <música>" só abre a busca (aí você clica).
+# As chaves (client_id / client_secret) ficam em  voice/secrets.toml  (fora do git).
+# Crie um app em https://developer.spotify.com/dashboard e cole lá.
 client_id = ""
 client_secret = ""
 market = "BR"
-force_play = true      # manda um "play" se o Spotify já estava aberto
-wait_seconds = 3.5
+force_play = true       # manda um "play" se o Spotify já estava aberto e não começou sozinho
+wait_seconds = 3.0
 
 [wake]
 # Reconhecimento de voz em 2 estágios (economiza MUITA CPU quando você não

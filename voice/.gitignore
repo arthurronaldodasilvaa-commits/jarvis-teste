@@ -7,3 +7,4 @@ hf-cache/
 *.wav
 NOTAS.md
 PEDIDOS.md
+secrets.toml

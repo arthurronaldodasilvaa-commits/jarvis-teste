@@ -32,3 +32,4 @@ control.json
 *.log
 NOTAS.md
 PEDIDOS.md
+secrets.toml

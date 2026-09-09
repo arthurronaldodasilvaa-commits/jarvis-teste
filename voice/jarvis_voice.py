@@ -85,9 +85,25 @@ def ensure_single_instance() -> None:
         sys.exit(0)
 
 
+SECRETS_PATH = HERE / "secrets.toml"
+
+
+def _deep_merge(base: dict, over: dict) -> dict:
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            _deep_merge(base[k], v)
+        elif v not in ("", None):
+            base[k] = v
+    return base
+
+
 def load_cfg() -> dict:
     with open(CFG_PATH, "rb") as fh:
-        return tomllib.load(fh)
+        cfg = tomllib.load(fh)
+    if SECRETS_PATH.is_file():          # secrets.toml sobrescreve (fora do git)
+        with open(SECRETS_PATH, "rb") as fh:
+            _deep_merge(cfg, tomllib.load(fh))
+    return cfg
 
 
 def rms(b: np.ndarray) -> float:
