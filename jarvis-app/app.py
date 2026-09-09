@@ -51,6 +51,8 @@ def _resolve_state_file() -> Path:
 
 STATE_FILE = _resolve_state_file()
 CONTROL_FILE = STATE_FILE.parent / "control.json"
+CONFIG_FILE = STATE_FILE.parent.parent / "voice" / "config.toml"
+RELOAD_FLAG = STATE_FILE.parent / "reload.flag"
 UI_DIR = APP_DIR / "ui"
 
 MUTEX_NAME = "Global\\JarvisAppSingleton"
@@ -69,6 +71,40 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
+
+
+def _patch_toml_line(text: str, key: str, val) -> str:
+    import re
+    if isinstance(val, bool):
+        rep = "true" if val else "false"
+    elif isinstance(val, (int, float)):
+        rep = str(val)
+    else:
+        rep = '"' + str(val).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    pat = re.compile(rf'^(\s*{re.escape(key)}\s*=\s*)(?:""".*?"""|".*?"|[^\s#]+)(\s*(?:#.*)?)$',
+                     re.M | re.S)
+    if pat.search(text):
+        return pat.sub(lambda m: f"{m.group(1)}{rep}{m.group(2)}", text, count=1)
+    return text
+
+
+def _sapi_voices() -> list:
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Add-Type -AssemblyName System.Speech; "
+             "(New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | "
+             "ForEach-Object { $_.VoiceInfo.Name }"],
+            capture_output=True, text=True, timeout=12, creationflags=0x08000000)
+        return [l.strip() for l in r.stdout.splitlines() if l.strip()]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _profile_names() -> list:
+    d = CONFIG_FILE.parent / "profiles"
+    return [p.stem for p in d.glob("*.toml")] if d.is_dir() else []
 
 
 def serve_ui() -> str:
@@ -154,6 +190,49 @@ class Api:
         except OSError:
             pass
         self._write_control(scan="")
+
+    # ---- painel de configurações ----
+    _CFG_KEYS = [
+        ("profile", "active"), ("assistant", "address"), ("assistant", "user_name"),
+        ("assistant", "wake_word"), ("assistant", "attention_reply"),
+        ("tts", "engine"), ("tts", "sapi_voice"),
+        ("audio", "input_device_match"), ("app", "camera_match"),
+        ("location", "city"), ("arrival", "enabled"), ("arrival", "phrase"),
+        ("arrival", "briefing"), ("camera", "media_gestures"), ("camera", "auto_return_seconds"),
+        ("danger", "allow_shutdown"), ("danger", "allow_typing"),
+    ]
+
+    def get_config(self) -> dict:
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        try:
+            data = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return {"_error": "não achei config.toml"}
+        out = {}
+        for sec, key in self._CFG_KEYS:
+            out[f"{sec}.{key}"] = data.get(sec, {}).get(key)
+        # opções pra dropdowns
+        out["_voices"] = _sapi_voices()
+        out["_profiles"] = _profile_names()
+        return out
+
+    def set_config(self, patch: dict) -> dict:
+        try:
+            txt = CONFIG_FILE.read_text(encoding="utf-8")
+        except OSError:
+            return {"ok": False, "msg": "config.toml não encontrado"}
+        for dotted, val in (patch or {}).items():
+            key = dotted.split(".")[-1]
+            txt = _patch_toml_line(txt, key, val)
+        try:
+            CONFIG_FILE.write_text(txt, encoding="utf-8")
+            RELOAD_FLAG.write_text(str(__import__("time").time()), encoding="utf-8")
+        except OSError as exc:
+            return {"ok": False, "msg": str(exc)}
+        return {"ok": True}
 
     def log(self, msg: str) -> None:
         try:

@@ -352,7 +352,25 @@ class Mouth:
         self.speaking = False
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
-        self._spawn()
+        self._wav = HERE / "_tts_out.wav"
+
+        # --- Piper (voz neural local) ---
+        self.piper = None
+        if str(t.get("engine", "sapi")).lower() == "piper":
+            roots = [HERE, HERE / "_internal", Path(getattr(sys, "_MEIPASS", HERE))]
+            pexe = _first_file(t.get("piper_path"),
+                               [r / "piper" / "piper" / "piper.exe" for r in roots]
+                               + [r / "piper" / "piper.exe" for r in roots])
+            pvoice = _first_file(t.get("piper_voice"),
+                                 [r / "piper" / "voices" / "pt_BR-faber-medium.onnx" for r in roots])
+            if pexe and pvoice:
+                self.piper = (str(pexe), str(pvoice))
+                log(f"TTS: Piper ({Path(pvoice).name})")
+            else:
+                log(f"TTS: Piper pedido mas não achei os arquivos — caindo pro SAPI")
+
+        if not self.piper:
+            self._spawn()
 
     def _spawn(self) -> None:
         sel = f"try{{$s.SelectVoice('{self.voice}')}}catch{{}}" if self.voice else ""
@@ -393,6 +411,12 @@ class Mouth:
             write_app_state(speaking=False, status="OUVINDO")
 
     def _speak(self, text: str) -> None:
+        if self.piper:
+            with self._lock:
+                if self._piper_say(text):
+                    return
+            # se o Piper falhar, tenta SAPI
+
         with self._lock:
             if self._proc is None or self._proc.poll() is not None:
                 self._spawn()
@@ -414,6 +438,22 @@ class Mouth:
         subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
                        input=text, text=True, timeout=60, creationflags=CNW,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def _piper_say(self, text: str) -> bool:
+        exe, voice = self.piper
+        try:
+            r = subprocess.run(
+                [exe, "--model", voice, "--output_file", str(self._wav)],
+                input=text.encode("utf-8"), timeout=45, creationflags=CNW,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            if r.returncode != 0 or not self._wav.is_file():
+                return False
+            winsound.PlaySound(str(self._wav), winsound.SND_FILENAME)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            log(f"Piper falhou ({exc})")
+            return False
 
     def close(self) -> None:
         try:
@@ -757,14 +797,21 @@ def strip_wake_word(raw: str, n: str, wake: str) -> str | None:
 
 
 def _scan_loop(mouth: "Mouth") -> None:
-    """Vê o scan.json do app (resultado de QR/código lido pela câmera)."""
+    """Vê o scan.json do app (QR lido) e o reload.flag (config mudou no painel)."""
     import json as _json
     from common import _SHARED
     f = _SHARED / "scan.json"
+    flag = _SHARED / "reload.flag"
+    flag_mtime = flag.stat().st_mtime if flag.is_file() else 0
     last_n = 0
     time.sleep(8)
     while True:
         try:
+            if flag.is_file() and flag.stat().st_mtime > flag_mtime:
+                flag_mtime = flag.stat().st_mtime
+                log("config alterada no painel — reiniciando")
+                mouth.say("Configuração atualizada, senhor. Reiniciando.")
+                relaunch_self()
             if f.is_file():
                 d = _json.loads(f.read_text(encoding="utf-8"))
                 n = int(d.get("n", 0))
@@ -781,6 +828,15 @@ def _scan_loop(mouth: "Mouth") -> None:
         except Exception as exc:  # noqa: BLE001
             log(f"scan loop: {exc}")
         time.sleep(1.0)
+
+
+def _first_file(explicit, candidates):
+    if explicit and Path(explicit).is_file():
+        return Path(explicit)
+    for c in candidates:
+        if Path(c).is_file():
+            return c
+    return None
 
 
 def _reminder_loop(mouth: "Mouth") -> None:

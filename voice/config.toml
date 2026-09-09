@@ -87,7 +87,10 @@ o método é a tríade Consciência, Ação, Mudança.
 """
 
 [tts]
-sapi_voice = "Microsoft Maria Desktop"
+engine = "piper"                       # "piper" (voz neural local, melhor) ou "sapi" (voz do Windows)
+piper_path = ""                        # vazio = voice/piper/piper/piper.exe
+piper_voice = ""                       # vazio = voice/piper/voices/pt_BR-faber-medium.onnx
+sapi_voice = "Microsoft Maria Desktop" # usado se engine="sapi" ou o Piper não estiver presente
 sapi_rate = 0
 ready_line = ""
 

@@ -15,6 +15,11 @@ hiddenimports += collect_submodules("winsdk")
 hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio",
                   "anyio", "certifi", "psutil", "pynvml"]
 
+import os as _os
+_piper = "../voice/piper"
+if _os.path.isdir(_piper):
+    datas += [(_piper, "piper")]
+
 a = Analysis(
     ["../voice/jarvis_voice.py"],
     pathex=["../voice"],

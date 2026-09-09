@@ -65,11 +65,16 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
   sem terminal: escolhe disco, copia, instala Ollama + baixa modelo, configura
   mic/câmera/voz, autostart. `MONTAR_PACOTE.md` = como montar a pasta do Drive.
   Falta: testar o clique-a-clique numa máquina limpa antes de mandar pro cliente.
-- [ ] Assinar o `JarvisSetup.exe` (tirar o aviso SmartScreen) — cert de code signing
-- [ ] Painel de configurações no app (em vez de editar `config.toml` na mão)
-- [ ] TTS melhor (Piper — voz neural local, rápida) ou ElevenLabs
-- [ ] Modelo local maior quando tiver hardware (qwen 7b/14b)
-- [ ] Fila `PEDIDOS.md` → "processa meus pedidos" abre uma sessão de dev
+- [x] **Painel de configurações no app** — ícone ⚙ ou "Jarvis, abre as configurações".
+  Edita perfil/voz/mic/câmera/cidade/chegada/danger; salva no `config.toml` e reinicia
+  o daemon (via `reload.flag`). `ui/settings.js`, `app.py` Api.get_config/set_config.
+- [x] Fila `PEDIDOS.md` → "quais meus pedidos" lista, "processa meus pedidos" abre o arquivo.
+- [ ] Assinar o `JarvisSetup.exe` (tirar aviso SmartScreen) — precisa cert de code-signing (pago, identidade)
+- [x] **TTS melhor (Piper)** — voz neural local `pt_BR-faber-medium` (RTF 0.07, muito
+  mais natural que a SAPI Maria). `[tts] engine = "piper"`; `Mouth._piper_say()` gera
+  wav e toca com winsound; fallback automático pro SAPI. `voice/piper/` (~98 MB, fora
+  do git, entra no pacote e no `_internal/` do exe congelado).
+- [ ] Modelo local maior (qwen 7b/14b) — só trocar `[assistant] model`; precisa de RAM/GPU
 
 ---
 

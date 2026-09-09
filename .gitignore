@@ -39,3 +39,7 @@ secrets.toml
 installer/pacote/
 installer/OllamaSetup.exe
 installer/JarvisSetup.spec
+
+# Piper TTS — binários grandes, vão no pacote mas não no git
+voice/piper/
+_tts_out.wav

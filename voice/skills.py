@@ -577,6 +577,13 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         write_control(holo={"action": "clear_ink", "n": int(time.time() * 1000)})
         return Result(speak="Limpei, senhor.")
 
+    # --- abrir o painel de configurações no app ---
+    if re.search(r"\b(abr\w*|mostra\w*|ver as|entra n\w*)\s+(as\s+)?configura\w+|"
+                 r"\bmodo\s+configura\w+|\bpainel\s+de\s+configura\w+|\bajustes do jarvis\b|"
+                 r"\bmuda\w*\s+(uma\s+)?configura\w+", t):
+        write_control(holo={"action": "settings", "n": int(time.time() * 1000)})
+        return Result(speak="Abri as configurações, senhor.")
+
     # --- ler QR code pela câmera ---
     if re.search(r"\b(le\w*|escaneia\w*|escanear|scann?e\w*|decifra\w*)\s+(o\s+|esse\s+|este\s+)?"
                  r"(qr|qr\s?code|codigo qr|q r code)\b|\bqr\s?code\b", t):
@@ -833,6 +840,26 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if m:
         _append("PEDIDOS.md", m.group(1).strip())
         return Result(speak="Registrei o pedido, senhor. Passo ao desenvolvedor.")
+
+    # --- ver / processar a fila de pedidos ---
+    if re.search(r"\b(meus pedidos|quais.*pedidos|le\w*\s+os pedidos|lista de pedidos|"
+                 r"processa\w*\s+(os\s+)?(meus\s+)?pedidos|fila de pedidos)\b", t):
+        p = HERE / "PEDIDOS.md"
+        try:
+            linhas = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip().startswith("-")]
+        except OSError:
+            linhas = []
+        if not linhas:
+            return Result(speak="A fila de pedidos está vazia, senhor.")
+        if re.search(r"\bprocessa\w*", t):
+            try:
+                os.startfile(str(p))  # noqa: S606
+            except Exception:  # noqa: BLE001
+                pass
+            return Result(speak=f"{len(linhas)} pedido" + ("s" if len(linhas) > 1 else "")
+                          + " na fila, senhor. Abri o arquivo pro desenvolvedor.")
+        resumo = "; ".join(re.sub(r"^-\s*(\[[^\]]*\]\s*)?", "", ln).strip() for ln in linhas[:4])
+        return Result(speak=f"Senhor, {len(linhas)} na fila: {resumo}.")
 
     # --- nada bateu: o LLM tenta traduzir o pedido num COMANDO ---
     _is_question = re.search(r"\b(por ?que|porque|qual|quais|quem|quanto\s+(custa|vale)|"

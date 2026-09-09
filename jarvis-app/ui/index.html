@@ -170,6 +170,35 @@
   #status.thinking::before  { background: #b98bff; box-shadow: 0 0 10px #b98bff; }
   #status.searching::before { background: #7affd0; box-shadow: 0 0 10px #7affd0; }
   #status.error::before     { background: #ff6b6b; box-shadow: 0 0 10px #ff6b6b; animation: none; }
+
+  /* ---------- painel de configurações ---------- */
+  #settings { position: fixed; inset: 0; z-index: 20; display: none;
+    background: rgba(2,7,12,0.92); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; }
+  #settings.on { display: flex; }
+  #settings .box { width: min(560px, 92vw); max-height: 88vh; overflow-y: auto;
+    border: 1px solid var(--neon-dim); background: rgba(8,16,24,0.96);
+    padding: 26px 30px; box-shadow: 0 0 40px rgba(70,214,255,0.15); }
+  #settings h2 { font-size: 15px; letter-spacing: 5px; text-transform: uppercase;
+    margin-bottom: 18px; text-shadow: 0 0 10px var(--neon); }
+  #settings .row { display: flex; align-items: center; gap: 12px; margin: 11px 0;
+    font-size: 12px; letter-spacing: 1px; }
+  #settings .row label { flex: 0 0 44%; opacity: 0.75; text-transform: uppercase;
+    letter-spacing: 2px; font-size: 10px; }
+  #settings input[type=text], #settings input[type=number], #settings select {
+    flex: 1; background: rgba(70,214,255,0.06); border: 1px solid var(--neon-dim);
+    color: var(--neon); padding: 7px 9px; font: inherit; font-size: 12px; }
+  #settings input[type=checkbox] { width: 16px; height: 16px; accent-color: #46d6ff; }
+  #settings .foot { margin-top: 22px; display: flex; gap: 12px; justify-content: flex-end; }
+  #settings button { background: var(--neon); color: #04121a; border: 0; padding: 9px 20px;
+    font: inherit; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; }
+  #settings button.ghost { background: transparent; color: var(--neon); border: 1px solid var(--neon-dim); }
+  #settings .note { font-size: 10px; opacity: 0.5; margin-top: 12px; letter-spacing: 1px; }
+  #gear { position: fixed; top: 16px; right: 54px; z-index: 4; width: 26px; height: 26px;
+    line-height: 24px; text-align: center; border: 1px solid var(--neon-dim); border-radius: 50%;
+    color: var(--neon); font-size: 13px; opacity: 0.3; cursor: pointer; transition: opacity .2s; }
+  #gear:hover { opacity: 1; }
+  body.camera #gear { display: none; }
 </style>
 </head>
 <body>
@@ -214,7 +243,18 @@
       <span class="ico"></span><span id="cam-btn-label">Câmera</span>
     </div>
   </div>
+  <div id="gear" title="Configurações">⚙</div>
   <div id="close" title="Fechar">&times;</div>
+
+  <div id="settings"><div class="box">
+    <h2>Configurações</h2>
+    <div id="settings-form"></div>
+    <div class="foot">
+      <button class="ghost" id="set-cancel">Cancelar</button>
+      <button id="set-save">Salvar e reiniciar</button>
+    </div>
+    <div class="note">Salvar reinicia o Jarvis pra aplicar (leva alguns segundos).</div>
+  </div></div>
 
   <script src="lib/three.min.js"></script>
   <script src="lib/mp_hands/hands.js"></script>
@@ -226,6 +266,7 @@
   <script src="vision.js"></script>
   <script src="camera.js"></script>
   <script src="hud.js"></script>
+  <script src="settings.js"></script>
   <script src="hologram.js"></script>
 </body>
 </html>

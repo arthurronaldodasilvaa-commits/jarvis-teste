@@ -16,6 +16,8 @@ resto sozinho, com uma tela por vez.
       (`payload/voice/JarvisVoice.exe` — testado, sobe voz + LLM)
 - [x] Incluí o aplicativo holográfico (`payload/jarvis-app/JarvisApp.exe`)
 - [x] Baixei e empacotei os modelos de voz (`payload/models/`, ~540 MB)
+- [x] Piper TTS (voz neural pt-BR, `voice/piper/` ~98 MB) — vai dentro do
+  `_internal/` do `JarvisVoice.exe` quando `build_voice.bat` roda
 - [x] Gerei o instalador com janela (`JarvisSetup.exe`)
 - [x] Deixei o perfil **robson** como padrão no pacote
 - [x] Montei a pasta final em `installer/pacote/Jarvis/`

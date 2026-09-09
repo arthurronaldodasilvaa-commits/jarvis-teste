@@ -177,7 +177,10 @@
       if (s.status) state.status = s.status;
       if (s.camera_match) state.cameraMatch = s.camera_match;
       window.jarvisCam.configure(s);
-      if (window.jarvisHolo && s.holo) window.jarvisHolo.onControl(s.holo);
+      if (s.holo && s.holo.action === "settings" && s.holo.n > (state._setN || 0)) {
+        state._setN = s.holo.n;
+        if (window.jarvisSettings) window.jarvisSettings.open();
+      } else if (window.jarvisHolo && s.holo) window.jarvisHolo.onControl(s.holo);
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
       if (s.view === "camera" || s.view === "brain") applyView(s.view);
