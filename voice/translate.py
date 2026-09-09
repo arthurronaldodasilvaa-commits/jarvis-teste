@@ -47,8 +47,8 @@ def _mymemory(text: str, src: str, dst: str) -> str | None:
 
 def handle(raw: str, brain=None) -> str | None:
     low = raw.strip().lower()
-    m = re.search(r"\b(?:traduz(?:a|ir)?|traducao de|como (?:se )?(?:diz|fala)|"
-                  r"como (?:e|que e) que (?:se )?(?:diz|fala))\b\s+(.+)", low)
+    m = re.search(r"\b(?:traduz(?:a|ir)?|traducao de|como (?:se )?(?:diz|fala|escreve)|"
+                  r"como (?:e|que e) que (?:se )?(?:diz|fala|escreve))\b\s+(.+)", low)
     if not m:
         m2 = re.search(r"\bo que (?:significa|quer dizer)\s+(.+)", low)
         if m2 and re.search(r"[a-z]{3,}", m2.group(1)) and " " not in m2.group(1).strip():
@@ -71,8 +71,9 @@ def handle(raw: str, brain=None) -> str | None:
     if not frase:
         return None
 
-    out = None
-    if brain is not None:
+    one_word = len(frase.split()) == 1
+    out = _mymemory(frase, src, dst) if one_word else None
+    if not out and brain is not None:
         try:
             out = brain._post(
                 [{"role": "system", "content":

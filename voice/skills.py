@@ -840,24 +840,28 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak="Cancelei, senhor.")
 
     # --- tradução ---
-    if re.search(r"\b(traduz|traduza|traducao de|como se (diz|fala)|como (e|que e) que se (diz|fala))\b", t):
+    _lang_after = re.search(r"\b(?:em|pra|para|pro)\s+(?:o\s+)?(ingles|espanhol|frances|alemao|"
+                            r"italiano|japones|mandarim|chines|russo|coreano|holandes|latim|arabe)\b",
+                            norm(raw))
+    if (re.search(r"\b(traduz|traduza|traducao de|como se (diz|fala)|"
+                  r"como (e|que e) que se (diz|fala))\b", t)
+            or (re.search(r"\bcomo se escreve\b", t) and _lang_after)) \
+            and not re.match(r"^(soletra|me diz as letras)", t):
         fala = translate.handle(raw, brain)
         if fala:
             return Result(speak=fala)
 
     # --- soletrar ---
-    m = re.search(r"\b(soletra|soletre|como (?:se )?escreve|me diz as letras de)\s+(?:a palavra\s+)?(.+)", t)
+    m = re.search(r"\b(soletra\w*|soletre|me diz as letras de|como se escreve)\s+(?:a palavra\s+)?(.+)", t)
     if m:
         w = re.sub(r"[^a-zà-ÿ]", "", m.group(2).split()[0])
         if w:
             return Result(speak=", ".join(c.upper() for c in w) + ", senhor.")
 
     # --- hora no mundo ---
-    m = re.search(r"\bque horas?\s+(?:sao\s+)?(?:e\s+)?(?:em|no|na|nos|nas)\s+(.+)", t)
-    if m:
-        fala = _hora_no_mundo(m.group(1).strip())
-        if fala:
-            return Result(speak=fala)
+    m = re.search(r"\bque horas?\s.*?\b(?:em|no|na|nos|nas)\s+([a-zà-ÿ][a-zà-ÿ ]+?)\s*(?:agora|hoje|senhor)?\s*$", t)
+    if m and _hora_no_mundo(m.group(1).strip()):
+        return Result(speak=_hora_no_mundo(m.group(1).strip()))
 
     # --- hora / data ---
     if re.search(r"\b(que horas?|as horas?|horario agora|que hora e|me diz as horas|horas sao)\b", t):
@@ -1020,7 +1024,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak=(txt if len(txt) <= 200 else txt[:200] + "…"))
 
     # --- janelas ---
-    if re.search(r"\b(minimiza|esconde|abaixa)\s+(tudo|todas as janelas|as janelas)\b|"
+    if re.search(r"\b(minimiza\w*|esconde\w*|abaixa\w*|oculta\w*)\s+(tudo|todas as janelas|as janelas)\b|"
                  r"\bmostra a area de trabalho\b|\bmostrar? o desktop\b", t):
         combo("WIN", "D"); return Result(speak="")
     if re.search(r"\bmaximiza\w*\s+(essa|a|esta)?\s*janela\b|\bjanela em tela cheia\b", t):
