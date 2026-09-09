@@ -14,9 +14,13 @@ o Jarvis fala). Por enquanto: fundo preto + holograma azul girando.
 from __future__ import annotations
 
 import ctypes
+import functools
+import http.server
 import json
 import os
+import socketserver
 import sys
+import threading
 from pathlib import Path
 
 # Libera câmera/mic no WebView2 sem prompt (app local pessoal). TEM que vir
@@ -47,10 +51,34 @@ def _resolve_state_file() -> Path:
 
 STATE_FILE = _resolve_state_file()
 CONTROL_FILE = STATE_FILE.parent / "control.json"
-UI = APP_DIR / "ui" / "index.html"
+UI_DIR = APP_DIR / "ui"
 
 MUTEX_NAME = "Global\\JarvisAppSingleton"
 WINDOW_TITLE = "JARVIS"
+
+
+class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map,
+                      ".wasm": "application/wasm", ".data": "application/octet-stream",
+                      ".tflite": "application/octet-stream", ".binarypb": "application/octet-stream",
+                      ".mjs": "text/javascript", ".js": "text/javascript"}
+
+    def log_message(self, *a):  # noqa: ARG002
+        pass
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
+def serve_ui() -> str:
+    """Sobe um HTTP local servindo ui/ e devolve a URL do index.
+    (getUserMedia + módulos/wasm exigem origem http, não file://.)"""
+    handler = functools.partial(_QuietHandler, directory=str(UI_DIR))
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), handler)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{port}/index.html"
 
 
 def already_running() -> bool:
@@ -119,9 +147,10 @@ def main() -> None:
         focus_existing()
         return
 
+    url = serve_ui()
     webview.create_window(
         WINDOW_TITLE,
-        str(UI),
+        url,
         width=960,
         height=720,
         frameless=True,

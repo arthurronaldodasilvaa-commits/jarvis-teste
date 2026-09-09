@@ -71,6 +71,7 @@ window.jarvisCam = (() => {
     const name = (dev && dev.label) ? dev.label.replace(/\s*\(.*?\)\s*/g, "").trim() : "Câmera";
     label.textContent = name;
     dbg("stream OK, video " + video.videoWidth + "x" + video.videoHeight);
+    if (window.jarvisHands) window.jarvisHands.start();
     resize();
     prev = null;
     loop();
@@ -79,11 +80,54 @@ window.jarvisCam = (() => {
   function stop() {
     cancelAnimationFrame(raf);
     raf = 0;
+    if (window.jarvisHands) window.jarvisHands.stop();
     if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
     video.srcObject = null;
     prev = null;
     fxctx.clearRect(0, 0, fx.width, fx.height);
     if (motionBar) motionBar.style.transform = "scaleX(0)";
+  }
+
+  // mapeia ponto normalizado (0..1 do frame) -> pixel na tela (object-fit: cover)
+  function coverMap(nx, ny) {
+    const vW = video.videoWidth, vH = video.videoHeight;
+    const va = vW / vH, ca = fx.width / fx.height;
+    let scale, offX = 0, offY = 0;
+    if (va > ca) { scale = fx.height / vH; offX = (fx.width - vW * scale) / 2; }
+    else { scale = fx.width / vW; offY = (fx.height - vH * scale) / 2; }
+    return [nx * vW * scale + offX, ny * vH * scale + offY];
+  }
+
+  const TIPS = new Set([4, 8, 12, 16, 20]);
+
+  function drawHands() {
+    const r = window.jarvisHands && window.jarvisHands.results();
+    if (!r || !r.hands.length) return;
+    const conns = window.jarvisHands.CONNECTIONS();
+    fxctx.globalCompositeOperation = "lighter";
+    for (const h of r.hands) {
+      const lm = h.landmarks;
+      // ossos
+      fxctx.lineWidth = 2.5;
+      fxctx.strokeStyle = "rgba(90,224,255,0.85)";
+      fxctx.shadowColor = "rgba(90,224,255,0.9)";
+      fxctx.shadowBlur = 8;
+      for (const [a, b] of conns) {
+        const p = coverMap(lm[a].x, lm[a].y), q = coverMap(lm[b].x, lm[b].y);
+        fxctx.beginPath(); fxctx.moveTo(p[0], p[1]); fxctx.lineTo(q[0], q[1]); fxctx.stroke();
+      }
+      // juntas
+      for (let i = 0; i < lm.length; i++) {
+        const [x, y] = coverMap(lm[i].x, lm[i].y);
+        const rad = TIPS.has(i) ? 6 : 3.2;
+        fxctx.beginPath();
+        fxctx.fillStyle = TIPS.has(i) ? "rgba(180,245,255,0.95)" : "rgba(120,230,255,0.8)";
+        fxctx.arc(x, y, rad, 0, Math.PI * 2);
+        fxctx.fill();
+      }
+    }
+    fxctx.shadowBlur = 0;
+    fxctx.globalCompositeOperation = "source-over";
   }
 
   function loop() {
@@ -129,6 +173,12 @@ window.jarvisCam = (() => {
     }
     fxctx.globalCompositeOperation = "source-over";
     prev = cur;
+
+    // rastreamento de mão
+    if (window.jarvisHands) {
+      window.jarvisHands.feed(video);   // assíncrono, não bloqueia
+      drawHands();
+    }
 
     const lvl = Math.min(1, energy / 110000);
     motionLevel += (lvl - motionLevel) * 0.35;
