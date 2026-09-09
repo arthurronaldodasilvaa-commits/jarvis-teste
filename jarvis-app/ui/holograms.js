@@ -78,10 +78,11 @@ window.jarvisHolo = (() => {
   const TRIG = new Set(["triangulo", "triangle", "triangulo_retangulo",
     "tabela_angulos", "angulos_notaveis", "tabela_relacoes", "relacoes"]);
 
+  const SLOTS = [[0, 0], [-2.4, 0.5], [2.4, 0.5], [-1.5, -1.9], [1.5, -1.9], [0, 2.0]];
   function place(o) {
-    const i = count++;
-    o.position.set(((i % 3) - 1) * 2.9 + (Math.random() - 0.5) * 0.4,
-                   ((Math.floor(i / 3) % 2) - 0.5) * -2.6 + (Math.random() - 0.5) * 0.3, 0);
+    const [x, y] = SLOTS[count % SLOTS.length];
+    count++;
+    o.position.set(x + (Math.random() - 0.5) * 0.3, y + (Math.random() - 0.5) * 0.3, 0);
   }
 
   function spawn(type) {
@@ -114,18 +115,33 @@ window.jarvisHolo = (() => {
     else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
   }
 
-  // ---------- tela -> mundo (plano z=0) ----------
-  const _v = new THREE.Vector3();
-  function toWorld(nx, ny) {
+  // ---------- coordenadas ----------
+  // ponto normalizado do FRAME (0..1) -> pixel na tela QUE O USUÁRIO VÊ (espelhada)
+  function toScreenPx(nx, ny) {
     let px, py;
     if (window.jarvisCam && window.jarvisCam.coverMap) [px, py] = window.jarvisCam.coverMap(nx, ny);
     else { px = nx * innerWidth; py = ny * innerHeight; }
-    px = innerWidth - px;   // vídeo/canvas espelhados
+    return [innerWidth - px, py];   // espelhado p/ bater com o vídeo
+  }
+  // pixel da tela -> mundo, no plano z=depth
+  const _v = new THREE.Vector3();
+  function pxToWorld(px, py, depth = 0) {
     _v.set((px / innerWidth) * 2 - 1, -((py / innerHeight) * 2 - 1), 0.5).unproject(camera);
     _v.sub(camera.position).normalize();
-    return camera.position.clone().add(_v.multiplyScalar(-camera.position.z / _v.z));
+    return camera.position.clone().add(_v.multiplyScalar((depth - camera.position.z) / _v.z));
+  }
+  function toWorld(nx, ny, depth = 0) {
+    const [px, py] = toScreenPx(nx, ny);
+    return pxToWorld(px, py, depth);
+  }
+  // mundo -> pixel na tela
+  const _p = new THREE.Vector3();
+  function worldToPx(w) {
+    _p.copy(w).project(camera);
+    return [(_p.x * 0.5 + 0.5) * innerWidth, (-_p.y * 0.5 + 0.5) * innerHeight];
   }
   const handCenter = (lm) => ({ x: (lm[0].x + lm[9].x) / 2, y: (lm[0].y + lm[9].y) / 2 });
+  const finite = (n) => (Number.isFinite(n) ? n : 0);
 
   // ---------- histórico p/ detectar "varredura" (palma rápida) ----------
   const trail = new Map();   // hand idx -> [{x,t}]
@@ -146,48 +162,74 @@ window.jarvisHolo = (() => {
   }
 
   // ---------- interação ----------
-  const st = { resizeRef: 0, rotPrev: null, allPrev: null };
+  const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false };
+  let dbgDot = [0, 0], dbgOn = false;
+
+  function nearestOnScreen(px, py, maxDistPx) {
+    let best = null, bd = maxDistPx;
+    for (const s of shapes) {
+      const [sx, sy] = worldToPx(s.obj.position);
+      const d = Math.hypot(sx - px, sy - py);
+      if (d < bd) { bd = d; best = s; }
+    }
+    return best;
+  }
 
   function interact(res) {
     const hands = (res && res.hands) || [];
     hands.forEach((h) => { h.role = null; });
-    if (!hands.length) return;
+    if (!hands.length) { st.allPrev = null; st.rotPrev = null; return; }
 
-    // papéis: seletora = a que pinça (senão a 1ª); modificadora = a outra
     let selH = hands.find((h) => h.gesture && h.gesture.pinch >= 0.9) || hands[0];
     let modH = hands.find((h) => h !== selH) || null;
     selH.role = "selector"; if (modH) modH.role = "modifier";
 
     const sg = selH.gesture || {};
     const mg = (modH && modH.gesture) || {};
-    const selPW = sg.pinchAt ? toWorld(sg.pinchAt.x, sg.pinchAt.y) : null;
+    const selPx = sg.pinchAt ? toScreenPx(sg.pinchAt.x, sg.pinchAt.y) : null;
     const modC = modH ? handCenter(modH.landmarks) : null;
-    const modPW = mg.pinchAt ? toWorld(mg.pinchAt.x, mg.pinchAt.y) : null;
+    const modPx = mg.pinchAt ? toScreenPx(mg.pinchAt.x, mg.pinchAt.y) : null;
+    const R = Math.min(innerWidth, innerHeight) * 0.22;   // raio de "pega" em pixels
 
     pushTrail("sel", handCenter(selH.landmarks).x);
     if (modH) pushTrail("mod", modC.x);
+    dbgOn = !!selPx;
+    if (selPx) dbgDot = selPx;
 
-    // ---- SELETORA ----
-    if (sg.pinch >= 0.9 && selPW) {
-      if (!selected || selPW.distanceTo(selected.obj.position) > 1.8) {
-        let best = null, bd = 1.5;
-        for (const s of shapes) {
-          const d = selPW.distanceTo(s.obj.position);
-          if (d < bd) { bd = d; best = s; }
+    // ---- SELETORA: 👌 seleciona + arrasta ----
+    const selPinch = sg.pinch >= 0.9 && !!selPx;
+    if (selPinch) {
+      const nearSel = selected && (() => {
+        const [sx, sy] = worldToPx(selected.obj.position);
+        return Math.hypot(sx - selPx[0], sy - selPx[1]) < R * 1.4;
+      })();
+      if (!st.selPinchWas) {
+        // pinça ACABOU de fechar: escolhe / desmarca
+        if (!nearSel) {
+          const pick = nearestOnScreen(selPx[0], selPx[1], R);
+          setSelected(pick || null);
         }
-        if (best && best !== selected) { setSelected(best); best._grabOff = best.obj.position.clone().sub(selPW); }
-        else if (!best) setSelected(null);
       }
-      if (selected && !(mg.name === "punho")) {
-        selected.obj.position.copy(selPW).add(selected._grabOff || new THREE.Vector3());
+      if (selected && mg.name !== "punho") {
+        if (selected._grabOff == null) {
+          selected._grabZ = selected.obj.position.z;
+          selected._grabOff = selected.obj.position.clone().sub(pxToWorld(selPx[0], selPx[1], selected._grabZ));
+        }
+        const w = pxToWorld(selPx[0], selPx[1], selected._grabZ || 0).add(selected._grabOff);
+        if (Number.isFinite(w.x)) selected.obj.position.copy(w);
       }
+    } else if (selected) {
+      selected._grabOff = null;   // soltou: para de arrastar (segue selecionado)
     }
+    st.selPinchWas = selPinch;
 
     // ✊ seletora, nada selecionado -> move TODAS
     if (!selected && sg.name === "punho") {
       const c = handCenter(selH.landmarks);
       if (st.allPrev) {
-        const dw = toWorld(c.x, c.y).sub(toWorld(st.allPrev.x, st.allPrev.y));
+        const [ax, ay] = toScreenPx(st.allPrev.x, st.allPrev.y);
+        const [bx, by] = toScreenPx(c.x, c.y);
+        const dw = pxToWorld(bx, by).sub(pxToWorld(ax, ay));
         shapes.forEach((s) => s.obj.position.add(dw));
       }
       st.allPrev = c;
@@ -199,15 +241,18 @@ window.jarvisHolo = (() => {
     // ---- MODIFICADORA (só com algo selecionado) ----
     if (selected && modH) {
       if (mg.name === "punho" && modC) {
-        selected.obj.position.copy(toWorld(modC.x, modC.y));
-      } else if (mg.pinch >= 0.9 && sg.pinch >= 0.9 && selPW && modPW) {
-        const d = selPW.distanceTo(modPW);
-        if (!st.resizeRef) st.resizeRef = d / Math.max(0.25, selected.userScale);
-        selected.userScale = Math.max(0.3, Math.min(5, d / st.resizeRef));
+        const [mx, my] = toScreenPx(modC.x, modC.y);
+        const w = pxToWorld(mx, my, selected._grabZ || 0);
+        if (Number.isFinite(w.x)) selected.obj.position.copy(w);
+      } else if (mg.pinch >= 0.9 && sg.pinch >= 0.9 && selPx && modPx) {
+        const d = Math.hypot(selPx[0] - modPx[0], selPx[1] - modPx[1]);
+        if (!st.resizeRef || !Number.isFinite(st.resizeRef)) st.resizeRef = Math.max(40, d) / Math.max(0.25, selected.userScale);
+        const ns = d / st.resizeRef;
+        selected.userScale = Math.max(0.25, Math.min(6, Number.isFinite(ns) ? ns : selected.userScale));
       } else if (mg.name === "paz" && modC) {
         if (st.rotPrev) {
-          selected.obj.rotation.y += (modC.x - st.rotPrev.x) * 6;
-          selected.obj.rotation.x += (modC.y - st.rotPrev.y) * 6;
+          selected.obj.rotation.y += finite(modC.x - st.rotPrev.x) * 5;
+          selected.obj.rotation.x += finite(modC.y - st.rotPrev.y) * 5;
         }
         st.rotPrev = modC;
       } else if (mg.name === "palma" && swipe("mod") > 0.4) {
@@ -222,25 +267,32 @@ window.jarvisHolo = (() => {
     for (const h of hands) {
       if (h.gesture && h.gesture.name === "apontar") {
         const lm = h.landmarks;
-        const a = toWorld(lm[8].x, lm[8].y);
-        const dir = toWorld(lm[8].x, lm[8].y).sub(toWorld(lm[5].x, lm[5].y)).normalize();
-        const b = a.clone().add(dir.multiplyScalar(8));
-        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
-          new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.5,
-            blending: THREE.AdditiveBlending }));
-        fx2d.add(line);
-        // destaca a forma mais perto do raio
-        let hit = null, hd = 1.0;
-        for (const s of shapes) {
-          const d = s.obj.position.clone().sub(a).cross(dir).length();
-          if (d < hd) { hd = d; hit = s; }
-        }
+        const [tx, ty] = toScreenPx(lm[8].x, lm[8].y);
+        const [bx, by] = toScreenPx(lm[6].x, lm[6].y);
+        const a = pxToWorld(tx, ty, 0);
+        const dir = a.clone().sub(pxToWorld(bx, by, 0)).normalize();
+        const b = a.clone().add(dir.clone().multiplyScalar(10));
+        fx2d.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]),
+          new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending })));
+        const hit = nearestOnScreen(tx, ty, R * 1.5);
         if (hit) hit._point = 1;
       }
     }
   }
 
-  function setSelected(s) { selected = s; }
+  function setSelected(s) {
+    if (selected === s) return;
+    if (selected) selected._grabOff = null;
+    selected = s;
+    if (s) s._grabOff = null;
+  }
+
+  // marcador da pinça (mostra ONDE o sistema acha que sua pinça está)
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({
+    color: 0xffffff, transparent: true, opacity: 0, depthWrite: false,
+    blending: THREE.AdditiveBlending }));
+  marker.scale.set(0.35, 0.35, 1);
+  scene.add(marker);
 
   // ---------- loop ----------
   let active = false;
@@ -250,9 +302,21 @@ window.jarvisHolo = (() => {
     if (!on) { renderer.clear(); trail.clear(); }
   }
 
+  let _errLogged = false;
   function tick(t, res) {
     if (!active) return;
-    interact(res);
+    try { interact(res); } catch (e) {
+      if (!_errLogged) { _errLogged = true; dbg("ERRO interact: " + (e && e.message) + " | " + (e && e.stack || "")); }
+    }
+
+    // marcador da pinça
+    if (dbgOn) {
+      const w = pxToWorld(dbgDot[0], dbgDot[1], 0);
+      if (Number.isFinite(w.x)) marker.position.copy(w);
+      marker.material.opacity += (0.55 - marker.material.opacity) * 0.3;
+    } else {
+      marker.material.opacity += (0 - marker.material.opacity) * 0.3;
+    }
 
     for (const s of shapes) {
       if (s.appear < 1) s.appear = Math.min(1, s.appear + 0.09);
@@ -276,8 +340,14 @@ window.jarvisHolo = (() => {
         s.obj.rotation.y += s.spin.y;
         s.obj.position.y += Math.sin(t * 1.05 + s.bob) * 0.0014;
       }
+      // trava contra NaN
+      const p = s.obj.position;
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) p.set(0, 0, 0);
+      if (!Number.isFinite(s.userScale)) s.userScale = 1;
     }
-    renderer.render(scene, camera);
+    try { renderer.render(scene, camera); } catch (e) {
+      if (!_errLogged) { _errLogged = true; dbg("ERRO render: " + (e && e.message)); }
+    }
   }
 
   setTimeout(() => dbg("módulo carregado, renderer " + (renderer ? "ok" : "FALHOU")), 1500);

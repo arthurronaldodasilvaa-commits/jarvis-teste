@@ -148,24 +148,33 @@ class Api:
 
 def main() -> None:
     dev = "--dev" in sys.argv
+    fs = "--windowed" not in sys.argv
     if already_running():
         focus_existing()
         return
 
     url = serve_ui()
-    webview.create_window(
+    win = webview.create_window(
         WINDOW_TITLE,
         url,
         width=1280,
         height=800,
-        fullscreen="--windowed" not in sys.argv,   # tela cheia por padrão
+        fullscreen=fs,
         frameless=True,
         easy_drag=True,
         background_color="#000000",
         js_api=Api(),
         min_size=(640, 420),
     )
-    webview.start(debug=dev, private_mode=False)
+
+    def _startup():
+        if fs:
+            try:
+                win.maximize()
+            except Exception:  # noqa: BLE001
+                pass
+
+    webview.start(_startup, debug=dev, private_mode=False)
 
 
 if __name__ == "__main__":

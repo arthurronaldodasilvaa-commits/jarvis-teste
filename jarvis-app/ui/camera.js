@@ -81,6 +81,15 @@ window.jarvisCam = (() => {
 
   const TIPS = new Set([4, 8, 12, 16, 20]);
 
+  // o canvas é espelhado (CSS scaleX -1) — pra texto sair legível, desenha invertido
+  function mirrorText(txt, x, y) {
+    fxctx.save();
+    fxctx.translate(x, y);
+    fxctx.scale(-1, 1);
+    fxctx.fillText(txt, 0, 0);
+    fxctx.restore();
+  }
+
   function drawHands() {
     const r = window.jarvisHands && window.jarvisHands.results();
     if (!r || !r.hands.length) return;
@@ -112,7 +121,7 @@ window.jarvisCam = (() => {
         fxctx.fillStyle = "rgba(" + col + ",0.95)";
         fxctx.font = "600 13px Segoe UI, monospace";
         fxctx.textAlign = "center";
-        fxctx.fillText(window.jarvisGestures.label(g.name), wx, wy + 32);
+        mirrorText(window.jarvisGestures.label(g.name), wx, wy + 32);
         if (g.pinch > 0.2 && g.pinchAt) {
           const [px, py] = coverMap(g.pinchAt.x, g.pinchAt.y);
           fxctx.strokeStyle = "rgba(200,245,255," + (0.35 + 0.5 * g.pinch) + ")";
