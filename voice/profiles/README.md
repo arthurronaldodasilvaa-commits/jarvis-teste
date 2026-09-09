@@ -27,7 +27,7 @@ Ordem de carga:  `config.toml`  →  `profiles/<ativo>.toml`  →  `secrets.toml
 ## Perfis atuais
 
 - **`arthur.toml`** — pessoal (praticamente igual ao base).
-- **`robson.toml`** — pai, **dono do Instituto CAM** (desenvolvimento humano/
-  corporativo). Persona de secretário executivo, `knowledge` com os dados da
-  empresa (fonte: institutocam.com.br), sem frase de chegada, + atalhos de
-  Gmail/Agenda/Drive/Meet/site.
+- **`robson.toml`** — pai, **dono do Instituto CAM** ("Corpo Ativa Mente" —
+  desenvolvimento humano/corporativo). Persona de secretário executivo,
+  `knowledge` com os dados da empresa (fonte: institutocam.com.br + correções
+  do Arthur), sem frase de chegada, + atalhos de Gmail/Agenda/Drive/Meet/site.
