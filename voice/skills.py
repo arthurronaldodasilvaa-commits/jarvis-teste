@@ -588,7 +588,8 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                          raw.strip(), maxsplit=1, flags=re.IGNORECASE)
         if len(parts) == 2 and all(2 <= len(p.split()) <= 10 for p in parts) \
                 and not re.search(r"\b(por ?que|porque|quando|seno|cosseno|entao)\b", t) \
-                and not re.match(r"^(anota|digita|escrev|lembr|pedido|nota|me lembr)", t):
+                and not re.match(r"^(anota|digita|escrev|lembr|pedido|nota|me lembr|toc|coloc|"
+                                 r"bota|poe|manda|escut|ouv|pesquis|busc|procur|googl)", t):
             r1 = dispatch(parts[0], cfg, speak, brain, _depth=1)
             r2 = dispatch(parts[1], cfg, speak, brain, _depth=1)
             if r2.to_llm and not r1.to_llm:
