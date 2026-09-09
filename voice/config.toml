@@ -9,7 +9,7 @@
 # funcionalidades continuam iguais pra qualquer perfil.
 # "" = usa só este config.toml. Um perfil é um  profiles/<nome>.toml.
 # Também dá pra forçar por  --profile robson  ou env  JARVIS_PROFILE.
-active = "arthur"
+active = ""
 
 [audio]
 input_device_match = "Brio"     # trecho do nome do mic; "" = padrão do Windows
