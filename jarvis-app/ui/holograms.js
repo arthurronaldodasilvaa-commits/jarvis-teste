@@ -266,16 +266,18 @@ window.jarvisHolo = (() => {
         new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending })));
       pokeDot.position.copy(a); pokeDot.material.opacity = 0.8;
 
+      const hadSel = selected;   // congela a seleção deste frame
       for (const s of [...shapes]) {
         const [sx, sy] = worldToPx(s.obj.position);
         const on = Math.hypot(sx - tx, sy - ty) < touchR;
         s._pokeN = on ? (s._pokeN || 0) + 1 : 0;
-        if (on) {
-          s._point = 1;
-          if (s._pokeN >= 3) {
-            if (s === selected) { removeShape(s); }        // encostou no selecionado -> apaga só ele
-            else { st.poked.add(s.id); st.pokeT = now; }
-          }
+        if (!on || s._pokeN < 3) continue;
+        s._point = 1;
+        if (hadSel) {
+          // com seleção: SÓ o selecionado some, e só se for ele que eu encostei
+          if (s === hadSel) removeShape(s);
+        } else {
+          st.poked.add(s.id); st.pokeT = now;
         }
       }
     }
@@ -284,7 +286,7 @@ window.jarvisHolo = (() => {
       shapes.forEach((s) => { s._pokeN = 0; });
     }
 
-    // apaga TODOS: encostou em todos (sem seleção) -> some tudo
+    // apaga TODOS: sem seleção, encostou em todos -> some tudo
     if (!selected && shapes.length && [...shapes].every((s) => st.poked.has(s.id))) {
       clearAll();
     }

@@ -274,14 +274,13 @@ def dispatch(raw: str, cfg: dict, speak, brain) -> Result:
         write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
         return Result(speak="")
 
-    m = re.search(rf"\b(?:{_mk})\s+"
-                  r"(?:um\s+|uma\s+|o\s+|a\s+|mais\s+um\s+|outro\s+|outra\s+)?"
-                  r"(?:holograma\s+(?:de\s+)?(?:um\s+|uma\s+)?|forma\s+de\s+(?:um\s+|uma\s+)?)?([a-zç]+)", t)
+    m = re.search(rf"\b(?:{_mk})\b\s+(.+)", t)
     if m:
-        shape = _SHAPES.get(m.group(1)) or _SHAPES.get(norm(m.group(1)))
-        if shape:
-            write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
-            return Result(speak="")
+        for w in m.group(1).split():                       # varre as palavras após o verbo
+            shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
+            if shape:
+                write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
+                return Result(speak="")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
