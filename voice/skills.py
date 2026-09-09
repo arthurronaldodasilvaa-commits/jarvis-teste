@@ -1054,10 +1054,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if re.search(r"\b(encaixa|joga)\s+.*\b(esquerda|direita)\b|\bdivide a tela\b", t):
         combo("WIN", "LEFT" if "esquerda" in t else "RIGHT"); return Result(speak="")
 
-    # --- bloquear tela ---
-    if re.search(r"\bbloqueia?\b.*\b(tela|pc|computador|maquina)\b|\btrava a tela\b", t):
-        _lock()
-        return Result(speak="Trancado, senhor.")
+    # --- bloquear tela --- (pede confirmação, igual suspender/desligar:
+    #     travar sem querer deixa o Senhor pra fora até digitar a senha)
+    if re.search(r"\bbloqueia?\b.*\b(tela|pc|computador|maquina)\b|\btrava a tela\b|"
+                 r"\btranca (o )?(pc|computador|a tela)\b", t):
+        if not dz.get("allow_lock", True):
+            return Result(speak="O bloqueio de tela está desativado na configuração, senhor.")
+        return Result(confirm=("Confirma bloquear a tela, senhor? O Senhor vai "
+                               "precisar da senha pra voltar.",
+                               lambda: (_lock(), "Trancado, senhor.")[1]))
 
     # --- suspender ---
     if re.search(r"\b(suspende\w*|modo de espera|dormir o pc|hiberna\w*|poe pra dormir)\b", t):
