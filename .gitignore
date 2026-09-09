@@ -1,0 +1,34 @@
+# infra pesada (clone do OpenJarvis, modelos Whisper, modelo do Ollama)
+src/
+hf-cache/
+ollama-models/
+uv-cache/
+cargo/
+rustup/
+skills/
+_archive/
+
+# estado do OpenJarvis (fica em OPENJARVIS_HOME = esta pasta)
+MEMORY.md
+SOUL.md
+USER.md
+/config.toml
+version-check.json
+anon_id
+*.db
+OllamaSetup.exe
+
+# venvs / build
+.venv/
+build/
+dist/
+*.spec
+
+# runtime
+__pycache__/
+*.pyc
+state.json
+control.json
+*.log
+NOTAS.md
+PEDIDOS.md
