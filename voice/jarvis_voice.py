@@ -93,6 +93,18 @@ _ROUTER_TEMPLATES = {
     "fechar": "fechar {arg}",
 }
 
+# qual skill precisa estar ligada no perfil pra este cmd valer
+_ROUTER_SKILL = {
+    "forma": "holograms", "triangulo": "holograms", "tabela_angulos": "holograms",
+    "tabela_relacoes": "holograms", "limpar": "holograms",
+    "camera_on": "holograms", "camera_off": "holograms", "cerebro": "holograms",
+    "rota": "maps", "buscar_local": "maps",
+    "musica": "music", "midia_next": "media_keys", "midia_pause": "media_keys",
+    "midia_play": "media_keys", "volume_up": "media_keys", "volume_down": "media_keys",
+    "mudo": "media_keys",
+    "jogo": "games", "google": "web_search", "escrever": "compose",
+}
+
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
 Responda SÓ com um JSON de uma linha: {"cmd": "<nome>", "arg": "<texto>"}
 Se não for um comando (pergunta, papo, dúvida): {"cmd": "conversa"}
@@ -162,6 +174,7 @@ def ensure_single_instance() -> None:
 
 
 SECRETS_PATH = HERE / "secrets.toml"
+PROFILES_DIR = HERE / "profiles"
 
 
 def _deep_merge(base: dict, over: dict) -> dict:
@@ -173,9 +186,38 @@ def _deep_merge(base: dict, over: dict) -> dict:
     return base
 
 
+def _active_profile(cfg: dict) -> str:
+    """Prioridade:  --profile X  >  env JARVIS_PROFILE  >  config.toml [profile].active"""
+    for i, a in enumerate(sys.argv):
+        if a in ("--profile", "-p") and i + 1 < len(sys.argv):
+            return sys.argv[i + 1].strip()
+        if a.startswith("--profile="):
+            return a.split("=", 1)[1].strip()
+    if os.environ.get("JARVIS_PROFILE"):
+        return os.environ["JARVIS_PROFILE"].strip()
+    return str(cfg.get("profile", {}).get("active", "")).strip()
+
+
 def load_cfg() -> dict:
     with open(CFG_PATH, "rb") as fh:
         cfg = tomllib.load(fh)
+
+    prof = _active_profile(cfg)
+    if prof:
+        ppath = PROFILES_DIR / f"{prof}.toml"
+        if ppath.is_file():
+            with open(ppath, "rb") as fh:
+                pdata = tomllib.load(fh)
+            drop = pdata.pop("drop_apps", [])
+            _deep_merge(cfg, pdata)
+            for k in list(cfg.get("apps", {})):
+                if norm(k) in {norm(d) for d in drop}:
+                    cfg["apps"].pop(k, None)
+            cfg.setdefault("profile", {})["active"] = prof
+            log(f"perfil ativo: {prof}")
+        else:
+            log(f"perfil '{prof}' não existe ({ppath}) — usando config base")
+
     if SECRETS_PATH.is_file():          # secrets.toml sobrescreve (fora do git)
         with open(SECRETS_PATH, "rb") as fh:
             _deep_merge(cfg, tomllib.load(fh))
@@ -387,6 +429,7 @@ class Brain:
         self.num_predict = int(a.get("reply_num_predict", 110))
         self.keep_alive = a.get("keep_alive", "1h")
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
+        self.skills = cfg.get("skills", {})
 
     def _post(self, messages, num_predict, temperature=0.4):
         r = self._httpx.post(
@@ -455,6 +498,9 @@ class Brain:
         tpl = _ROUTER_TEMPLATES.get(cmd)
         if not tpl:
             return ""     # conversa / cmd desconhecido
+        need = _ROUTER_SKILL.get(cmd)
+        if need and not self.skills.get(need, True):
+            return ""     # skill desligada neste perfil
         ma = re.search(r'"arg"\s*:\s*"([^"]*)"', out)
         arg = (ma.group(1).strip() if ma else "")
         if "{arg}" in tpl:
@@ -486,6 +532,8 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
     if not n:
         return False
     arr = cfg["arrival"]
+    if not arr.get("enabled", True):
+        return False
     target = norm(arr.get("phrase", "acorda crianca o papai chegou"))
     if SequenceMatcher(None, n, target).ratio() >= float(arr.get("match_threshold", 0.62)):
         return True
@@ -676,7 +724,7 @@ def main() -> None:
     brain = Brain(cfg)
     mic = Mic(device)
     mic.start()
-    skills.build_indexes()
+    skills.build_indexes(cfg)
     brain.warmup()
     brain.start_keepwarm()
 

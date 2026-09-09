@@ -65,10 +65,11 @@ _games: dict[str, str] = {}      # nome_normalizado -> appid
 _lnks: dict[str, str] = {}       # nome_normalizado -> caminho .lnk
 
 
-def build_indexes() -> None:
+def build_indexes(cfg: dict | None = None) -> None:
     _games.clear()
     _lnks.clear()
-    for lib in _STEAM_LIBS:
+    games_on = bool((cfg or {}).get("skills", {}).get("games", True))
+    for lib in (_STEAM_LIBS if games_on else []):
         p = Path(lib)
         if not p.is_dir():
             continue
@@ -232,6 +233,8 @@ STOP_WORDS = ("para", "parar", "chega", "obrigado", "obrigada", "valeu",
 def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     t = norm(raw)
     dz = cfg.get("danger", {})
+    sk = cfg.get("skills", {})
+    _on = lambda name: bool(sk.get(name, True))   # skill ligada neste perfil?
 
     if not t:
         return Result(speak=cfg["assistant"].get("attention_reply", "Pois não, senhor?"))
@@ -252,47 +255,50 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                             "Control Alt J para me chamar de volta.")
 
     # --- câmera do app (troca a tela: cérebro <-> webcam) ---
-    if re.search(r"\b(ativa\w*|liga\w*|abr\w*|mostra\w*|inicia\w*)\s+(a\s+)?c[aâe]mera\b|"
-                 r"\bmodo c[aâe]mera\b|\bvis[aã]o (da\s+)?c[aâe]mera\b|\bliga\w* a webcam\b", t):
+    if _on("holograms") and re.search(
+            r"\b(ativa\w*|liga\w*|abr\w*|mostra\w*|inicia\w*)\s+(a\s+)?c[aâe]mera\b|"
+            r"\bmodo c[aâe]mera\b|\bvis[aã]o (da\s+)?c[aâe]mera\b|\bliga\w* a webcam\b", t):
         write_control(view="camera")
         return Result(speak="Câmera ativada, senhor.")
-    if re.search(r"\b(desativa\w*|desliga\w*|fecha\w*|para\w*|tira|encerra\w*)\s+(a\s+)?c[aâe]mera\b|"
-                 r"\bvolta\w*\s+(pro|para o|ao)\s+cerebro\b|\bmodo cerebro\b|\bfecha\w* a webcam\b", t):
+    if _on("holograms") and re.search(
+            r"\b(desativa\w*|desliga\w*|fecha\w*|para\w*|tira|encerra\w*)\s+(a\s+)?c[aâe]mera\b|"
+            r"\bvolta\w*\s+(pro|para o|ao)\s+cerebro\b|\bmodo cerebro\b|\bfecha\w* a webcam\b", t):
         write_control(view="brain")
         return Result(speak="Voltando pro cérebro, senhor.")
 
     # --- criar / limpar hologramas na tela da câmera ---
-    if re.search(r"\b(limpa\w*|apaga\w*|remove\w*|tira|deleta\w*|zera)\s+"
+    if _on("holograms") and re.search(r"\b(limpa\w*|apaga\w*|remove\w*|tira|deleta\w*|zera)\s+"
                  r"(tudo|os?\s+holograma\w*|as?\s+forma\w*|a\s+tela)\b", t):
         write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
         return Result(speak="Tela limpa, senhor.")
 
-    _mk = ("cria\\w*|criar|faz\\w*|adiciona\\w*|gera\\w*|desenha\\w*|projeta\\w*|"
-           "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*|quero\\w*|queria|"
-           "vira|me\\s+ve|manda\\w*|coloca\\w*|bota\\w*")
-    _trig = None
-    if re.search(rf"\b(?:{_mk})\b.*\btriangulo\s+retangulo\b|\btriangulo retangulo\b", t):
-        _trig = "triangulo"
-    elif re.search(rf"\b(?:{_mk})\b.*\b(tabela|quadro).*(angulos?\s+notave|angulos? notave)|"
-                   r"\bangulos?\s+notave\w*\b", t):
-        _trig = "tabela_angulos"
-    elif re.search(rf"\b(?:{_mk})\b.*\brela\w+\s+trigonom|\btabela\s+de\s+rela\w+\b|"
-                   r"\brela\w+\s+trigonometrica\w*\b", t):
-        _trig = "tabela_relacoes"
-    if _trig:
-        write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
-        _nome = {"triangulo": "Triângulo retângulo",
-                 "tabela_angulos": "Tabela de ângulos notáveis",
-                 "tabela_relacoes": "Relações trigonométricas"}[_trig]
-        return Result(speak=f"{_nome} na tela, senhor.")
+    if _on("holograms"):
+        _mk = ("cria\\w*|criar|faz\\w*|adiciona\\w*|gera\\w*|desenha\\w*|projeta\\w*|"
+               "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*|quero\\w*|queria|"
+               "vira|me\\s+ve|manda\\w*|coloca\\w*|bota\\w*")
+        _trig = None
+        if re.search(rf"\b(?:{_mk})\b.*\btriangulo\s+retangulo\b|\btriangulo retangulo\b", t):
+            _trig = "triangulo"
+        elif re.search(rf"\b(?:{_mk})\b.*\b(tabela|quadro).*(angulos?\s+notave|angulos? notave)|"
+                       r"\bangulos?\s+notave\w*\b", t):
+            _trig = "tabela_angulos"
+        elif re.search(rf"\b(?:{_mk})\b.*\brela\w+\s+trigonom|\btabela\s+de\s+rela\w+\b|"
+                       r"\brela\w+\s+trigonometrica\w*\b", t):
+            _trig = "tabela_relacoes"
+        if _trig:
+            write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
+            _nome = {"triangulo": "Triângulo retângulo",
+                     "tabela_angulos": "Tabela de ângulos notáveis",
+                     "tabela_relacoes": "Relações trigonométricas"}[_trig]
+            return Result(speak=f"{_nome} na tela, senhor.")
 
-    m = re.search(rf"\b(?:{_mk})\b\s+(.+)", t)
-    if m:
-        for w in m.group(1).split():                       # varre as palavras após o verbo
-            shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
-            if shape:
-                write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
-                return Result(speak=f"{w.capitalize()} na tela, senhor.")
+        m = re.search(rf"\b(?:{_mk})\b\s+(.+)", t)
+        if m:
+            for w in m.group(1).split():                   # varre as palavras após o verbo
+                shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
+                if shape:
+                    write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
+                    return Result(speak=f"{w.capitalize()} na tela, senhor.")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
@@ -312,12 +318,13 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak=f"Hoje é {dias[n.weekday()]}, {n.day} de {meses[n.month - 1]}, senhor.")
 
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
-    fala = maps.handle(t)
-    if fala is not None:
-        return Result(speak=fala)
+    if _on("maps"):
+        fala = maps.handle(t)
+        if fala is not None:
+            return Result(speak=fala)
 
     # --- volume ---
-    if re.search(r"\bvolume\b|\bsom\b", t) or re.search(r"\b(aumenta|abaixa|diminui|sobe|desce)\b", t):
+    if _on("media_keys") and (re.search(r"\bvolume\b|\bsom\b", t) or re.search(r"\b(aumenta|abaixa|diminui|sobe|desce)\b", t)):
         if re.search(r"mud[oa]|sem som|tira o som|silenci", t):
             tap(VK["VOL_MUTE"])
             return Result(speak="")
@@ -329,14 +336,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="")
 
     # --- controle de mídia ---
-    if re.search(r"\b(proxima|pula|avanca)\b.*\b(musica|faixa|som)\b|\bpula essa\b", t):
-        tap(VK["MEDIA_NEXT"]); return Result(speak="")
-    if re.search(r"\b(volta|anterior)\b.*\b(musica|faixa)\b", t):
-        tap(VK["MEDIA_PREV"]); return Result(speak="")
-    if re.search(r"\bpausa\w*\b|\bpara a musica\b|\bpara o som\b", t):
-        tap(VK["MEDIA_PLAY"]); return Result(speak="")
-    if re.fullmatch(r"(toca|continua|retoma|play)\w*", t):
-        tap(VK["MEDIA_PLAY"]); return Result(speak="")
+    if _on("media_keys"):
+        if re.search(r"\b(proxima|pula|avanca)\b.*\b(musica|faixa|som)\b|\bpula essa\b", t):
+            tap(VK["MEDIA_NEXT"]); return Result(speak="")
+        if re.search(r"\b(volta|anterior)\b.*\b(musica|faixa)\b", t):
+            tap(VK["MEDIA_PREV"]); return Result(speak="")
+        if re.search(r"\bpausa\w*\b|\bpara a musica\b|\bpara o som\b", t):
+            tap(VK["MEDIA_PLAY"]); return Result(speak="")
+        if re.fullmatch(r"(toca|continua|retoma|play)\w*", t):
+            tap(VK["MEDIA_PLAY"]); return Result(speak="")
 
     # --- bloquear tela ---
     if re.search(r"\bbloqueia?\b.*\b(tela|pc|computador|maquina)\b|\btrava a tela\b", t):
@@ -381,7 +389,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     # --- pesquisar no Google ---
     m = re.search(r"(?:pesquis\w+|busca\w*|procur\w+|googl\w+|da uma olhada em)"
                   r"(?:\s+(?:no|na|por|pelo|pela|sobre|o|a|em))*\s+(.+)", t)
-    if m:
+    if m and _on("web_search"):
         q = re.sub(r"^(?:no\s+|na\s+)?(?:google|internet|web|navegador|browser)\s+", "", m.group(1).strip())
         q = re.sub(r"\s+(?:no|na)\s+(?:google|internet|web|navegador)$", "", q).strip()
         webbrowser.open("https://www.google.com/search?q=" + quote_plus(q))
@@ -391,7 +399,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     m = re.search(r"^(?:toc\w+|coloc\w+|bota\w*|p(?:oe|õe)|manda|escut\w+|ouvir|ouve|"
                   r"quero\s+ouvir|quero\s+escutar|poe\s+pra\s+tocar)\s+"
                   r"(?:a\s+musica\s+|a\s+|o\s+|umas?\s+)?(.+)", t)
-    if m:
+    if m and _on("music"):
         song = m.group(1)
         song = re.sub(r"^(?:pra|pro|para)\s+(?:tocar|ouvir|escutar|mim)\s+", "", song)
         song = re.sub(r"^(?:ver|ouvir|tocar|escutar|botar|colocar|por)\s+", "", song)
@@ -411,7 +419,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                   r"elabora\w*|digit\w*\s+um\s+texto|prepara\w*\s+um\s+texto)\s+"
                   r"(?:um\s+|uma\s+)?(?:texto\s+|paragrafo\s+|email\s+|e-?mail\s+|mensagem\s+|carta\s+|redacao\s+)?"
                   r"(?:sobre\s+|a\s+respeito\s+de\s+|falando\s+de\s+|de\s+|do\s+|da\s+)?(.+)", t)
-    if m:
+    if m and _on("compose"):
         if not dz.get("allow_typing", True):
             return Result(speak="Escrever textos está desativado, senhor.")
         return write_document(m.group(1).strip(), cfg, speak, brain)
@@ -429,7 +437,8 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                                    "", s.strip()).strip()
 
     # --- abrir jogo ---
-    m = re.search(r"\b(?:jog\w+|abr\w+\s+o\s+jogo|inicia\w*\s+o\s+jogo|roda\w*\s+o\s+jogo|bota\w*\s+o\s+jogo)\b\s*(.*)$", t)
+    m = _on("games") and re.search(
+        r"\b(?:jog\w+|abr\w+\s+o\s+jogo|inicia\w*\s+o\s+jogo|roda\w*\s+o\s+jogo|bota\w*\s+o\s+jogo)\b\s*(.*)$", t)
     if m:
         alvo = _strip_tail(m.group(1).strip() or re.sub(r"\b(quero|vamos|bora|joga\w*)\b", "", t).strip())
         r = open_target(alvo, cfg, prefer_game=True, web_fallback=False)

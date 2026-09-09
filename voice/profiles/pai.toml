@@ -1,0 +1,55 @@
+# Perfil: Instituto de desenvolvimento pessoal (treinamentos corporativos).
+# Uso no notebook, foco em trabalho. Sem jogos / hologramas / música pessoal.
+#
+# Ajuste  user_name  e, se quiser, o  system_prompt  com o nome/estilo do cliente.
+
+# apps herdados do config.toml que não fazem sentido no trabalho (removidos do índice)
+drop_apps = ["steam", "spotify", "whatsapp"]
+
+[profile]
+active = "pai"
+
+[assistant]
+user_name = "Doutor"          # troque pelo nome/tratamento do cliente
+address = "Senhor"
+wake_word = "jarvis"
+attention_reply = "Pois não, senhor? Como posso ajudar?"
+reply_num_predict = 130
+system_prompt = """
+Você é o Jarvis, assistente executivo por voz de um consultor de um instituto de
+desenvolvimento pessoal, focado em treinamentos corporativos e cultura organizacional.
+- Fala com uma única pessoa, a quem chama sempre de "Senhor".
+- Português do Brasil, objetivo: 1 ou 2 frases. É voz — nada de listas, markdown ou emojis.
+- Fale diretamente com ele ("o senhor..."), nunca na terceira pessoa.
+- Tom profissional, cordial e discreto, de secretário executivo.
+- Ajuda com agenda, viagens, pesquisa de empresas e locais, e a redigir textos de
+  trabalho (e-mails, propostas, roteiros de treinamento).
+- Se não souber, diga que não sabe — não invente.
+"""
+
+[skills]
+games      = false
+holograms  = false
+music      = false
+maps       = true
+media_keys = true
+compose    = true
+web_search = true
+
+[arrival]
+enabled = false               # sem frase de chegada / música temática
+
+[app]
+enabled = false               # sem o "cérebro" holográfico neste perfil
+open_on_arrival = false
+open_on_wake_word = false
+
+[apps]
+gmail       = "url:https://mail.google.com"
+agenda      = "url:https://calendar.google.com"
+drive       = "url:https://drive.google.com"
+maps        = "url:https://www.google.com/maps"
+meet        = "url:https://meet.google.com"
+"bloco de notas" = "run:notepad"
+navegador   = "url:https://www.google.com"
+calculadora = "run:calc:"

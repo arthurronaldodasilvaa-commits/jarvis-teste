@@ -48,8 +48,9 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 
 ## F. Plataforma / infra
 
-- [ ] **Sistema de perfis** — um `profile.toml` por usuário/uso (persona, apps, skills ligadas)
-  - essencial pra vender: cada cliente = um perfil, não um fork
+- [x] **Sistema de perfis** — `voice/profiles/<nome>.toml` sobrescreve o `config.toml`
+  (persona, `[skills]` on/off, apps, `drop_apps`, frase de chegada). Ativa por
+  `[profile] active`, `--profile` ou `JARVIS_PROFILE`. Perfis: `arthur`, `pai`.
 - [ ] Painel de configurações no app (em vez de editar `config.toml` na mão)
 - [ ] TTS melhor (Piper — voz neural local, rápida) ou ElevenLabs
 - [ ] Modelo local maior quando tiver hardware (qwen 7b/14b)
