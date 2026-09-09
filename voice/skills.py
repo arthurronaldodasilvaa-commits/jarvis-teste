@@ -170,7 +170,38 @@ _MODELS = [
     (r"molecula\s+de\s+benzeno|\bbenzeno\b|anel\s+benzenico", "molecula_benzeno", "Molécula de benzeno"),
     (r"tabela\s+periodica", "tabela_periodica", "Tabela periódica"),
     (r"celula\s+animal|\bcelula\b|organelas", "celula", "Célula animal"),
+    (r"molecula\s+de\s+(gas carbonico|dioxido de carbono)|\bco2\b|\bgas carbonico\b",
+     "molecula_co2", "Molécula de CO₂"),
+    (r"molecula\s+de\s+amonia|\bamonia\b|\bnh3\b", "molecula_amonia", "Molécula de amônia"),
+    # --- lote B: física ---
+    (r"\bonda\s+(senoidal|transversal|eletromagnetica)?\b|onda\s+na\s+corda|"
+     r"\bfuncao\s+de\s+onda\b|movimento\s+ondulatorio", "onda", "Onda"),
+    (r"pendulo\s+simples|\bpendulo\b|movimento\s+harmonico", "pendulo", "Pêndulo simples"),
+    (r"circuito\s+(eletrico|em serie|simples)|\bcircuito\b|lei\s+de\s+ohm", "circuito",
+     "Circuito em série"),
+    (r"campo\s+eletrico|linhas?\s+de\s+campo|duas\s+cargas|forca\s+entre\s+cargas",
+     "campo_eletrico", "Campo elétrico"),
+    # --- lote B: cálculo / álgebra linear ---
+    (r"soma\s+de\s+vetores|somar?\s+vetores?|adicao\s+de\s+vetores|"
+     r"\bvetores\b|regra\s+do\s+paralelogramo", "vetores", "Soma de vetores"),
+    (r"reta\s+tangente|derivada\s+(geometrica|como inclinacao|no ponto)|"
+     r"inclinacao\s+da\s+curva|\bderivada\b", "derivada", "Reta tangente / derivada"),
+    (r"soma\s+de\s+riemann|integral\s+(como area|definida)|area\s+sob\s+a\s+curva|"
+     r"\bintegral\b", "integral", "Integral / soma de Riemann"),
+    (r"superficie\s+(3d|tridimensional)|z\s*=\s*f\s*\(?\s*x\s*,?\s*y|"
+     r"grafico\s+3d|funcao\s+de\s+duas\s+variaveis|paraboloide|\bsela\b", "superficie_3d",
+     "Superfície z = f(x, y)"),
+    # --- lote B: química ---
+    (r"geometria\s+molecular|\bvsepr\b|repulsao\s+de\s+pares|"
+     r"geometria\s+(linear|angular|trigonal|tetraedrica|piramidal|octaedrica)",
+     "geometria_molecular", "Geometria molecular"),
 ]
+
+# geometrias VSEPR nomeadas -> variação do modelo
+_VSEPR = {"linear": "geometria_linear", "angular": "geometria_angular",
+         "trigonal": "geometria_trigonal", "tetraedrica": "geometria_tetraedrica",
+         "tetraédrica": "geometria_tetraedrica", "piramidal": "geometria_piramidal",
+         "octaedrica": "geometria_octaedrica", "octaédrica": "geometria_octaedrica"}
 
 _SOLIDS_FORMULA = {"esfera": "esfera", "cubo": "cubo", "cilindro": "cilindro",
                    "cone": "cone", "piramide": "piramide", "pirâmide": "piramide"}
@@ -200,9 +231,38 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
         art = "da" if sol in ("esfera", "piramide") else "do"
         return Result(speak=f"Fórmulas {art} {sol} na tela, senhor.")
 
+    # derivada / integral de uma função dita: "reta tangente de x ao quadrado"
+    md = re.search(r"\b(reta tangente|derivada|integral|soma de riemann|area sob a curva)\b"
+                   r"(?:\s+(?:de|da|do)\s+(.+))?", t)
+    if md and (has_verb or md.group(1) in ("reta tangente", "soma de riemann")):
+        shape = "integral" if re.search(r"integral|riemann|area sob", md.group(1)) else "derivada"
+        holo = {"action": "add", "shape": shape, "n": int(time.time() * 1000)}
+        if md.group(2):
+            ex = _clean_expr(md.group(2))
+            if ex:
+                holo["expr"] = ex
+        write_control(holo=holo)
+        return Result(speak=("Integral na tela, senhor." if shape == "integral"
+                             else "Reta tangente na tela, senhor."))
+
+    # geometria molecular nomeada: "geometria tetraédrica"
+    if re.search(r"geometria\s+molecular|\bvsepr\b", t) or \
+            (re.search(r"geometria", t) and any(k in t for k in _VSEPR)):
+        shp = next((v for k, v in _VSEPR.items() if k in t), "geometria_molecular")
+        write_control(holo={"action": "add", "shape": shp, "n": int(time.time() * 1000)})
+        return Result(speak="Geometria molecular na tela, senhor.")
+
+    # superfície 3D nomeada
+    if re.search(r"\bparaboloide\b|\bsela\b", t) and re.search(r"superficie|grafico|3d|\bmostra\w*|\bcria\w*", t):
+        shp = "paraboloide" if "paraboloide" in t else "sela"
+        write_control(holo={"action": "add", "shape": shp, "n": int(time.time() * 1000)})
+        return Result(speak=f"Superfície {shp} na tela, senhor.")
+
     # modelos nomeados
+    _auto = ("tabela", "circulo", "molecula", "onda", "pendulo", "circuito", "campo",
+             "vetores", "derivada", "integral", "superficie", "geometria")
     for pat, name, nome in _MODELS:
-        if re.search(pat, t) and (has_verb or name.startswith(("tabela", "circulo", "molecula"))
+        if re.search(pat, t) and (has_verb or name.startswith(_auto)
                                   or re.search(r"\b(triangulo retangulo|corpo livre|plano inclinado)\b", t)):
             write_control(holo={"action": "add", "shape": name, "n": int(time.time() * 1000)})
             return Result(speak=f"{nome} na tela, senhor.")
@@ -678,7 +738,12 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if not t:
         return Result(speak=cfg["assistant"].get("attention_reply", "Pois não, senhor?"))
 
-    if t in STOP_WORDS or (len(t.split()) <= 3 and any(w in t for w in STOP_WORDS)):
+    # palavra de parada solta ("para", "chega", "obrigado"...) — só como PALAVRA
+    # inteira (senão "paraboloide", "chega mais" etc. eram engolidos)
+    _stop_hit = t in STOP_WORDS or (
+        len(t.split()) <= 3
+        and any(re.search(rf"\b{re.escape(w)}\b", t) for w in STOP_WORDS))
+    if _stop_hit:
         # exceções: "cancela ..." (desligamento) e "para de desenhar / chega de medir"
         # (modos da câmera) — tratados mais abaixo
         if "cancel" not in t and not re.search(

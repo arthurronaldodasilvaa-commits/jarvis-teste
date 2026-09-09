@@ -267,6 +267,22 @@ window.jarvisModels = (() => {
       d.forEach((p) => { g.add(stick(V(0, 0, 0), p)); const b = ball(0.2, H); b.position.copy(p); g.add(b); });
       put(g, label("CH₄ — metano", { font: 30, color: SOFT }), 0, -1.6, 0.6);
       g.userData.update = (t) => { g.rotation.y = t * 0.5; };
+    } else if (kind === "gas_carbonico" || kind === "co2") {
+      const c = ball(0.3, Cc); g.add(c);
+      [V(-1.15, 0), V(1.15, 0)].forEach((p) => {
+        g.add(stick(V(0, 0), p.clone().multiplyScalar(0.55), AMBER));
+        g.add(stick(V(0, 0.12), p.clone().multiplyScalar(0.55).add(V(0, 0.12)), AMBER));
+        const b = ball(0.28, O); b.position.copy(p); g.add(b);
+      });
+      put(g, label("CO₂ — gás carbônico   (linear, 180°)", { font: 27, color: SOFT }), 0, -1.4, 0.6);
+    } else if (kind === "amonia" || kind === "nh3") {
+      const nn = ball(0.34, N); g.add(nn);
+      [[0, 1, 0.35], [0.87, -0.5, 0.35], [-0.87, -0.5, 0.35]].forEach((d) => {
+        const p = V(...d).normalize().multiplyScalar(1.0);
+        g.add(stick(V(0, 0, 0), p)); const b = ball(0.2, H); b.position.copy(p); g.add(b);
+      });
+      put(g, label("NH₃ — amônia   (piramidal, ~107°)", { font: 27, color: SOFT }), 0, -1.7, 0.6);
+      g.userData.update = (t) => { g.rotation.y = t * 0.45; };
     } else { // benzeno
       for (let i = 0; i < 6; i++) {
         const A = V(Math.cos(i / 6 * TAU), Math.sin(i / 6 * TAU)).multiplyScalar(1.0);
@@ -316,6 +332,246 @@ window.jarvisModels = (() => {
     return g;
   }
 
+  // ================= B1 — onda (física) =================
+  function onda(opts) {
+    const g = new THREE.Group();
+    g.add(axes(3.2, false));
+    const A = 1.15, k = 2.1, w = 2.0;
+    const wave = line([V(0, 0)], NEON, 0.95); g.add(wave);
+    const dot = ball(0.09, AMBER); g.add(dot);
+    // marcadores de amplitude e comprimento de onda
+    g.add(line([V(-3, A), V(3, A)], 0x2a5a6e, 0.4));
+    g.add(line([V(-3, -A), V(3, -A)], 0x2a5a6e, 0.4));
+    put(g, label("A", { color: GREEN, font: 24 }), 3.15, A, 0.5);
+    const lam = TAU / k;
+    g.add(arrow(V(-2.6, -A - 0.5), V(-2.6 + lam, -A - 0.5), 0xff9de0));
+    g.add(arrow(V(-2.6 + lam, -A - 0.5), V(-2.6, -A - 0.5), 0xff9de0));
+    put(g, label("λ", { color: "#ff9de0", font: 24 }), -2.6 + lam / 2, -A - 0.9, 0.5);
+    put(g, label("ONDA   y = A · sen(k·x − ω·t)", { font: 26, color: SOFT }), 0, 2.7, 0.6);
+    g.userData.type = "onda";
+    g.userData.update = (t) => {
+      const pts = [];
+      for (let x = -3; x <= 3.001; x += 0.05) pts.push(V(x, A * Math.sin(k * x - w * t)));
+      wave.geometry.setFromPoints(pts);
+      dot.position.set(2.4, A * Math.sin(k * 2.4 - w * t), 0);
+    };
+    return g;
+  }
+
+  // ================= B2 — pêndulo simples (física) =================
+  function pendulo() {
+    const g = new THREE.Group();
+    const piv = V(0, 2.4);
+    const pb = ball(0.08, SOFT); pb.position.copy(piv); g.add(pb);
+    g.add(line([V(-1.3, 2.4), V(1.3, 2.4)], 0x4bb6d6, 0.5));
+    const rod = line([piv, piv], SOFT, 0.85); g.add(rod);
+    const bob = ball(0.3, AMBER); g.add(bob);
+    const L = 3.4, th0 = 0.5;
+    // arco tracejado do movimento
+    const arc = [];
+    for (let i = -1; i <= 1; i += 0.05) arc.push(V(piv.x + L * Math.sin(th0 * i), piv.y - L * Math.cos(th0 * i)));
+    g.add(line(arc, 0x2a5a6e, 0.4));
+    put(g, label("PÊNDULO SIMPLES\nT = 2π · √(L / g)", { font: 26, color: SOFT }), 0, 3.0, 0.6);
+    g.userData.type = "pendulo";
+    g.userData.update = (t) => {
+      const th = th0 * Math.cos(t * 1.7);
+      const end = V(piv.x + L * Math.sin(th), piv.y - L * Math.cos(th));
+      rod.geometry.setFromPoints([piv, end]);
+      bob.position.copy(end);
+    };
+    return g;
+  }
+
+  // ================= B3 — circuito em série (física) =================
+  function circuito() {
+    const g = new THREE.Group();
+    const P = [V(-2.3, -1.5), V(2.3, -1.5), V(2.3, 1.5), V(-2.3, 1.5)];
+    const seg = [[P[0], P[1]], [P[1], P[2]], [P[2], P[3]], [P[3], P[0]]];
+    const segLen = seg.map(([a, b]) => b.distanceTo(a));
+    const per = segLen.reduce((s, l) => s + l, 0);
+    const at = (u) => {                       // u em 0..1 -> ponto no perímetro
+      let d = u * per;
+      for (let i = 0; i < 4; i++) {
+        if (d <= segLen[i]) return seg[i][0].clone().lerp(seg[i][1], d / segLen[i]);
+        d -= segLen[i];
+      }
+      return P[0].clone();
+    };
+    g.add(line([...P, P[0]], NEON, 0.55));
+    // pilha (lado de baixo): duas barras
+    g.add(line([V(-0.35, -1.5), V(-0.35, -1.15)], SOFT, 1));
+    g.add(line([V(0.15, -1.5), V(0.15, -1.9)], SOFT, 1));
+    put(g, label("+", { color: AMBER, font: 26 }), 0.15, -2.05, 0.5);
+    put(g, label("V", { color: SOFT, font: 24 }), -0.9, -1.5, 0.5);
+    // resistor (lado de cima): zigue-zague
+    const zz = [V(-1.1, 1.5)];
+    for (let i = 0; i < 6; i++) zz.push(V(-1.1 + i * 0.37 + 0.18, 1.5 + (i % 2 ? 0.28 : -0.28)));
+    zz.push(V(1.1, 1.5));
+    g.add(line(zz, GREEN, 1));
+    put(g, label("R", { color: GREEN, font: 24 }), 0, 2.0, 0.5);
+    put(g, label("CIRCUITO EM SÉRIE     V = R · I", { font: 25, color: SOFT }), 0, -2.5, 0.6);
+    const dots = [];
+    for (let i = 0; i < 10; i++) { const d = ball(0.07, AMBER); g.add(d); dots.push(d); }
+    g.userData.type = "circuito";
+    g.userData.update = (t) => {
+      dots.forEach((d, i) => d.position.copy(at(((t * 0.18 + i / dots.length) % 1))));
+    };
+    return g;
+  }
+
+  // ================= B4 — campo elétrico (física) =================
+  function campoEletrico() {
+    const g = new THREE.Group();
+    const qA = V(-1.6, 0), qB = V(1.6, 0);
+    const a = ball(0.32, RED); a.position.copy(qA); g.add(a);
+    const b = ball(0.32, 0x8ab6ff); b.position.copy(qB); g.add(b);
+    put(g, label("+", { color: "#fff", font: 40 }), qA.x, qA.y, 0.5);
+    put(g, label("−", { color: "#fff", font: 40 }), qB.x, qB.y, 0.5);
+    // linhas de campo curvas de + para −
+    for (let j = -3; j <= 3; j++) {
+      if (!j && false) continue;
+      const off = j * 0.42;
+      const pts = [];
+      for (let s = 0; s <= 1.0001; s += 0.04) {
+        const x = qA.x + (qB.x - qA.x) * s;
+        const bend = Math.sin(s * Math.PI) * off;
+        pts.push(V(x, bend));
+      }
+      g.add(line(pts, j === 0 ? SOFT : 0x4bb6d6, 0.55));
+      // seta no meio
+      const mid = Math.floor(pts.length / 2);
+      g.add(arrow(pts[mid - 1], pts[mid + 1], 0x6fcbe0));
+    }
+    put(g, label("CAMPO ELÉTRICO     E = k · q / d²", { font: 25, color: SOFT }), 0, 2.3, 0.6);
+    g.userData.type = "campo_eletrico";
+    return g;
+  }
+
+  // ================= B5 — soma de vetores (mat/física) =================
+  function vetores() {
+    const g = new THREE.Group();
+    g.add(axes(2.6));
+    const a = V(1.8, 0.6), b = V(0.7, 1.7);
+    const c = a.clone().add(b);
+    g.add(arrow(V(0, 0), a, AMBER, "a"));
+    g.add(arrow(V(0, 0), b, GREEN, "b"));
+    g.add(arrow(V(0, 0), c, NEON, "a + b"));
+    // paralelogramo tracejado
+    g.add(line([a, c], 0x3a6a7e, 0.5));
+    g.add(line([b, c], 0x3a6a7e, 0.5));
+    put(g, label("SOMA DE VETORES", { font: 26, color: SOFT }), 0, 2.9, 0.6);
+    g.userData.type = "vetores";
+    return g;
+  }
+
+  // ================= B6 — derivada: reta tangente (cálculo) =================
+  function derivada(opts) {
+    const g = new THREE.Group();
+    const expr = (opts && opts.expr) || "0.35*x^2";
+    const f = compile(expr) || ((x) => 0.35 * x * x);
+    const h = 1e-4, df = (x) => (f(x + h) - f(x - h)) / (2 * h);
+    g.add(axes(3));
+    const cur = [];
+    for (let x = -3; x <= 3.001; x += 0.05) { const y = f(x); if (Math.abs(y) < 3.2) cur.push(V(x, y)); }
+    g.add(line(cur, NEON, 0.9));
+    const tan = line([V(0, 0), V(0, 0)], AMBER, 1); g.add(tan);
+    const dot = ball(0.09, AMBER); g.add(dot);
+    const readout = dynLabel(460, 70); put(g, readout, 0, -3.1, 0.6);
+    put(g, label("y = " + expr + "      f′(x) = inclinação da tangente", { font: 24, color: SOFT }), 0, 3.4, 0.6);
+    g.userData.type = "derivada";
+    g.userData.update = (t) => {
+      const x = 2.4 * Math.sin(t * 0.6);
+      const y = f(x), m = df(x);
+      tan.geometry.setFromPoints([V(x - 1.3, y - m * 1.3), V(x + 1.3, y + m * 1.3)]);
+      dot.position.set(x, y, 0);
+      readout.setText(`x = ${x.toFixed(2)}     f′(x) = ${m.toFixed(2)}`);
+    };
+    return g;
+  }
+
+  // ================= B7 — integral: soma de Riemann (cálculo) =================
+  function integral(opts) {
+    const g = new THREE.Group();
+    const expr = (opts && opts.expr) || "0.5*x+1.6";
+    const f = compile(expr) || ((x) => 0.5 * x + 1.6);
+    g.add(axes(3));
+    const cur = [];
+    for (let x = -2.6; x <= 2.601; x += 0.05) cur.push(V(x, f(x)));
+    g.add(line(cur, NEON, 0.9));
+    const bars = new THREE.Group(); g.add(bars);
+    const readout = dynLabel(460, 70); put(g, readout, 0, -3.1, 0.6);
+    put(g, label("∫ f(x) dx  ≈  Σ f(xᵢ)·Δx      (área sob a curva)", { font: 23, color: SOFT }), 0, 3.4, 0.6);
+    const x0 = -2.4, dx = 0.3;
+    g.userData.type = "integral";
+    g.userData.update = (t) => {
+      const xEnd = -2.4 + ((t * 0.9) % 5.2);
+      while (bars.children.length) bars.remove(bars.children[0]);
+      let area = 0;
+      for (let x = x0; x < xEnd; x += dx) {
+        const y = Math.max(0, f(x + dx / 2));
+        area += y * dx;
+        const r = new THREE.Mesh(new THREE.PlaneGeometry(dx * 0.92, y),
+          new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0.18,
+            blending: THREE.AdditiveBlending, depthWrite: false }));
+        r.position.set(x + dx / 2, y / 2, -0.01);
+        bars.add(r);
+      }
+      readout.setText(`x = ${xEnd.toFixed(1)}     área ≈ ${area.toFixed(2)}`);
+    };
+    return g;
+  }
+
+  // ================= B8 — superfície z = f(x,y) (multivariável) =================
+  function superficie3d(opts) {
+    const g = new THREE.Group();
+    const kind = (opts && opts.kind) || "sela";
+    const S = 2.2, seg = 22;
+    const geo = new THREE.PlaneGeometry(S * 2, S * 2, seg, seg);
+    const pos = geo.attributes.position;
+    const zf = kind === "paraboloide" ? (x, y) => (x * x + y * y) * 0.5
+      : kind === "ondas" ? (x, y) => Math.sin(x * 2.4) * Math.cos(y * 2.4) * 0.55
+        : (x, y) => (x * x - y * y) * 0.6;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) / S, y = pos.getY(i) / S;
+      pos.setZ(i, zf(x, y));
+    }
+    const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo),
+      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false }));
+    wire.rotation.x = -1.05;
+    g.add(wire);
+    const names = { sela: "z = x² − y²   (sela)", paraboloide: "z = x² + y²   (paraboloide)", ondas: "z = sen x · cos y" };
+    put(g, label(names[kind] || names.sela, { font: 28, color: AMBER }), 0, 2.7, 0.6);
+    g.userData.type = "superficie_3d";
+    g.userData.update = (t) => { wire.rotation.z = t * 0.3; };
+    return g;
+  }
+
+  // ================= B9 — geometria molecular (VSEPR, química) =================
+  const VSEPR = {
+    linear: { dirs: [[1, 0, 0], [-1, 0, 0]], nome: "Linear — 180°" },
+    angular: { dirs: [[Math.cos(0.9), Math.sin(0.9), 0], [Math.cos(2.24), Math.sin(2.24), 0]], nome: "Angular — ~104°" },
+    trigonal: { dirs: [[0, 1, 0], [0.87, -0.5, 0], [-0.87, -0.5, 0]], nome: "Trigonal plana — 120°" },
+    tetraedrica: { dirs: [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]], nome: "Tetraédrica — 109,5°" },
+    piramidal: { dirs: [[0, 1, 0.3], [0.87, -0.5, 0.3], [-0.87, -0.5, 0.3]], nome: "Piramidal — ~107°" },
+    octaedrica: { dirs: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], nome: "Octaédrica — 90°" },
+  };
+  function geometriaMolecular(opts) {
+    const key = (opts && opts.shape) || "tetraedrica";
+    const def = VSEPR[key] || VSEPR.tetraedrica;
+    const g = new THREE.Group();
+    const c = ball(0.36, 0x9bb0c0); g.add(c);
+    def.dirs.forEach((d) => {
+      const p = V(...d).normalize().multiplyScalar(1.25);
+      g.add(stick(V(0, 0, 0), p));
+      const b = ball(0.22, 0xdfefff); b.position.copy(p); g.add(b);
+    });
+    put(g, label("GEOMETRIA MOLECULAR\n" + def.nome, { font: 26, color: SOFT }), 0, -1.9, 0.6);
+    g.userData.type = "geometria_" + key;
+    g.userData.update = (t) => { g.rotation.y = t * 0.5; };
+    return g;
+  }
+
   // ---------- registro ----------
   const B = {
     circulo_trigonometrico: circulo, circulo_trig: circulo, circunferencia_trig: circulo,
@@ -327,8 +583,30 @@ window.jarvisModels = (() => {
     molecula_agua: () => molecula("agua"), agua: () => molecula("agua"),
     molecula_metano: () => molecula("metano"), metano: () => molecula("metano"),
     molecula_benzeno: () => molecula("benzeno"), benzeno: () => molecula("benzeno"),
+    molecula_co2: () => molecula("co2"), co2: () => molecula("co2"), gas_carbonico: () => molecula("co2"),
+    molecula_amonia: () => molecula("amonia"), amonia: () => molecula("amonia"), nh3: () => molecula("amonia"),
     tabela_periodica: tabelaPeriodica, periodica: tabelaPeriodica,
     celula: celula, celula_animal: celula,
+
+    // --- lote B: física / cálculo / química ---
+    onda: onda, onda_senoidal: onda, ondas: onda,
+    pendulo: pendulo, pendulo_simples: pendulo,
+    circuito: circuito, circuito_serie: circuito, circuito_eletrico: circuito,
+    campo_eletrico: campoEletrico, campo_cargas: campoEletrico, linhas_de_campo: campoEletrico,
+    vetores: vetores, soma_de_vetores: vetores, soma_vetores: vetores,
+    derivada: derivada, reta_tangente: derivada, tangente: derivada,
+    integral: integral, soma_de_riemann: integral, area_sob_curva: integral,
+    superficie_3d: superficie3d, superficie: superficie3d,
+    paraboloide: () => superficie3d({ kind: "paraboloide" }),
+    sela: () => superficie3d({ kind: "sela" }),
+    geometria_molecular: geometriaMolecular,
+    vsepr: geometriaMolecular,
+    geometria_linear: () => geometriaMolecular({ shape: "linear" }),
+    geometria_angular: () => geometriaMolecular({ shape: "angular" }),
+    geometria_trigonal: () => geometriaMolecular({ shape: "trigonal" }),
+    geometria_tetraedrica: () => geometriaMolecular({ shape: "tetraedrica" }),
+    geometria_piramidal: () => geometriaMolecular({ shape: "piramidal" }),
+    geometria_octaedrica: () => geometriaMolecular({ shape: "octaedrica" }),
   };
   return {
     has: (name) => !!B[name],
