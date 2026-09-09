@@ -26,7 +26,7 @@ import re
 import subprocess
 import time
 
-from common import log
+from common import log, norm
 
 _CNW = 0x08000000
 _token = {"value": "", "exp": 0.0}
@@ -62,23 +62,44 @@ def _get_token(cfg: dict):
     return _token["value"]
 
 
-def search_track(query: str, cfg: dict) -> tuple[str, str] | None:
-    """Retorna (uri, "Faixa — Artista") da melhor faixa, ou None."""
+_STOP = {"do", "da", "de", "dos", "das", "no", "na", "e", "a", "o", "the",
+         "musica", "música", "song", "por", "favor"}
+
+
+def _fetch(query: str, cfg: dict, tok: str) -> list[dict]:
     import httpx
 
-    tok = _get_token(cfg)
     r = httpx.get(
         "https://api.spotify.com/v1/search",
         headers={"Authorization": f"Bearer {tok}"},
-        params={"q": query, "type": "track", "limit": 1,
+        params={"q": query, "type": "track", "limit": 8,
                 "market": _cfg(cfg).get("market", "BR")},
         timeout=15,
     )
     r.raise_for_status()
-    items = r.json().get("tracks", {}).get("items", [])
+    return r.json().get("tracks", {}).get("items", [])
+
+
+def search_track(query: str, cfg: dict) -> tuple[str, str] | None:
+    """Busca várias faixas e devolve a que MAIS combina com o que foi pedido."""
+    tok = _get_token(cfg)
+    items = _fetch(query, cfg, tok)
+    if not items:
+        # 2ª tentativa sem conectores ("333 do matue" -> "333 matue")
+        alt = " ".join(w for w in norm(query).split() if w not in _STOP)
+        if alt and alt != norm(query):
+            items = _fetch(alt, cfg, tok)
     if not items:
         return None
-    it = items[0]
+
+    qwords = [w for w in norm(query).split() if w not in _STOP]
+
+    def score(it: dict) -> tuple:
+        hay = norm(it["name"] + " " + " ".join(a["name"] for a in it.get("artists", [])))
+        hits = sum(1 for w in qwords if w and w in hay)
+        return (hits, it.get("popularity", 0))
+
+    it = max(items, key=score)
     who = ", ".join(a["name"] for a in it.get("artists", []))
     return it["uri"], f"{it['name']} — {who}"
 
