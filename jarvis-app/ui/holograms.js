@@ -85,22 +85,48 @@ window.jarvisHolo = (() => {
     o.position.set(x + (Math.random() - 0.5) * 0.3, y + (Math.random() - 0.5) * 0.3, 0);
   }
 
-  function spawn(type, opts) {
+  function spawn(type, opts, atPos) {
     let m = null;
     if (TRIG.has(type) && window.jarvisTrig) m = window.jarvisTrig.build(type);
     else if (window.jarvisModels && window.jarvisModels.has(type)) m = window.jarvisModels.build(type, opts);
     if (m) {
-      place(m); group.add(m);
+      if (atPos) { m.position.copy(atPos); count++; } else place(m);
+      group.add(m);
       shapes.push({ obj: m, bob: Math.random() * TAU, userScale: 1, appear: 0, amber: 0,
-        math: true, spin: { x: 0, y: 0 }, upd: m.userData && m.userData.update || null });
-      return;
+        math: true, spin: { x: 0, y: 0 }, upd: m.userData && m.userData.update || null,
+        spawnType: type, spawnOpts: opts || null });
+      return shapes[shapes.length - 1];
     }
     const o = neonShape(type);
-    place(o);
+    if (atPos) { o.position.copy(atPos); count++; } else place(o);
     o.rotation.set(Math.random() * TAU, Math.random() * TAU, 0);
     group.add(o);
     shapes.push({ obj: o, bob: Math.random() * TAU, userScale: 1, appear: 0, amber: 0,
-      spin: { x: (Math.random() - 0.5) * 0.005, y: (Math.random() - 0.5) * 0.007 + 0.005 } });
+      spin: { x: (Math.random() - 0.5) * 0.005, y: (Math.random() - 0.5) * 0.007 + 0.005 },
+      spawnType: type, spawnOpts: opts || null });
+    return shapes[shapes.length - 1];
+  }
+
+  function dupSelected() {
+    if (!selected) return;
+    const off = new THREE.Vector3(0.8, 0.5, 0);
+    const s = spawn(selected.spawnType, selected.spawnOpts, selected.obj.position.clone().add(off));
+    if (s) { s.userScale = selected.userScale; s.obj.rotation.copy(selected.obj.rotation); setSelected(s); }
+  }
+  function explodeSelected() {
+    if (!selected) return;
+    selected.exploded = !selected.exploded;
+    const kids = selected.obj.children.filter((c) => c.isMesh || c.isLine || c.isSprite);
+    kids.forEach((c) => {
+      if (!c.userData._home) c.userData._home = c.position.clone();
+      c.userData._target = selected.exploded
+        ? c.userData._home.clone().multiplyScalar(2.4).add(new THREE.Vector3(0, 0, (Math.random() - 0.5) * 1.5))
+        : c.userData._home.clone();
+    });
+  }
+  function lockSelected(on) {
+    if (!selected) return;
+    selected.locked = on == null ? !selected.locked : !!on;
   }
   function removeShape(s) {
     group.remove(s.obj);
@@ -116,6 +142,76 @@ window.jarvisHolo = (() => {
     if (holo.n < APP_START - 3000) return;   // comando velho (de antes do app abrir) — ignora
     if (holo.action === "add" && holo.shape) { spawn(holo.shape, holo); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
     else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
+    else if (holo.action === "dup") { dupSelected(); }
+    else if (holo.action === "explode") { explodeSelected(); }
+    else if (holo.action === "lock") { lockSelected(holo.on); }
+    else if (holo.action === "mode") {
+      st.drawMode = holo.mode === "draw";
+      st.measureMode = holo.mode === "measure";
+      if (holo.mode === "normal" || holo.mode === "draw") clearMeasure();
+      if (holo.mode === "normal") clearInk();
+      dbg("modo " + (holo.mode || "normal"));
+    }
+    else if (holo.action === "clear_ink") { clearInk(); clearMeasure(); }
+  }
+
+  // ---------- desenhar no ar ----------
+  const ink = new THREE.Group(); scene.add(ink);
+  let stroke = null, strokePts = [], strokeT = 0;
+  function clearInk() { [...ink.children].forEach((c) => ink.remove(c)); stroke = null; strokePts = []; }
+  function inkPoint(w) {
+    if (!Number.isFinite(w.x)) return;
+    if (!stroke) {
+      strokePts = [w.clone(), w.clone()];
+      stroke = new THREE.Line(new THREE.BufferGeometry().setFromPoints(strokePts),
+        new THREE.LineBasicMaterial({ color: NEON2, transparent: true, opacity: 0.95,
+          blending: THREE.AdditiveBlending, depthWrite: false }));
+      ink.add(stroke);
+    }
+    const last = strokePts[strokePts.length - 1];
+    if (last.distanceTo(w) > 0.03) {
+      strokePts.push(w.clone());
+      stroke.geometry.setFromPoints(strokePts);
+    }
+    strokeT = performance.now();
+  }
+  function inkEndMaybe() { if (stroke && performance.now() - strokeT > 260) stroke = null; }
+
+  // ---------- medir ----------
+  const measure = new THREE.Group(); scene.add(measure);
+  let mA = null, mLabel = null;
+  function clearMeasure() { [...measure.children].forEach((c) => measure.remove(c)); mA = null; mLabel = null; }
+  function measureTap(w) {
+    if (!Number.isFinite(w.x)) return;
+    if (!mA) {
+      mA = w.clone();
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10),
+        new THREE.MeshBasicMaterial({ color: AMBER }));
+      d.position.copy(mA); measure.add(d);
+    } else {
+      const dist = mA.distanceTo(w);
+      measure.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([mA, w]),
+        new THREE.LineBasicMaterial({ color: AMBER, transparent: true, opacity: 0.9,
+          blending: THREE.AdditiveBlending })));
+      const d2 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10),
+        new THREE.MeshBasicMaterial({ color: AMBER }));
+      d2.position.copy(w); measure.add(d2);
+      const lbl = makeTextSprite(dist.toFixed(2) + " u");
+      lbl.position.copy(mA).add(w).multiplyScalar(0.5).add(new THREE.Vector3(0, 0.2, 0));
+      measure.add(lbl);
+      mA = null;
+    }
+  }
+  function makeTextSprite(txt) {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 64;
+    const x = c.getContext("2d");
+    x.font = '600 34px "Segoe UI", monospace'; x.fillStyle = "#ffb24d";
+    x.shadowColor = "#ffb24d"; x.shadowBlur = 10; x.textBaseline = "middle";
+    x.fillText(txt, 8, 34);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c),
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.scale.set(256 / 190, 64 / 190, 1);
+    return s;
   }
 
   // ---------- coordenadas ----------
@@ -148,6 +244,7 @@ window.jarvisHolo = (() => {
 
   // ---------- interação ----------
   const C_NEON = new THREE.Color(NEON), C_NEON2 = new THREE.Color(NEON2), C_AMBER = new THREE.Color(AMBER);
+  const C_LOCK = new THREE.Color(0x7affc0);
   const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false,
     poked: new Set(), pokeT: 0 };
   let dbgDot = [0, 0], dbgOn = false;
@@ -156,6 +253,7 @@ window.jarvisHolo = (() => {
   function nearestOnScreen(px, py, maxDistPx) {
     let best = null, bd = maxDistPx;
     for (const s of shapes) {
+      if (s.locked) continue;
       const [sx, sy] = worldToPx(s.obj.position);
       const d = Math.hypot(sx - px, sy - py);
       if (d < bd) { bd = d; best = s; }
@@ -204,7 +302,7 @@ window.jarvisHolo = (() => {
           setSelected(pick || null);
         }
       }
-      if (selected && mg.name !== "punho") {
+      if (selected && !selected.locked && mg.name !== "punho" && sg.name !== "paz") {
         if (selected._grabOff == null) {
           selected._grabZ = selected.obj.position.z;
           selected._grabOff = selected.obj.position.clone().sub(pxToWorld(selPx[0], selPx[1], selected._grabZ));
@@ -229,8 +327,22 @@ window.jarvisHolo = (() => {
       st.allPrev = c;
     } else st.allPrev = null;
 
+    // ---- ✌️ SELETORA: gira a forma com UMA mão só (roll + movimento) ----
+    if (selected && !selected.locked && !selected.math && sg.name === "paz") {
+      const lm = selH.landmarks;
+      const roll = Math.atan2(lm[5].y - lm[17].y, lm[5].x - lm[17].x);   // inclinação da palma
+      const c = handCenter(lm);
+      if (st.twistPrev != null) {
+        let dr = roll - st.twistPrev.roll;
+        if (dr > Math.PI) dr -= TAU; if (dr < -Math.PI) dr += TAU;
+        selected.obj.rotation.z -= finite(dr);
+        selected.obj.rotation.y += finite(c.x - st.twistPrev.x) * 4;
+      }
+      st.twistPrev = { roll, x: c.x, y: c.y };
+    } else st.twistPrev = null;
+
     // ---- MODIFICADORA (só com algo selecionado) ----
-    if (selected && modH) {
+    if (selected && !selected.locked && modH) {
       if (mg.name === "punho" && modC) {
         const [mx, my] = toScreenPx(modC.x, modC.y);
         const w = pxToWorld(mx, my, selected._grabZ || 0);
@@ -252,7 +364,15 @@ window.jarvisHolo = (() => {
       if (mg.name !== "paz") st.rotPrev = null;
     } else { st.resizeRef = 0; st.rotPrev = null; }
 
-    // ---- ☝️ APONTAR: encostar o indicador no holograma apaga ----
+    // ---- modo MEDIR: pinça marca pontos ----
+    if (st.measureMode) {
+      const p = selPx || modPx;
+      const anyPinch = sg.pinch >= 0.9 || mg.pinch >= 0.9;
+      if (anyPinch && !st.measWas && p) measureTap(pxToWorld(p[0], p[1], 0));
+      st.measWas = anyPinch;
+    }
+
+    // ---- ☝️ APONTAR: desenha (modo caneta) ou encosta pra apagar ----
     fx2d.clear();
     const touchR = R * 0.5;
     let anyPoint = false;
@@ -263,6 +383,11 @@ window.jarvisHolo = (() => {
       const lm = h.landmarks;
       const [tx, ty] = toScreenPx(lm[8].x, lm[8].y);
       const a = pxToWorld(tx, ty, 0);
+      if (st.drawMode) {
+        inkPoint(a);
+        pokeDot.position.copy(a); pokeDot.material.opacity = 0.9;
+        continue;
+      }
       const dir = a.clone().sub(pxToWorld(...toScreenPx(lm[6].x, lm[6].y), 0)).normalize();
       fx2d.add(new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([a, a.clone().add(dir.multiplyScalar(9))]),
@@ -288,6 +413,7 @@ window.jarvisHolo = (() => {
       pokeDot.material.opacity += (0 - pokeDot.material.opacity) * 0.3;
       shapes.forEach((s) => { s._pokeN = 0; });
     }
+    inkEndMaybe();
 
     // apaga TODOS: sem seleção, encostou em todos -> some tudo
     if (!selected && shapes.length && [...shapes].every((s) => st.poked.has(s.id))) {
@@ -353,9 +479,10 @@ window.jarvisHolo = (() => {
 
       const wantAmber = (s === selected) ? 1 : 0;
       s.amber += (wantAmber - s.amber) * 0.15;
+      s.lockL = (s.lockL || 0) + ((s.locked ? 1 : 0) - (s.lockL || 0)) * 0.15;
       const ud = s.obj.userData;
       if (ud.wire) {
-        ud.wire.material.color.copy(C_NEON).lerp(C_AMBER, s.amber);
+        ud.wire.material.color.copy(C_NEON).lerp(C_AMBER, s.amber).lerp(C_LOCK, s.lockL * 0.8);
         ud.wire.material.opacity = 0.92 + s.amber * 0.06;
         ud.fill.material.color.copy(C_NEON2).lerp(C_AMBER, s.amber);
         ud.fill.material.opacity = 0.07 + s.amber * 0.12 + (s._point || 0) * 0.1;
@@ -371,12 +498,18 @@ window.jarvisHolo = (() => {
       }
       s._point = (s._point || 0) * 0.85;
 
-      if (s !== selected && !s.math) {
+      if (s !== selected && !s.math && !s.locked) {
         s.obj.rotation.x += s.spin.x;
         s.obj.rotation.y += s.spin.y;
         s.obj.position.y += Math.sin(t * 1.05 + s.bob) * 0.0014;
       }
-      if (s.upd && s !== selected) { try { s.upd(t); } catch (_) { s.upd = null; } }
+      if (s.upd && s !== selected && !s.locked) { try { s.upd(t); } catch (_) { s.upd = null; } }
+      // explodir: interpola filhos até o alvo
+      if (s.exploded != null) {
+        for (const c of s.obj.children) {
+          if (c.userData && c.userData._target) c.position.lerp(c.userData._target, 0.15);
+        }
+      }
       // trava contra NaN
       const p = s.obj.position;
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) p.set(0, 0, 0);
@@ -388,5 +521,6 @@ window.jarvisHolo = (() => {
   }
 
   setTimeout(() => dbg("módulo carregado, renderer " + (renderer ? "ok" : "FALHOU")), 1500);
-  return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn, _geo: makeGeo };
+  return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn, _geo: makeGeo,
+    hasSelection: () => !!selected };
 })();

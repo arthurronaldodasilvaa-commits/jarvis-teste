@@ -542,6 +542,41 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
         return Result(speak="Tela limpa, senhor.")
 
+    # --- manipular a forma selecionada: travar / duplicar / explodir ---
+    if re.search(r"\b(trava\w*|tranca\w*|fixa\w*|prende\w*|congela\w*)\s+(essa|a|o|esse|isso|a forma|o holograma)\b|"
+                 r"\btrava isso\b", t):
+        write_control(holo={"action": "lock", "on": True, "n": int(time.time() * 1000)})
+        return Result(speak="Travei a forma, senhor.")
+    if re.search(r"\b(solta\w*|destrava\w*|destranca\w*|libera\w*)\s+(essa|a|o|esse|isso|a forma|o holograma)\b|"
+                 r"\bsolta isso\b|\bdestrava\b", t):
+        write_control(holo={"action": "lock", "on": False, "n": int(time.time() * 1000)})
+        return Result(speak="Soltei, senhor.")
+    if re.search(r"\b(copia|duplica|clona)\w*\s+(essa|a|o|esse|isso|a forma|o holograma)\b|"
+                 r"\b(copia|duplica|clona) isso\b|\bfaz uma copia\b", t):
+        write_control(holo={"action": "dup", "n": int(time.time() * 1000)})
+        return Result(speak="Dupliquei, senhor.")
+    if re.search(r"\bexplod\w+|\bdesmont\w+\s+(essa|a|o|isso)\b|\bseparar? as pecas\b|"
+                 r"\babre\s+(essa|a)\s+(molecula|forma|estrutura)\b", t):
+        write_control(holo={"action": "explode", "n": int(time.time() * 1000)})
+        return Result(speak="Feito, senhor.")
+
+    # --- modos da câmera: desenho / medida / normal ---
+    if re.search(r"\bmodo\s+(desenho|caneta|lapis|pincel)\b|deixa eu desenhar|quero desenhar|"
+                 r"ativa\w*\s+(o\s+)?desenho|desenhar? no ar", t):
+        write_control(holo={"action": "mode", "mode": "draw", "n": int(time.time() * 1000)})
+        return Result(speak="Modo desenho, senhor. Aponte o indicador e desenhe no ar.")
+    if re.search(r"\bmodo\s+(medi\w+|regua|distancia)\b|quero medir|deixa eu medir|"
+                 r"ativa\w*\s+(a\s+)?(medida|regua)|medir? (a )?distancia", t):
+        write_control(holo={"action": "mode", "mode": "measure", "n": int(time.time() * 1000)})
+        return Result(speak="Modo medida, senhor. Pince dois pontos.")
+    if re.search(r"\bmodo\s+normal\b|sai\w*\s+do\s+(desenho|modo\s+(desenho|medida))|"
+                 r"volta\w*\s+ao\s+normal|para\w*\s+de\s+(desenhar|medir)", t):
+        write_control(holo={"action": "mode", "mode": "normal", "n": int(time.time() * 1000)})
+        return Result(speak="Modo normal, senhor.")
+    if re.search(r"\b(limpa\w*|apaga\w*)\s+(o\s+)?(desenho|traco|risco|as?\s+medidas?)\b", t):
+        write_control(holo={"action": "clear_ink", "n": int(time.time() * 1000)})
+        return Result(speak="Limpei, senhor.")
+
     r = _holo_models(t, raw)
     if r is not None:
         return r

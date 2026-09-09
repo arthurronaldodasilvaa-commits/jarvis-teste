@@ -15,14 +15,15 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 - [ ] **Anatomia** — esqueleto / coração / cérebro (precisa de assets glTF — não dá procedural bom)
 - [x] Triângulo retângulo 3·4·5, tabela de ângulos notáveis, tabela de relações
 
-## B. Interação de mão (câmera)
+## B. Interação de mão (câmera)   — `ui/holograms.js`
 
 - [x] pinça seleciona/arrasta (âmbar) · 2 mãos escala · ✌️ gira · ✊ move tudo · ☝️ toca = apaga
-- [ ] **Desenhar no ar** — indicador deixa rastro 3D neon
-- [ ] **Medir** — pinça 2 pontos → distância
-- [ ] **Travar/soltar** uma forma · **duplicar** ("copia isso")
-- [ ] **Explodir** um modelo (separar peças com as 2 mãos)
-- [ ] Rotação com uma mão só (twist)
+- [x] **Desenhar no ar** — "modo desenho" + ☝️ deixa rastro neon; "limpa o desenho"
+- [x] **Medir** — "modo medida" + pinça 2 pontos → linha + distância
+- [x] **Travar/soltar** — "trava essa forma" (fica verde, não move) / "solta isso"
+- [x] **Duplicar** — "copia isso" / "duplica essa forma"
+- [x] **Explodir** — "explode a molécula" (afasta as peças; de novo volta)
+- [x] **Rotação com uma mão só** — ✌️ da mão seletora gira pela inclinação da palma
 
 ## C. Assistente mais capaz (sem holograma)
 
