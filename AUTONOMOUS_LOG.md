@@ -116,3 +116,16 @@ esses não dispararam.
    disso — se quiser, sobe a pasta nova no Drive.
 4. Tudo commitado no git local. `git log` conta a história. `ROADMAP.md` tem
    os checkboxes. Nada foi enviado pra lugar nenhum.
+5. **`COMANDOS.md`** (novo, na raiz) lista TUDO que dá pra pedir agora — é
+   uma boa pra você revisar e depois mostrar pro seu pai.
+
+## Estado final (16h45)
+
+- ~32 commits. Daemon rodando (perfil arthur, voz Piper).
+- Frozen `JarvisVoice.exe` + `JarvisApp.exe` rebuildados; `installer/pacote/Jarvis/`
+  regenerado (~1,1 GB) com tudo + COMANDOS.md dentro.
+- Verificado visualmente na janela real: HUD (relógio/clima/gauges/música),
+  círculo trigonométrico na câmera, painel de configurações. Tudo renderiza certo.
+- Verificado por dispatch: 73 comandos, 0 exceções.
+- A partir daqui entro em cadência leve: checo a saúde do daemon de tempos
+  em tempos e faço polimento pequeno, esperando você voltar e mandar parar.
