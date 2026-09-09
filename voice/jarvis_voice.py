@@ -225,11 +225,22 @@ def _is_negate(n: str) -> bool:
 
 
 def ensure_single_instance() -> None:
-    """Evita dois Jarvis ouvindo ao mesmo tempo (ex: autostart + clique manual)."""
-    ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\JarvisVozSingleton")
-    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-        log("Jarvis Voz já está rodando — encerrando esta instância.")
-        sys.exit(0)
+    """Evita dois Jarvis ouvindo ao mesmo tempo (ex: autostart + clique manual).
+
+    Num relançamento (troca de perfil, reload de config) a instância velha leva
+    ~1 s pra soltar o mutex depois que a nova sobe — então, se viemos de um
+    relançamento (JARVIS_RELAUNCH=1), esperamos alguns segundos e tentamos de novo
+    antes de desistir."""
+    tries = 12 if os.environ.get("JARVIS_RELAUNCH") == "1" else 1
+    for i in range(tries):
+        ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\JarvisVozSingleton")
+        if ctypes.windll.kernel32.GetLastError() != 183:   # conseguiu o mutex
+            os.environ.pop("JARVIS_RELAUNCH", None)
+            return
+        if i < tries - 1:
+            time.sleep(1.0)
+    log("Jarvis Voz já está rodando — encerrando esta instância.")
+    sys.exit(0)
 
 
 SECRETS_PATH = HERE / "secrets.toml"
@@ -1177,10 +1188,14 @@ def relaunch_self() -> None:
         cmd = f'"{sys.executable}" "{Path(__file__).resolve()}"'
     log("reiniciando pra aplicar o novo perfil…")
     try:
-        subprocess.Popen(f'cmd /c timeout /t 4 /nobreak >nul & start "" {cmd}',
-                         shell=True, creationflags=0x00000008,
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL)
+        # ping em vez de `timeout`: `timeout` falha na hora quando o stdin está
+        # redirecionado (processo destacado), aí a instância nova subia cedo demais
+        # e batia no mutex ainda preso. JARVIS_RELAUNCH faz a nova esperar o mutex.
+        subprocess.Popen(
+            f'cmd /c (ping -n 3 127.0.0.1 >nul) & set "JARVIS_RELAUNCH=1" & start "" {cmd}',
+            shell=True, creationflags=0x00000008,
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL)
     except Exception as exc:  # noqa: BLE001
         log(f"falha ao reiniciar: {exc}")
         return
