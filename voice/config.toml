@@ -13,25 +13,23 @@ max_utterance_seconds = 7.0
 pre_roll_seconds = 0.6         # segundos de áudio antes do disparo (não cortar sílaba)
 min_utterance_seconds = 0.35   # ignora "falas" mais curtas que isso (clique, tosse)
 
-# --- palmas (atalho opcional) ---
+# --- palmas: bater 2 palmas, 2 vezes (4 no total) -> toca a música abaixo ---
 clap_enabled = true
-clap_instant_activate = true   # 2 palmas = rotina de chegada na hora
+claps_required = 4
+clap_window_seconds = 3.0      # tempo pras 4 palmas
 clap_sensitivity = 7.0
 clap_min_level = 0.030
-clap_window_seconds = 1.6
 clap_min_gap_seconds = 0.12
-claps_required = 2
+clap_spotify = "spotify:track:39shmbIHICJ2Wxnk1fPSdz"   # Should I Stay or Should I Go — The Clash (Combat Rock)
+clap_spotify_search = "Should I Stay or Should I Go The Clash"   # usado se o link acima falhar
 
 [arrival]
-# Frase que dispara a ROTINA DE CHEGADA (saudação + Steam + Spotify).
-phrase = "bom dia neném o papai chegou"
-match_threshold = 0.72         # quão parecida a fala precisa ser (sobe = mais rígido)
-reactivate_cooldown_seconds = 30
-sequence = [
-  "app:steam",
-  "spotify:track:2YH7ZVyUfX6qMqDOV9lw9B",   # AC/DC - Highway to Hell
-]
-greeting = "Bom dia, senhor. Com o que posso te ajudar?"
+# Frase de chegada: o Jarvis SÓ saúda e abre o app em primeiro plano.
+phrase = "acorda criança o papai chegou"
+match_threshold = 0.74
+reactivate_cooldown_seconds = 20
+sequence = []                 # nada de Steam/Spotify — só a saudação + app
+greeting = "Bem-vindo, senhor!"
 
 [spotify]
 # As chaves (client_id / client_secret) ficam em  voice/secrets.toml  (fora do git).
@@ -55,7 +53,7 @@ command_model = "small"       # base | small | medium   (2ª passada, precisão)
 beam_size = 1                 # 1 = ganancioso/rápido; 5 = mais preciso/lento
 whisper_language = "pt"
 whisper_device = "cpu"        # "cuda" usa a GTX 1650 (precisa libs CUDA extras)
-whisper_initial_prompt = "Assistente de voz em português. A pessoa chama o assistente de Jarvis."
+whisper_initial_prompt = "Assistente de voz em português. A pessoa chama o assistente de Jarvis. Acorda, criança, o papai chegou."
 
 [assistant]
 address = "Senhor"

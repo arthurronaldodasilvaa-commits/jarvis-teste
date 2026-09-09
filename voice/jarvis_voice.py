@@ -421,13 +421,14 @@ def is_arrival_phrase(n: str, cfg: dict) -> bool:
     if not n:
         return False
     arr = cfg["arrival"]
-    target = norm(arr.get("phrase", "bom dia nenem o papai chegou"))
-    if SequenceMatcher(None, n, target).ratio() >= float(arr.get("match_threshold", 0.7)):
+    target = norm(arr.get("phrase", "acorda crianca o papai chegou"))
+    if SequenceMatcher(None, n, target).ratio() >= float(arr.get("match_threshold", 0.62)):
         return True
     has_papai = "papai" in n or "pape" in n or "papi" in n
     has_chegou = "chegou" in n or "chego" in n
-    has_bomdia = "bom dia" in n
-    return (has_papai and has_chegou) or (has_bomdia and has_papai)
+    has_acorda = "acorda" in n or "acordo" in n or "corda" in n
+    has_crianca = "crianca" in n or "criança" in n
+    return (has_acorda and (has_crianca or has_papai)) or (has_crianca and has_chegou)
 
 
 def set_paused(paused: bool, *, beep: bool = True) -> None:
@@ -518,16 +519,31 @@ def open_jarvis_app(cfg: dict, *, focus_after: float = 0.0) -> None:
 
 
 def run_arrival(cfg: dict, mouth: Mouth, reason: str) -> None:
+    """Frase de chegada: só saúda e abre o app em primeiro plano."""
     log(f"** CHEGADA ({reason}) **")
-    greeting = (cfg.get("arrival", {}).get("greeting")
-               or cfg.get("tts", {}).get("greeting")
-               or "Bom dia, senhor.")
-    mouth.say(greeting)
-    for action in cfg["arrival"].get("sequence", []):
+    mouth.say(cfg.get("arrival", {}).get("greeting") or "Bem-vindo, senhor!")
+    for action in cfg["arrival"].get("sequence", []):   # normalmente vazio
         _run_action(action, cfg)
-        time.sleep(0.6)
-    if cfg.get("app", {}).get("open_on_arrival", False):
-        open_jarvis_app(cfg, focus_after=3.5)   # por último + traz pra frente
+        time.sleep(0.4)
+    if cfg.get("app", {}).get("open_on_arrival", True):
+        open_jarvis_app(cfg, focus_after=1.5)
+
+
+def play_clap_song(cfg: dict) -> None:
+    """2 palmas 2x (4 palmas) -> toca a música configurada."""
+    import spotify
+
+    a = cfg.get("audio", {})
+    uri = a.get("clap_spotify", "")
+    try:
+        if uri:
+            spotify.play_uri(uri, cfg)
+            log(f"** {a.get('claps_required', 4)} palmas -> {uri} **")
+        elif a.get("clap_spotify_search"):
+            ok, _ = spotify.play(a["clap_spotify_search"], cfg)
+            log(f"** palmas -> busca '{a['clap_spotify_search']}' ({ok}) **")
+    except Exception as exc:  # noqa: BLE001
+        log(f"erro ao tocar música das palmas: {exc}")
 
 
 def _run_action(action: str, cfg: dict) -> None:
@@ -658,10 +674,10 @@ def _handle_block(block, ring, mic, ears, mouth, brain, clap, cfg, wake_word,
 
     ring.append(block)
 
-    if clap.feed(block) and cfg["audio"].get("clap_instant_activate", True):
-        if time.monotonic() - st["last_arrival"] > cooldown:
-            run_arrival(cfg, mouth, "palmas")
-            st["last_arrival"] = time.monotonic()
+    if clap.feed(block):
+        if time.monotonic() - st.get("last_clap", 0.0) > 12:
+            play_clap_song(cfg)
+            st["last_clap"] = time.monotonic()
         mic.drain(); ring.clear(); return
 
     if rms(block) <= speech_thr:
