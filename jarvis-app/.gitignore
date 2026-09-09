@@ -6,4 +6,6 @@ __pycache__/
 *.pyc
 state.json
 control.json
+scan.json
+reload.flag
 app_debug.log
