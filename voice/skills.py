@@ -25,6 +25,7 @@ import maps
 import news
 import reminders
 import spotify
+import translate
 import weather
 import wiki
 from common import HERE, combo, log, norm, paste_text, tap, VK, write_app_state, write_control
@@ -305,6 +306,45 @@ def _dias_ate(t: str) -> str | None:
 
 _DIA_SEMANA = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
                "sexta-feira", "sábado", "domingo"]
+
+_FUSOS = {
+    "toquio": "Asia/Tokyo", "japao": "Asia/Tokyo",
+    "nova york": "America/New_York", "new york": "America/New_York", "ny": "America/New_York",
+    "los angeles": "America/Los_Angeles", "california": "America/Los_Angeles",
+    "londres": "Europe/London", "inglaterra": "Europe/London",
+    "paris": "Europe/Paris", "franca": "Europe/Paris",
+    "lisboa": "Europe/Lisbon", "portugal": "Europe/Lisbon",
+    "berlim": "Europe/Berlin", "alemanha": "Europe/Berlin",
+    "madri": "Europe/Madrid", "madrid": "Europe/Madrid", "espanha": "Europe/Madrid",
+    "roma": "Europe/Rome", "italia": "Europe/Rome",
+    "moscou": "Europe/Moscow", "russia": "Europe/Moscow",
+    "pequim": "Asia/Shanghai", "china": "Asia/Shanghai", "xangai": "Asia/Shanghai",
+    "dubai": "Asia/Dubai", "india": "Asia/Kolkata", "nova delhi": "Asia/Kolkata",
+    "sidney": "Australia/Sydney", "sydney": "Australia/Sydney", "australia": "Australia/Sydney",
+    "buenos aires": "America/Argentina/Buenos_Aires", "argentina": "America/Argentina/Buenos_Aires",
+    "cidade do mexico": "America/Mexico_City", "mexico": "America/Mexico_City",
+    "nova iorque": "America/New_York", "seul": "Asia/Seoul", "coreia": "Asia/Seoul",
+}
+
+
+def _hora_no_mundo(lugar: str) -> str | None:
+    lugar = re.sub(r"\s+(agora|hoje|senhor)$", "", lugar).strip()
+    tzname = _FUSOS.get(lugar)
+    if not tzname:
+        tzname = next((v for k, v in _FUSOS.items() if k in lugar or lugar in k), None)
+    if not tzname:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        n = datetime.now(ZoneInfo(tzname))
+    except Exception:  # noqa: BLE001
+        return None
+    per = "da manhã" if 5 <= n.hour < 12 else ("da tarde" if 12 <= n.hour < 18
+                                               else ("da noite" if n.hour >= 18 else "da madrugada"))
+    disp = {"toquio": "Tóquio", "franca": "França", "italia": "Itália", "russia": "Rússia",
+            "china": "China", "india": "Índia", "japao": "Japão", "mexico": "México",
+            "sidney": "Sydney", "seul": "Seul"}.get(lugar, lugar.title())
+    return f"Em {disp} são {n.hour}h{n.minute:02d} {per}, senhor."
 
 
 def _clean_expr(s: str) -> str:
@@ -798,6 +838,26 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
         _run("shutdown", "/a")
         return Result(speak="Cancelei, senhor.")
+
+    # --- tradução ---
+    if re.search(r"\b(traduz|traduza|traducao de|como se (diz|fala)|como (e|que e) que se (diz|fala))\b", t):
+        fala = translate.handle(raw, brain)
+        if fala:
+            return Result(speak=fala)
+
+    # --- soletrar ---
+    m = re.search(r"\b(soletra|soletre|como (?:se )?escreve|me diz as letras de)\s+(?:a palavra\s+)?(.+)", t)
+    if m:
+        w = re.sub(r"[^a-zà-ÿ]", "", m.group(2).split()[0])
+        if w:
+            return Result(speak=", ".join(c.upper() for c in w) + ", senhor.")
+
+    # --- hora no mundo ---
+    m = re.search(r"\bque horas?\s+(?:sao\s+)?(?:e\s+)?(?:em|no|na|nos|nas)\s+(.+)", t)
+    if m:
+        fala = _hora_no_mundo(m.group(1).strip())
+        if fala:
+            return Result(speak=fala)
 
     # --- hora / data ---
     if re.search(r"\b(que horas?|as horas?|horario agora|que hora e|me diz as horas|horas sao)\b", t):
