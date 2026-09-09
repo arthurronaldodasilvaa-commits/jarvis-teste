@@ -33,18 +33,18 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 
 - [x] **Timers e lembretes** — `voice/reminders.py`, persistente, thread que fala no vencimento
 - [x] **Clima** (Open-Meteo, sem chave) — `voice/weather.py` · **contas** ("15% de 240") — `voice/calc.py`
-  - [ ] **notícias** (falta — precisa de um feed/RSS; RSS de portal BR é keyless, dá pra fazer)
+  - [x] **notícias** — `voice/news.py` (RSS do Google Notícias, sem chave; "quais as notícias de hoje")
 - [x] **Conversão** de unidades / moeda — `voice/calc.py` (comprimento, massa, temp, câmbio)
 - [x] **Briefing na chegada** — `_briefing()` em jarvis_voice.py (hora + clima + lembretes do dia)
 - [x] Ditado direcionado a um app específico — "escreve no bloco de notas: ..."
 
-## D. HUD de verdade no cérebro
+## D. HUD de verdade no cérebro   — `voice/hud.py` + `ui/hud.js`
 
-- [ ] Relógio + data + clima
-- [ ] **Música tocando** (faixa + progresso do Spotify)
-- [ ] **Gauges neon** de CPU / GPU / RAM / temperatura
-- [ ] Estados visuais: pensando / pesquisando / erro
-- [ ] Feed de notificações
+- [x] Relógio + data + clima
+- [x] **Música tocando** — faixa + barra de progresso (winsdk, qualquer player)
+- [x] **Gauges neon** de CPU / RAM / GPU (psutil + pynvml) — falta só temperatura (precisa lib admin)
+- [x] Estados visuais: PENSANDO / PESQUISANDO / ERRO (campo `phase` no state.json)
+- [x] Feed de notificações (`push_note` → HUD)
 
 ## E. Câmera / visão   — `ui/vision.js`
 
