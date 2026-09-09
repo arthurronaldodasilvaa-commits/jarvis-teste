@@ -85,13 +85,14 @@ window.jarvisHolo = (() => {
     o.position.set(x + (Math.random() - 0.5) * 0.3, y + (Math.random() - 0.5) * 0.3, 0);
   }
 
-  function spawn(type) {
-    if (TRIG.has(type) && window.jarvisTrig) {
-      const m = window.jarvisTrig.build(type);
-      if (!m) return;
+  function spawn(type, opts) {
+    let m = null;
+    if (TRIG.has(type) && window.jarvisTrig) m = window.jarvisTrig.build(type);
+    else if (window.jarvisModels && window.jarvisModels.has(type)) m = window.jarvisModels.build(type, opts);
+    if (m) {
       place(m); group.add(m);
       shapes.push({ obj: m, bob: Math.random() * TAU, userScale: 1, appear: 0, amber: 0,
-        math: true, spin: { x: 0, y: 0 } });
+        math: true, spin: { x: 0, y: 0 }, upd: m.userData && m.userData.update || null });
       return;
     }
     const o = neonShape(type);
@@ -113,7 +114,7 @@ window.jarvisHolo = (() => {
     if (!holo || !holo.n || holo.n <= lastN) return;
     lastN = holo.n;
     if (holo.n < APP_START - 3000) return;   // comando velho (de antes do app abrir) — ignora
-    if (holo.action === "add" && holo.shape) { spawn(holo.shape); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
+    if (holo.action === "add" && holo.shape) { spawn(holo.shape, holo); st.poked.clear(); dbg("+ " + holo.shape + " (" + shapes.length + ")"); }
     else if (holo.action === "clear") { clearAll(); dbg("limpou"); }
   }
 
@@ -375,6 +376,7 @@ window.jarvisHolo = (() => {
         s.obj.rotation.y += s.spin.y;
         s.obj.position.y += Math.sin(t * 1.05 + s.bob) * 0.0014;
       }
+      if (s.upd && s !== selected) { try { s.upd(t); } catch (_) { s.upd = null; } }
       // trava contra NaN
       const p = s.obj.position;
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) p.set(0, 0, 0);
@@ -386,5 +388,5 @@ window.jarvisHolo = (() => {
   }
 
   setTimeout(() => dbg("módulo carregado, renderer " + (renderer ? "ok" : "FALHOU")), 1500);
-  return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn };
+  return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn, _geo: makeGeo };
 })();

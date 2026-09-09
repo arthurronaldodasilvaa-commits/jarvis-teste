@@ -71,6 +71,15 @@ _ROUTER_TEMPLATES = {
     "triangulo": "cria um triangulo retangulo",
     "tabela_angulos": "mostra a tabela de angulos notaveis",
     "tabela_relacoes": "mostra as relacoes trigonometricas",
+    "circulo_trig": "mostra o circulo trigonometrico",
+    "plotar": "plota {arg}",
+    "solido_formula": "mostra a formula do volume da {arg}",
+    "corpo_livre": "mostra um diagrama de corpo livre",
+    "lancamento": "mostra um lancamento obliquo",
+    "plano_inclinado": "mostra um plano inclinado",
+    "molecula": "mostra a molecula de {arg}",
+    "tabela_periodica": "mostra a tabela periodica",
+    "celula": "mostra a celula animal",
     "limpar": "limpar tudo",
     "camera_on": "ativar camera",
     "camera_off": "desativar camera",
@@ -105,6 +114,10 @@ cmd possíveis:
  triangulo (triângulo retângulo 3D)
  tabela_angulos (tabela dos ângulos notáveis 30/45/60 — sen, cos, tan)
  tabela_relacoes (relações trigonométricas — seno=CO/H, cosseno=CA/H, tangente=CO/CA)
+ circulo_trig (círculo/ciclo trigonométrico animado)
+ plotar (arg=expressão, ex "x^2")   solido_formula (arg= esfera|cubo|cilindro|cone|piramide)
+ corpo_livre   lancamento (lançamento oblíquo)   plano_inclinado
+ molecula (arg= agua|metano|benzeno)   tabela_periodica   celula
  limpar
  camera_on   camera_off   cerebro   hora   data
  volume_up   volume_down   mudo   midia_next   midia_pause   midia_play
@@ -127,6 +140,12 @@ Exemplos:
 "quero ver a tabela de ângulos notáveis" -> {"cmd":"tabela_angulos"}
 "mostra as relações trigonométricas" -> {"cmd":"tabela_relacoes"}
 "me vê as relações do seno e cosseno" -> {"cmd":"tabela_relacoes"}
+"mostra o ciclo trigonométrico" -> {"cmd":"circulo_trig"}
+"plota y = x ao quadrado" -> {"cmd":"plotar","arg":"x^2"}
+"desenha o gráfico de seno de x" -> {"cmd":"plotar","arg":"seno de x"}
+"mostra a fórmula do volume da esfera" -> {"cmd":"solido_formula","arg":"esfera"}
+"faz a molécula da água" -> {"cmd":"molecula","arg":"agua"}
+"mostra um diagrama de corpo livre" -> {"cmd":"corpo_livre"}
 "quero jogar palworld" -> {"cmd":"jogo","arg":"palworld"}
 "cadê meu spotify" -> {"cmd":"abrir","arg":"spotify"}
 "tá calor, sobe o som" -> {"cmd":"volume_up"}
@@ -415,6 +434,9 @@ Sobre você (o Jarvis) — use isto se o senhor perguntar como te usar:
 - Abrir programas: "Jarvis, abre o <nome>". Música: "Jarvis, toca <artista>".
 - Mapa: "Jarvis, como chegar em <lugar>" / "Jarvis, restaurantes bem avaliados em <cidade>".
 - Câmera e hologramas: "Jarvis, ativar câmera", depois "Jarvis, cria um cubo"; "Jarvis, desativar câmera".
+- Modelos de estudo (na câmera): "círculo trigonométrico", "plota x ao quadrado", "molécula da água/metano/benzeno",
+  "diagrama de corpo livre", "lançamento oblíquo", "plano inclinado", "tabela periódica", "célula animal",
+  "fórmula do volume da esfera". Manipula com as mãos (pinça seleciona, ✌️ gira, ✊ move).
 - Volume: "Jarvis, aumenta o volume". Textos: "Jarvis, escreve um texto sobre <assunto>".
 - Desligar/reiniciar o PC: "Jarvis, desliga o computador" — você pede confirmação, ele diz "sim";
   para abortar, "Jarvis, cancelar".

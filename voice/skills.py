@@ -137,6 +137,99 @@ _SHAPES = {
     "prisma": "prism", "hexagono": "prism", "hexágono": "prism",
 }
 
+_MK = (r"cria\w*|criar|faz\w*|adiciona\w*|gera\w*|desenha\w*|projeta\w*|poe|monta\w*|"
+       r"mostra\w*|exibe\w*|abre\w*|traz\w*|quero\w*|queria|vira|me\s+ve|manda\w*|"
+       r"coloca\w*|bota\w*|plota\w*|plot|grafico|explica\w*|ensina\w*")
+
+# (regex de gatilho, nome do modelo no models.js/trig.js, nome falado)
+_MODELS = [
+    (r"triangulo\s+retangulo", "triangulo", "Triângulo retângulo"),
+    (r"(tabela|quadro).*(angulos?\s+notave|angulos? notave)|angulos?\s+notave\w*",
+     "tabela_angulos", "Tabela de ângulos notáveis"),
+    (r"rela\w+\s+trigonom|tabela\s+de\s+rela\w+|rela\w+\s+trigonometrica\w*",
+     "tabela_relacoes", "Relações trigonométricas"),
+    (r"circulo\s+trigonometrico|circunferencia\s+trigonometrica|ciclo\s+trigonometrico",
+     "circulo_trigonometrico", "Círculo trigonométrico"),
+    (r"corpo\s+livre|diagrama\s+de\s+forcas?|vetores?\s+de\s+forca", "corpo_livre",
+     "Diagrama de corpo livre"),
+    (r"lancamento\s+obliquo|movimento\s+de\s+projetil|tiro\s+obliquo", "lancamento_obliquo",
+     "Lançamento oblíquo"),
+    (r"plano\s+inclinado|rampa\s+(com|de)\s+bloco", "plano_inclinado", "Plano inclinado"),
+    (r"molecula\s+de\s+agua|molecula\s+da\s+agua|\bh2o\b|\bagua\b\s*(3d|molecula)", "molecula_agua",
+     "Molécula de água"),
+    (r"molecula\s+de\s+metano|\bmetano\b|\bch4\b", "molecula_metano", "Molécula de metano"),
+    (r"molecula\s+de\s+benzeno|\bbenzeno\b|anel\s+benzenico", "molecula_benzeno", "Molécula de benzeno"),
+    (r"tabela\s+periodica", "tabela_periodica", "Tabela periódica"),
+    (r"celula\s+animal|\bcelula\b|organelas", "celula", "Célula animal"),
+]
+
+_SOLIDS_FORMULA = {"esfera": "esfera", "cubo": "cubo", "cilindro": "cilindro",
+                   "cone": "cone", "piramide": "piramide", "pirâmide": "piramide"}
+
+
+def _holo_models(t: str, raw: str = "") -> "Result | None":
+    """Modelos de estudo + formas simples na câmera. t = texto normalizado."""
+    has_verb = re.search(rf"\b(?:{_MK})\b", t) is not None
+
+    # plotter de função: "plota y = x ao quadrado" / "grafico de x^2 + 1"
+    low = (raw or "").lower().strip()
+    mp = re.search(r"\b(?:plot\w*|gr[aá]fic\w*|tra[cç]\w*\s+o\s+gr[aá]fico|"
+                   r"desenh\w*\s+(?:o\s+)?gr[aá]fico)\b"
+                   r"(?:\s+(?:de|da|do|a\s+fun[cç][aã]o))?\s+(.+)", low)
+    if mp:
+        expr = _clean_expr(mp.group(1))
+        if expr:
+            write_control(holo={"action": "add", "shape": "plot", "expr": expr,
+                                "n": int(time.time() * 1000)})
+            return Result(speak=f"Plotando {expr}, senhor.")
+
+    # sólido + fórmula: "mostra a fórmula do volume da esfera" / "volume da esfera"
+    if re.search(r"\b(formula|volume|area)\b", t) and re.search(r"\b(esfera|cubo|cilindro|cone|piramide)\b", t):
+        sol = next(v for k, v in _SOLIDS_FORMULA.items() if k in t)
+        write_control(holo={"action": "add", "shape": "solido_formula", "solid": sol,
+                            "n": int(time.time() * 1000)})
+        art = "da" if sol in ("esfera", "piramide") else "do"
+        return Result(speak=f"Fórmulas {art} {sol} na tela, senhor.")
+
+    # modelos nomeados
+    for pat, name, nome in _MODELS:
+        if re.search(pat, t) and (has_verb or name.startswith(("tabela", "circulo", "molecula"))
+                                  or re.search(r"\b(triangulo retangulo|corpo livre|plano inclinado)\b", t)):
+            write_control(holo={"action": "add", "shape": name, "n": int(time.time() * 1000)})
+            return Result(speak=f"{nome} na tela, senhor.")
+
+    # formas geométricas simples
+    if has_verb:
+        m = re.search(rf"\b(?:{_MK})\b\s+(.+)", t)
+        if m:
+            for w in m.group(1).split():
+                shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
+                if shape:
+                    write_control(holo={"action": "add", "shape": shape,
+                                        "n": int(time.time() * 1000)})
+                    return Result(speak=f"{w.capitalize()} na tela, senhor.")
+    return None
+
+
+def _clean_expr(s: str) -> str:
+    s = (s or "").lower()
+    s = re.sub(r"[áàâã]", "a", s)
+    s = re.sub(r"^\s*(?:y|f\s*\(?\s*x\s*\)?)\s*=\s*", "", s)   # tira "y =" / "f(x) ="
+    s = re.sub(r"\bao\s+quadrado\b", "^2", s)
+    s = re.sub(r"\bao\s+cubo\b", "^3", s)
+    s = re.sub(r"\belevado\s+a\s+", "^", s)
+    s = re.sub(r"\s+mais\s+", "+", s)
+    s = re.sub(r"\s+menos\s+", "-", s)
+    s = re.sub(r"\s+vezes\s+|\s+multiplicado\s+por\s+", "*", s)
+    s = re.sub(r"\s+dividido\s+por\s+|\s+sobre\s+", "/", s)
+    s = re.sub(r"\braiz\s+(?:quadrada\s+)?de\s+([a-z0-9]+)", r"sqrt(\1)", s)
+    s = re.sub(r"\b(?:seno|sen)\s*(?:de\s+)?([a-z0-9]+)", r"sin(\1)", s)
+    s = re.sub(r"\b(?:cosseno|cos)\s*(?:de\s+)?([a-z0-9]+)", r"cos(\1)", s)
+    s = re.sub(r"\b(?:tangente|tg)\s*(?:de\s+)?([a-z0-9]+)", r"tan(\1)", s)
+    s = re.sub(r"\b(?:por favor|senhor|pra mim|na tela|agora|a funcao|funcao|da funcao)\b", "", s)
+    s = re.sub(r"[^0-9a-z^+\-*/(). ]", "", s).strip(" .")
+    return re.sub(r"\s+", "", s)
+
 _games: dict[str, str] = {}      # nome_normalizado -> appid
 _lnks: dict[str, str] = {}       # nome_normalizado -> caminho .lnk
 
@@ -334,6 +427,12 @@ _HELP = [
      r"cri\w* (um )?(cubo|forma)",
      "Diga \"Jarvis, ativar câmera\", senhor. Depois \"Jarvis, cria um cubo\" ou outra "
      "forma. Para sair, \"Jarvis, desativar câmera\"."),
+    (r"estud\w*|modelo\w*|holograma\w* de (fisica|quimica|biologia|matematica)|"
+     r"circulo trigonometrico|plota\w*|grafico|molecula|corpo livre|plano inclinado|"
+     r"tabela periodica|celula",
+     "Ative a câmera e peça, senhor: \"círculo trigonométrico\", \"plota x ao quadrado\", "
+     "\"molécula da água\", \"diagrama de corpo livre\", \"plano inclinado\", \"tabela periódica\", "
+     "\"fórmula do volume da esfera\", ou \"célula animal\"."),
     (r"mud\w* (o )?volume|aument\w* (o )?(volume|som)|abaix\w* (o )?(volume|som)|"
      r"control\w* (o )?(som|volume)|(deix\w*|por) (o )?som mais",
      "Diga \"Jarvis, aumenta o volume\" ou \"Jarvis, abaixa o volume\", senhor."),
@@ -443,32 +542,9 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         write_control(holo={"action": "clear", "n": int(time.time() * 1000)})
         return Result(speak="Tela limpa, senhor.")
 
-    _mk = ("cria\\w*|criar|faz\\w*|adiciona\\w*|gera\\w*|desenha\\w*|projeta\\w*|"
-           "poe|monta\\w*|mostra\\w*|exibe\\w*|abre\\w*|traz\\w*|quero\\w*|queria|"
-           "vira|me\\s+ve|manda\\w*|coloca\\w*|bota\\w*")
-    _trig = None
-    if re.search(rf"\b(?:{_mk})\b.*\btriangulo\s+retangulo\b|\btriangulo retangulo\b", t):
-        _trig = "triangulo"
-    elif re.search(rf"\b(?:{_mk})\b.*\b(tabela|quadro).*(angulos?\s+notave|angulos? notave)|"
-                   r"\bangulos?\s+notave\w*\b", t):
-        _trig = "tabela_angulos"
-    elif re.search(rf"\b(?:{_mk})\b.*\brela\w+\s+trigonom|\btabela\s+de\s+rela\w+\b|"
-                   r"\brela\w+\s+trigonometrica\w*\b", t):
-        _trig = "tabela_relacoes"
-    if _trig:
-        write_control(holo={"action": "add", "shape": _trig, "n": int(time.time() * 1000)})
-        _nome = {"triangulo": "Triângulo retângulo",
-                 "tabela_angulos": "Tabela de ângulos notáveis",
-                 "tabela_relacoes": "Relações trigonométricas"}[_trig]
-        return Result(speak=f"{_nome} na tela, senhor.")
-
-    m = re.search(rf"\b(?:{_mk})\b\s+(.+)", t)
-    if m:
-        for w in m.group(1).split():                       # varre as palavras após o verbo
-            shape = _SHAPES.get(w) or _SHAPES.get(norm(w))
-            if shape:
-                write_control(holo={"action": "add", "shape": shape, "n": int(time.time() * 1000)})
-                return Result(speak=f"{w.capitalize()} na tela, senhor.")
+    r = _holo_models(t, raw)
+    if r is not None:
+        return r
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):

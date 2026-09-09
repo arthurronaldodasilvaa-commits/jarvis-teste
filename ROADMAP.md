@@ -4,14 +4,15 @@ Guardado em 2026-09-09. Não é ordem de prioridade — é o balde de ideias.
 
 ---
 
-## A. Módulos de estudo holográficos (linha "Homem de Ferro")
+## A. Módulos de estudo holográficos (linha "Homem de Ferro")   — `ui/models.js`
 
-- [ ] **Círculo trigonométrico** animado — ângulo varrendo, sen/cos como projeções em tempo real
-- [ ] **Sólidos + fórmulas** — "mostra o volume da esfera" → 4/3·π·r³ ao lado da forma
-- [ ] **Física** — vetores de força, lançamento oblíquo, plano inclinado, diagrama de corpo livre
-- [ ] **Química** — moléculas 3D (H₂O, CH₄, benzeno) ball-and-stick + tabela periódica
-- [ ] **Anatomia** — esqueleto / coração / cérebro (glTF), girar, cortar ao meio (plano de corte), rótulos
-- [ ] **Plotter de função** — "plota y = x²" → curva/superfície neon 3D
+- [x] **Círculo trigonométrico** animado — ângulo varrendo, sen/cos como projeções em tempo real
+- [x] **Sólidos + fórmulas** — "fórmula do volume da esfera" → sólido girando + V/A ao lado
+- [x] **Física** — corpo livre, lançamento oblíquo (bola animada na parábola), plano inclinado (decomposição de P)
+- [x] **Química** — H₂O, CH₄, benzeno (ball-and-stick) + tabela periódica (painel)
+- [x] **Plotter de função** — "plota x ao quadrado − 4" → curva neon com eixos
+- [x] **Biologia** — célula animal (membrana, núcleo, mitocôndrias rotuladas)
+- [ ] **Anatomia** — esqueleto / coração / cérebro (precisa de assets glTF — não dá procedural bom)
 - [x] Triângulo retângulo 3·4·5, tabela de ângulos notáveis, tabela de relações
 
 ## B. Interação de mão (câmera)
