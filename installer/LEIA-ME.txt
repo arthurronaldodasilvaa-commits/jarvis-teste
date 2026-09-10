@@ -20,6 +20,13 @@ o seu PC":  clique em "Mais informações"  e depois em
 porque o programa é novo.
 --------------------------------------------------
 
+--------------------------------------------------
+MANUAL COMPLETO:  abra o arquivo  MANUAL.html  (dois
+cliques — abre no navegador). É um guia bonito e
+completo de tudo que dá pra pedir. Também dá pra
+abrir por voz: "Jarvis, como você funciona?"
+--------------------------------------------------
+
 COMO USAR, depois de instalado:
 
   "Jarvis"                        -> ele responde e espera
@@ -29,7 +36,9 @@ COMO USAR, depois de instalado:
   "Jarvis, como chegar em ..."
   "Jarvis, modo cinema"          -> ele para de ouvir
   Ctrl + Alt + J                 -> ele volta a ouvir
-  "Jarvis, o que você sabe fazer?"  -> ele te explica
+  "Jarvis, como você funciona?"  -> abre o manual completo
+  "Jarvis, aprende meu rosto"    -> ele pergunta seu nome e
+                                    passa a te reconhecer
 
 Precisa de internet só na primeira vez (pra baixar o
 modelo). Depois funciona offline.
