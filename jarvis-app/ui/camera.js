@@ -64,6 +64,7 @@ window.jarvisCam = (() => {
     cancelAnimationFrame(raf);
     raf = 0;
     if (window.jarvisHands) window.jarvisHands.stop();
+    if (window.jarvisFace) window.jarvisFace.reset();
     if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
     video.srcObject = null;
     fxctx.clearRect(0, 0, fx.width, fx.height);

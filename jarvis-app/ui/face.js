@@ -99,6 +99,12 @@ window.jarvisFace = (() => {
 
   return {
     tick,
+    reset() {                    // câmera fechou: some com o "quem está aí"
+      current = null; reported = null; stableFrames = 0;
+      enrollName = ""; enrollGrab = [];
+      const a = api();
+      if (a && a.face_seen) a.face_seen("");
+    },
     onControl(s) {
       if (s && s.face_enroll && s.face_enroll !== enrollTag) {
         enrollTag = s.face_enroll;

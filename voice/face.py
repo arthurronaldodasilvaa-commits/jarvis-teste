@@ -58,7 +58,7 @@ def watch(mouth, cfg: dict, active_profile: str, relaunch) -> None:
             last_n = n
             name = str(d.get("name", "")).strip().lower()
 
-            if not name:                          # rosto sumiu
+            if not name:                          # rosto sumiu / câmera fechou
                 gone_since = time.time()
                 continue
             gone_since = time.time()

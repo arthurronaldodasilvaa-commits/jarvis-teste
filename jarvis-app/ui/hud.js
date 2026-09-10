@@ -81,18 +81,22 @@
   }
 
   // ---------- feed de notificações ----------
-  let feedSeen = 0;
+  //  notas somem sozinhas depois de ~11s; o DOM só muda quando o conjunto muda
+  const FEED_TTL = 11000;
+  let feedKey = "";
   function renderFeed(notes) {
     if (!Array.isArray(notes)) return;
     const host = $("feed");
-    // mostra as últimas 3
-    const last = notes.slice(-3);
-    if (notes.length === feedSeen && host.children.length === last.length) {
-      // nada novo; só mantém
-    }
-    feedSeen = notes.length;
+    if (!host || !host.appendChild) return;
+    const now = Date.now();
+    const live = notes
+      .filter((n) => n && n.t && (now - n.t * 1000) < FEED_TTL)
+      .slice(-3);
+    const key = live.map((n) => (n.t + ":" + n.msg)).join("|");
+    if (key === feedKey) return;                 // nada mudou -> não mexe no DOM
+    feedKey = key;
     host.innerHTML = "";
-    last.forEach((n) => {
+    live.forEach((n) => {
       const div = document.createElement("div");
       div.textContent = n.msg || "";
       if (n.kind) div.classList.add(n.kind);
