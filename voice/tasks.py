@@ -29,8 +29,10 @@ def _load() -> list[dict]:
 
 def _save(items: list[dict]) -> None:
     try:
-        FILE.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
-    except OSError as exc:
+        from common import _atomic_write
+        if not _atomic_write(FILE, json.dumps(items, ensure_ascii=False)):
+            log("tasks: não salvou (escrita atômica falhou)")
+    except Exception as exc:                       # noqa: BLE001
         log(f"tasks: não salvou ({exc})")
     _push_hud(items)
 
@@ -46,6 +48,10 @@ def add(text: str) -> str:
     if not text:
         return "O que o senhor quer adicionar?"
     items = _load()
+    # dedup: já tem essa tarefa aberta com o mesmo texto? não empilha.
+    tn = norm(text)
+    if any(norm(it.get("text", "")) == tn and not it.get("done") for it in items):
+        return f"Essa já está na lista, senhor: {text}."
     items.append({"text": text, "done": False, "at": time.time()})
     _save(items)
     return f"Anotado, senhor: {text}."
