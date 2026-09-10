@@ -96,9 +96,13 @@ window.jarvisHolo = (() => {
     else if (window.jarvisModels && window.jarvisModels.has(type)) m = window.jarvisModels.build(type, opts);
     if (m) {
       if (atPos) { m.position.copy(atPos); count++; } else place(m);
+      const withSliders = m.userData && m.userData.sliders;
+      // modelo com sliders ocupa mais espaço embaixo -> centraliza e encolhe um pouco
+      if (withSliders) { m.position.set(0, 0.2, 0); count--; }
       group.add(m);
-      shapes.push({ obj: m, bob: Math.random() * TAU, userScale: 1, appear: 0, amber: 0,
-        math: true, spin: { x: 0, y: 0 }, upd: m.userData && m.userData.update || null,
+      shapes.push({ obj: m, bob: Math.random() * TAU, userScale: withSliders ? 0.78 : 1,
+        appear: 0, amber: 0, math: true, spin: { x: 0, y: 0 },
+        upd: m.userData && m.userData.update || null,
         spawnType: type, spawnOpts: opts || null });
       return shapes[shapes.length - 1];
     }
@@ -159,6 +163,33 @@ window.jarvisHolo = (() => {
       dbg("modo " + (holo.mode || "normal"));
     }
     else if (holo.action === "clear_ink") { clearInk(); clearMeasure(); }
+    else if (holo.action === "param") {
+      // ajusta um slider do modelo selecionado (ou do último modelo com sliders)
+      let target = (selected && selected.obj.userData.sliders) ? selected
+        : [...shapes].reverse().find((s) => s.obj.userData.sliders);
+      if (target) {
+        const S = target.obj.userData.sliders;
+        const p = S.params.find((x) => matchParam(x, holo.name));
+        if (p) {
+          if (holo.value != null) S.set(p.name, +holo.value);
+          else if (holo.delta != null) S.set(p.name, p.value + (+holo.delta) * (p.step || (p.max - p.min) / 12));
+          setSelected(target);
+          dbg("param " + p.name + " = " + p.value);
+        }
+      }
+    }
+  }
+  function matchParam(p, spoken) {
+    if (!spoken) return false;
+    const s = String(spoken).toLowerCase();
+    const alias = {
+      ang: ["angulo", "ângulo", "inclinacao", "inclinação", "ang", "theta"],
+      massa: ["massa", "peso", "m"], v0: ["velocidade", "v0", "v zero", "rapidez"],
+      f: ["frequencia", "frequência", "freq"], A: ["amplitude", "altura"],
+      L: ["comprimento", "tamanho", "l"], a0: ["angulo inicial", "abertura", "amplitude angular"],
+    };
+    return (alias[p.name] || [p.name]).some((a) => s.includes(a))
+      || p.label.toLowerCase().includes(s);
   }
 
   // ---------- desenhar no ar ----------
@@ -276,7 +307,7 @@ window.jarvisHolo = (() => {
   const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false,
     poked: new Set(), pokeT: 0, trackPrev: null, palmT: 0, palmC: null,
     menuOn: false, menuAnchor: null, menuHover: -1, menuFrac: 0, menuCursor: null,
-    menuDwellStart: 0, palmStart: 0, palmGrace: 0, scrubT: null };
+    menuDwellStart: 0, palmStart: 0, palmGrace: 0, scrubT: null, slidingIdx: null };
   let dbgDot = [0, 0], dbgOn = false;
   let selectorId = null;   // id da mão que é a "seletora" (fica grudado)
 
@@ -318,9 +349,29 @@ window.jarvisHolo = (() => {
     dbgOn = !!selPx;
     if (selPx) dbgDot = selPx;
 
-    // ---- SELETORA: 👌 seleciona + arrasta ----
+    // ---- SLIDER: pinça sobre um controle do modelo selecionado ----
+    let onSlider = false;
     const selPinch = sg.pinch >= 0.9 && !!selPx;
-    if (selPinch) {
+    if (selPinch && selected && !selected.locked && selected.obj.userData.sliders) {
+      const S = selected.obj.userData.sliders;
+      const wp = pxToWorld(selPx[0], selPx[1], selected.obj.position.z);
+      if (Number.isFinite(wp.x)) {
+        const lp = selected.obj.worldToLocal(wp.clone());
+        if (st.slidingIdx == null && !st.selPinchWas) {
+          let bi = -1, bd = 0.5;
+          S.rows.forEach((row, i) => {
+            const d = Math.hypot(lp.x - row.handle.position.x, lp.y - row.handle.position.y);
+            if (d < bd) { bd = d; bi = i; }
+          });
+          if (bi >= 0) st.slidingIdx = bi;
+        }
+        if (st.slidingIdx != null) { S.drag(st.slidingIdx, lp.x); onSlider = true; }
+      }
+    }
+    if (!selPinch) st.slidingIdx = null;
+
+    // ---- SELETORA: 👌 seleciona + arrasta ----
+    if (selPinch && !onSlider) {
       const nearSel = selected && (() => {
         const [sx, sy] = worldToPx(selected.obj.position);
         return Math.hypot(sx - selPx[0], sy - selPx[1]) < R * 1.4;
@@ -674,7 +725,12 @@ window.jarvisHolo = (() => {
         s.obj.rotation.y += s.spin.y;
         s.obj.position.y += Math.sin(t * 1.05 + s.bob) * 0.0014;
       }
-      if (s.upd && s !== selected && !s.locked) { try { s.upd(t); } catch (_) { s.upd = null; } }
+      // anima: normalmente só quando não selecionado; modelos COM sliders animam
+      // sempre (pra refletir o ajuste ao vivo)
+      const hasSliders = s.obj.userData && s.obj.userData.sliders;
+      if (s.upd && !s.locked && (s !== selected || hasSliders)) {
+        try { s.upd(t); } catch (_) { s.upd = null; }
+      }
       // explodir: interpola filhos até o alvo
       if (s.exploded != null) {
         for (const c of s.obj.children) {

@@ -83,6 +83,55 @@ window.jarvisModels = (() => {
     if (label3d) put(g, label(label3d, { color, font: 30 }), to.x + dir.x * 0.3, to.y + dir.y * 0.3 + 0.15, 0.6);
     return g;
   }
+  // painel de sliders interativos: pega o punho com a pinça e arrasta.
+  //  defs: [{name, label, min, max, value, unit, step, fmt}]
+  //  devolve { group, params, get(name), set(name,v), refresh() }
+  const _fmt = (v, step) => (step && step >= 1 ? Math.round(v) : Math.round(v * 100) / 100);
+  function sliders(defs, opts = {}) {
+    const group = new THREE.Group();
+    const W = opts.w || 2.4;
+    const y0 = opts.y != null ? opts.y : -2.5;
+    const params = defs.map((d) => Object.assign({ step: 0, unit: "" }, d));
+    const rows = params.map((p, i) => {
+      const y = y0 - i * 0.52;
+      group.add(line([V(-W / 2, y), V(W / 2, y)], 0x2f5a6e, 0.7));
+      group.add(line([V(-W / 2, y - 0.08), V(-W / 2, y + 0.08)], 0x2f5a6e, 0.5));
+      group.add(line([V(W / 2, y - 0.08), V(W / 2, y + 0.08)], 0x2f5a6e, 0.5));
+      const handle = ball(0.13, AMBER);
+      handle.userData.slider = i;
+      group.add(handle);
+      const lab = dynLabel(560, 58, { font: 26, color: SOFT });
+      lab.position.set(0, y + 0.30, 0.05); lab.scale.multiplyScalar(0.62); group.add(lab);
+      return { p, handle, lab, y };
+    });
+    const S = { group, params, rows, W };
+    S.get = (n) => { const p = params.find((x) => x.name === n); return p ? p.value : 0; };
+    S.set = (n, v) => {
+      const p = params.find((x) => x.name === n);
+      if (!p) return false;
+      p.value = Math.max(p.min, Math.min(p.max, +v));
+      S.refresh(); return true;
+    };
+    S.refresh = () => rows.forEach(({ p, handle, lab, y }) => {
+      const f = (p.value - p.min) / (p.max - p.min || 1);
+      handle.position.set(-W / 2 + f * W, y, 0.06);
+      lab.setText(`${p.label} = ${_fmt(p.value, p.step)}${p.unit}`);
+    });
+    // arrasta pelo handle: xLocal em -W/2..W/2 -> valor
+    S.drag = (idx, xLocal) => {
+      const p = params[idx];
+      if (!p) return;
+      let f = (xLocal + S.W / 2) / S.W;
+      f = Math.max(0, Math.min(1, f));
+      let v = p.min + f * (p.max - p.min);
+      if (p.step) v = Math.round(v / p.step) * p.step;
+      p.value = Math.max(p.min, Math.min(p.max, v));
+      S.refresh();
+    };
+    S.refresh();
+    return S;
+  }
+
   function axes(sz = 2.4, lab = true) {
     const g = new THREE.Group();
     g.add(line([V(-sz, 0), V(sz, 0)], 0x4bb6d6, 0.6));
@@ -208,45 +257,78 @@ window.jarvisModels = (() => {
   }
   function lancamento() {
     const g = new THREE.Group();
-    g.add(line([V(-3, -1.6), V(3, -1.6)], 0x4bb6d6, 0.6));
-    const v0 = 3.2, ang = Math.PI / 4, gAcc = 4.5;
-    const pts = [];
-    for (let t = 0; t <= 2; t += 0.04) {
-      const x = -2.6 + v0 * Math.cos(ang) * t;
-      const y = -1.6 + v0 * Math.sin(ang) * t - 0.5 * gAcc * t * t;
-      if (y < -1.7) break;
-      pts.push(V(x, y));
-    }
-    g.add(line(pts, NEON, 0.95));
-    g.add(arrow(V(-2.6, -1.6), V(-2.6 + Math.cos(ang) * 1.2, -1.6 + Math.sin(ang) * 1.2), AMBER, "v₀"));
-    const ball0 = ball(0.09, AMBER); g.add(ball0);
-    put(g, label("LANÇAMENTO OBLÍQUO\nx = v₀cosθ·t     y = v₀senθ·t − ½g·t²", { font: 26, color: SOFT }), 0, 2, 0.6);
+    const G = 9.8, X0 = -2.6, Y0 = -1.6;
+    g.add(line([V(-3, Y0), V(3, Y0)], 0x4bb6d6, 0.6));
+    const traj = line([V(0, 0)], NEON, 0.95); g.add(traj);
+    const va = arrow(V(X0, Y0), V(X0 + 1, Y0), AMBER, "v₀"); g.add(va);
+    const ball0 = ball(0.1, AMBER); g.add(ball0);
+    const read = dynLabel(560, 90); put(g, read, 0, 1.4, 0.6);
+    put(g, label("LANÇAMENTO OBLÍQUO", { font: 26, color: SOFT }), 0, 2.2, 0.6);
+    const S = sliders([
+      { name: "v0", label: "v₀", min: 2, max: 12, value: 7, unit: " m/s" },
+      { name: "ang", label: "θ", min: 10, max: 80, value: 45, unit: "°", step: 1 },
+    ]);
+    g.add(S.group);
     g.userData.type = "lancamento";
+    g.userData.params = S.params;
+    g.userData.sliders = S;
+    const SCALE = 0.09;                       // metros -> unidades de tela
     g.userData.update = (t) => {
-      const i = Math.floor((t * 18) % pts.length);
+      const v0 = S.get("v0"), th = S.get("ang") * Math.PI / 180;
+      const tv = 2 * v0 * Math.sin(th) / G;   // tempo de voo
+      const range = v0 * v0 * Math.sin(2 * th) / G;
+      const hmax = (v0 * Math.sin(th)) ** 2 / (2 * G);
+      const pts = [];
+      for (let k = 0; k <= 40; k++) {
+        const tt = k / 40 * tv;
+        pts.push(V(X0 + v0 * Math.cos(th) * tt * SCALE,
+          Y0 + (v0 * Math.sin(th) * tt - 0.5 * G * tt * tt) * SCALE));
+      }
+      traj.geometry.setFromPoints(pts);
+      const i = Math.floor((t * 0.5 % 1) * 40);
       if (pts[i]) ball0.position.copy(pts[i]);
+      va.children[0].geometry.setFromPoints(
+        [V(X0, Y0), V(X0 + Math.cos(th) * v0 * 0.12, Y0 + Math.sin(th) * v0 * 0.12)]);
+      read.setText(`alcance ${range.toFixed(1)} m   ·   altura máx ${hmax.toFixed(1)} m\ntempo de voo ${tv.toFixed(1)} s`);
+      S.refresh();
     };
     return g;
   }
   function planoInclinado() {
     const g = new THREE.Group();
-    const A = V(-2.4, -1.4), B = V(2.4, -1.4), C = V(2.4, 1.2);
-    g.add(line([A, B, C, A], NEON, 0.9));
-    // bloco no meio da rampa
-    const mid = A.clone().add(C).multiplyScalar(0.5);
-    const along = C.clone().sub(A).normalize();
-    const normal = V(-along.y, along.x);
-    const blk = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.4),
-      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.15 }));
-    blk.position.copy(mid).add(normal.clone().multiplyScalar(0.22));
-    blk.rotation.z = Math.atan2(along.y, along.x);
+    const blk = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.38, 0.4),
+      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.16 }));
     g.add(blk);
-    g.add(arrow(blk.position, blk.position.clone().add(V(0, -1.3)), AMBER, "P"));
-    g.add(arrow(blk.position, blk.position.clone().add(normal.clone().multiplyScalar(1.1)), GREEN, "N"));
-    g.add(arrow(blk.position, blk.position.clone().add(along.clone().multiplyScalar(-1.1)), 0xff9de0, "Px = P·senθ"));
-    put(g, label("PLANO INCLINADO", { font: 28, color: SOFT }), 0, 1.9, 0.6);
-    put(g, label("θ", { color: AMBER, font: 30 }), A.x + 0.7, A.y + 0.12, 0.55);
+    const ramp = line([V(0, 0), V(0, 0), V(0, 0), V(0, 0)], NEON, 0.9); g.add(ramp);
+    const aP = arrow(V(0, 0), V(0, -1), AMBER, "P"); g.add(aP);
+    const aN = arrow(V(0, 0), V(0, 1), GREEN, "N"); g.add(aN);
+    const aPx = arrow(V(0, 0), V(-1, 0), 0xff9de0, "Pₓ"); g.add(aPx);
+    const read = dynLabel(540, 90); put(g, read, 0, 1.5, 0.6);
+    put(g, label("PLANO INCLINADO", { font: 26, color: SOFT }), 0, 2.2, 0.6);
+    const S = sliders([
+      { name: "ang", label: "θ", min: 5, max: 60, value: 30, unit: "°", step: 1 },
+      { name: "massa", label: "m", min: 1, max: 20, value: 5, unit: " kg", step: 1 },
+    ]);
+    g.add(S.group);
     g.userData.type = "plano_inclinado";
+    g.userData.params = S.params;
+    g.userData.sliders = S;
+    g.userData.update = () => {
+      const th = S.get("ang") * Math.PI / 180, m = S.get("massa");
+      const A = V(-2.3, -1.3), B = V(2.3, -1.3);
+      const C = V(2.3, -1.3 + Math.tan(th) * 4.6);
+      ramp.geometry.setFromPoints([A, B, C, A]);
+      const along = C.clone().sub(A).normalize(), nrm = V(-along.y, along.x);
+      const mid = A.clone().lerp(C, 0.45).add(nrm.clone().multiplyScalar(0.22));
+      blk.position.copy(mid); blk.rotation.z = Math.atan2(along.y, along.x);
+      const P = m * 0.09;                     // escala visual
+      aP.children[0].geometry.setFromPoints([mid, mid.clone().add(V(0, -P))]);
+      aN.children[0].geometry.setFromPoints([mid, mid.clone().add(nrm.clone().multiplyScalar(P * Math.cos(th)))]);
+      aPx.children[0].geometry.setFromPoints([mid, mid.clone().add(along.clone().multiplyScalar(-P * Math.sin(th)))]);
+      read.setText(`Pₓ = P·senθ = ${(m * 9.8 * Math.sin(th)).toFixed(1)} N\nN = P·cosθ = ${(m * 9.8 * Math.cos(th)).toFixed(1)} N`);
+      S.refresh();
+    };
+    g.userData.update();
     return g;
   }
 
@@ -336,24 +418,30 @@ window.jarvisModels = (() => {
   function onda(opts) {
     const g = new THREE.Group();
     g.add(axes(3.2, false));
-    const A = 1.15, k = 2.1, w = 2.0;
     const wave = line([V(0, 0)], NEON, 0.95); g.add(wave);
     const dot = ball(0.09, AMBER); g.add(dot);
-    // marcadores de amplitude e comprimento de onda
-    g.add(line([V(-3, A), V(3, A)], 0x2a5a6e, 0.4));
-    g.add(line([V(-3, -A), V(3, -A)], 0x2a5a6e, 0.4));
-    put(g, label("A", { color: GREEN, font: 24 }), 3.15, A, 0.5);
-    const lam = TAU / k;
-    g.add(arrow(V(-2.6, -A - 0.5), V(-2.6 + lam, -A - 0.5), 0xff9de0));
-    g.add(arrow(V(-2.6 + lam, -A - 0.5), V(-2.6, -A - 0.5), 0xff9de0));
-    put(g, label("λ", { color: "#ff9de0", font: 24 }), -2.6 + lam / 2, -A - 0.9, 0.5);
-    put(g, label("ONDA   y = A · sen(k·x − ω·t)", { font: 26, color: SOFT }), 0, 2.7, 0.6);
+    const ampT = line([V(-3, 1), V(3, 1)], 0x2a5a6e, 0.4); g.add(ampT);
+    const ampB = line([V(-3, -1), V(3, -1)], 0x2a5a6e, 0.4); g.add(ampB);
+    const read = dynLabel(560, 60); put(g, read, 0, -2.7, 0.6);
+    put(g, label("ONDA   y = A · sen(k·x − ω·t)", { font: 26, color: SOFT }), 0, 2.6, 0.6);
+    const S = sliders([
+      { name: "A", label: "A", min: 0.3, max: 1.6, value: 1.1 },
+      { name: "f", label: "freq", min: 0.2, max: 2.5, value: 1.0, unit: " Hz" },
+    ], { y: -3.4 });
+    g.add(S.group);
     g.userData.type = "onda";
+    g.userData.params = S.params;
+    g.userData.sliders = S;
     g.userData.update = (t) => {
+      const A = S.get("A"), f = S.get("f");
+      const k = 2.1 * f, w = 2.0 * f;
       const pts = [];
       for (let x = -3; x <= 3.001; x += 0.05) pts.push(V(x, A * Math.sin(k * x - w * t)));
       wave.geometry.setFromPoints(pts);
       dot.position.set(2.4, A * Math.sin(k * 2.4 - w * t), 0);
+      ampT.position.y = A - 1; ampB.position.y = -A + 1;
+      read.setText(`λ = ${(TAU / k).toFixed(2)}   ·   T = ${(1 / f).toFixed(2)} s`);
+      S.refresh();
     };
     return g;
   }
@@ -361,23 +449,35 @@ window.jarvisModels = (() => {
   // ================= B2 — pêndulo simples (física) =================
   function pendulo() {
     const g = new THREE.Group();
-    const piv = V(0, 2.4);
+    const piv = V(0, 2.0);
     const pb = ball(0.08, SOFT); pb.position.copy(piv); g.add(pb);
-    g.add(line([V(-1.3, 2.4), V(1.3, 2.4)], 0x4bb6d6, 0.5));
+    g.add(line([V(-1.3, 2.0), V(1.3, 2.0)], 0x4bb6d6, 0.5));
     const rod = line([piv, piv], SOFT, 0.85); g.add(rod);
-    const bob = ball(0.3, AMBER); g.add(bob);
-    const L = 3.4, th0 = 0.5;
-    // arco tracejado do movimento
-    const arc = [];
-    for (let i = -1; i <= 1; i += 0.05) arc.push(V(piv.x + L * Math.sin(th0 * i), piv.y - L * Math.cos(th0 * i)));
-    g.add(line(arc, 0x2a5a6e, 0.4));
-    put(g, label("PÊNDULO SIMPLES\nT = 2π · √(L / g)", { font: 26, color: SOFT }), 0, 3.0, 0.6);
+    const bob = ball(0.28, AMBER); g.add(bob);
+    const arc = line([V(0, 0)], 0x2a5a6e, 0.4); g.add(arc);
+    const read = dynLabel(520, 56); put(g, read, 0, -1.55, 0.6);
+    put(g, label("PÊNDULO SIMPLES   T = 2π·√(L/g)", { font: 24, color: SOFT }), 0, 3.0, 0.6);
+    const S = sliders([
+      { name: "L", label: "L", min: 0.5, max: 3.0, value: 1.8, unit: " m" },
+      { name: "a0", label: "θ₀", min: 5, max: 45, value: 25, unit: "°", step: 1 },
+    ]);
+    g.add(S.group);
     g.userData.type = "pendulo";
+    g.userData.params = S.params;
+    g.userData.sliders = S;
     g.userData.update = (t) => {
-      const th = th0 * Math.cos(t * 1.7);
-      const end = V(piv.x + L * Math.sin(th), piv.y - L * Math.cos(th));
+      const L = S.get("L"), th0 = S.get("a0") * Math.PI / 180;
+      const Lv = 0.55 + L * 0.9;             // comprimento visual
+      const T = 2 * Math.PI * Math.sqrt(L / 9.8);
+      const th = th0 * Math.cos((t / T) * TAU);
+      const end = V(piv.x + Lv * Math.sin(th), piv.y - Lv * Math.cos(th));
       rod.geometry.setFromPoints([piv, end]);
       bob.position.copy(end);
+      const ap = [];
+      for (let i = -1; i <= 1; i += 0.05) ap.push(V(piv.x + Lv * Math.sin(th0 * i), piv.y - Lv * Math.cos(th0 * i)));
+      arc.geometry.setFromPoints(ap);
+      read.setText(`período T = ${T.toFixed(2)} s`);
+      S.refresh();
     };
     return g;
   }

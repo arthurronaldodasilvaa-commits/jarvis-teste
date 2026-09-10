@@ -245,10 +245,59 @@ _VSEPR = {"linear": "geometria_linear", "angular": "geometria_angular",
 _SOLIDS_FORMULA = {"esfera": "esfera", "cubo": "cubo", "cilindro": "cilindro",
                    "cone": "cone", "piramide": "piramide", "pirâmide": "piramide"}
 
+_PARAM_WORDS = (r"angulo|ângulo|inclinacao|inclinação|massa|peso|velocidade|"
+                r"frequencia|frequência|amplitude|comprimento|abertura|altura|tamanho")
+_NUMW = {"zero": 0, "um": 1, "uma": 1, "dois": 2, "tres": 3, "três": 3, "quatro": 4,
+         "cinco": 5, "seis": 6, "sete": 7, "oito": 8, "nove": 9, "dez": 10,
+         "quinze": 15, "vinte": 20, "vinte e cinco": 25, "trinta": 30,
+         "trinta e cinco": 35, "quarenta": 40, "quarenta e cinco": 45,
+         "cinquenta": 50, "sessenta": 60}
+
+
+def _holo_param(t: str) -> "Result | None":
+    """'muda o ângulo pra 30', 'aumenta a massa', 'diminui a frequência'."""
+    m = re.search(rf"\b(muda\w*|ajust\w*|coloc\w*|poe|bota|deix\w*|defin\w*|set\w*|"
+                  rf"aument\w*|sobe|cresc\w*|diminu\w*|abaix\w*|reduz\w*|baix\w*)\b"
+                  rf".*?\b({_PARAM_WORDS})\b(.*)", t)
+    if not m:
+        m = re.search(rf"\b({_PARAM_WORDS})\b\s+(?:pra|para|em|no|de)\s+(.+)", t)
+        if not m:
+            return None
+        verbo, nome, resto = "muda", m.group(1), m.group(2)
+    else:
+        verbo, nome, resto = m.group(1), m.group(2), m.group(3)
+
+    holo = {"action": "param", "name": nome, "n": int(time.time() * 1000)}
+    is_delta = bool(re.search(r"aument|sobe|cresc|diminu|abaix|reduz|baix", verbo))
+
+    val = None
+    num = re.search(r"(-?\d+(?:[.,]\d+)?)", resto)
+    if num:
+        val = float(num.group(1).replace(",", "."))
+    else:
+        for w, n in sorted(_NUMW.items(), key=lambda kv: -len(kv[0])):
+            if re.search(rf"\b{re.escape(w)}\b", resto):
+                val = n
+                break
+
+    if not is_delta and val is not None:
+        holo["value"] = val
+        write_control(holo=holo)
+        v = int(val) if val == int(val) else val
+        return Result(speak=f"{nome.capitalize()} em {v}, senhor.")
+    holo["delta"] = 1 if re.search(r"aument|sobe|cresc", verbo) else -1
+    write_control(holo=holo)
+    return Result(speak="Ajustado, senhor.")
+
 
 def _holo_models(t: str, raw: str = "") -> "Result | None":
     """Modelos de estudo + formas simples na câmera. t = texto normalizado."""
     has_verb = re.search(rf"\b(?:{_MK})\b", t) is not None
+
+    # ajuste de parâmetro de um modelo interativo (slider)
+    _pr = _holo_param(t)
+    if _pr is not None:
+        return _pr
 
     # gráfico estatístico: "gráfico de barras 4 7 3 9" / "gráfico de setores 30 50 20"
     mg = re.search(r"grafico\s+(?:de\s+|em\s+)?(barras?|colunas?|setores?|pizza|circular|"
