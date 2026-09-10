@@ -31,6 +31,11 @@ _ALT = re.compile(
     r"(?:holograma|modelo|esquema|diagrama|representacao)\s+"
     r"(?:de|da|do|sobre)\s+(.+)")
 
+_ALT2 = re.compile(
+    r"\b(quero|queria|preciso\s+de|me\s+d[aá])\s+(?:um|uma)\s+"
+    r"(?:holograma|modelo|esquema|diagrama|desenho|ilustracao|sistema|representacao)\s+"
+    r"(?:de\s+|da\s+|do\s+|sobre\s+)?(.+)")
+
 _SYS = """Você descreve um DESENHO 3D esquemático (holograma de estudo) como JSON de UMA linha.
 Formato: {"title":"<nome curto>","spin":true/false,"parts":[ ... ]}
 
@@ -46,8 +51,8 @@ Cada peça de "parts" é um objeto com "t" (tipo) e campos:
   {"t":"label","at":[x,y,z],"text":"6 prótons","c":"soft"}      texto
 
 Cores: neon, soft, amber, green, red, azul, rosa, cinza, branco, dim.
-Coordenadas de -3 a 3. Máximo 20 peças. Seja esquemático e claro, com rótulos.
-Responda SÓ o JSON. Nada antes, nada depois.
+Coordenadas de -3 a 3. NO MÁXIMO 12 peças — seja enxuto. Rótulos curtos.
+Responda SÓ o JSON, em UMA linha. Nada antes, nada depois. Não repita peças.
 
 Exemplo — "átomo de carbono":
 {"title":"Átomo de carbono","spin":true,"parts":[{"t":"ball","at":[0,0,0],"r":0.4,"c":"cinza","label":"núcleo"},{"t":"label","at":[0,-0.9,0],"text":"6p + 6n","c":"soft"},{"t":"ring","at":[0,0,0],"r":1.2,"c":"dim"},{"t":"ring","at":[0,0,0],"r":2.1,"c":"dim"},{"t":"ball","at":[1.2,0,0],"r":0.08,"c":"azul","label":"e⁻"},{"t":"ball","at":[-1.2,0,0],"r":0.08,"c":"azul"},{"t":"ball","at":[2.1,0,0],"r":0.08,"c":"azul"},{"t":"ball","at":[0,2.1,0],"r":0.08,"c":"azul"},{"t":"ball","at":[-2.1,0,0],"r":0.08,"c":"azul"},{"t":"ball","at":[0,-2.1,0],"r":0.08,"c":"azul"}]}
@@ -59,7 +64,7 @@ Exemplo — "alavanca":
 
 def match(t: str) -> str | None:
     """t normalizado. Devolve o TEMA pedido, ou None."""
-    m = _TRIGGER.search(t) or _ALT.search(t)
+    m = _TRIGGER.search(t) or _ALT.search(t) or _ALT2.search(t)
     if not m:
         return None
     tema = m.group(m.lastindex).strip()
@@ -73,32 +78,66 @@ def make_spec(tema: str, brain) -> dict | None:
         out = brain._post(
             [{"role": "system", "content": _SYS},
              {"role": "user", "content": tema}],
-            600, temperature=0.3)
+            1100, temperature=0.3)
     except Exception as exc:                      # noqa: BLE001
         log(f"invent: LLM falhou ({exc})")
         return None
-    m = re.search(r"\{.*\}", out, re.S)
-    if not m:
+    start = out.find("{")
+    if start < 0:
         log(f"invent: sem JSON ({out[:120]!r})")
         return None
-    txt = m.group(0)
-    for _ in range(3):                            # conserta cauda cortada: fecha colchetes
-        try:
-            spec = json.loads(txt)
-            break
-        except ValueError:
-            if txt.count("{") > txt.count("}"):
-                txt += "}"
-            elif txt.count("[") > txt.count("]"):
-                txt += "]"
-            else:
-                log(f"invent: JSON inválido ({txt[:150]!r})")
-                return None
-    else:
+    txt = out[start:]
+
+    # tenta parsear inteiro; se cortou no meio, SALVA as peças completas
+    spec = None
+    try:
+        spec = json.loads(txt)
+    except ValueError:
+        spec = _salvage(txt, tema)
+    if not spec:
+        log(f"invent: não recuperei nada de ({txt[:150]!r})")
         return None
+
     parts = spec.get("parts") or spec.get("elementos") or []
-    if not isinstance(parts, list) or not parts:
+    parts = [p for p in parts if isinstance(p, dict)][:24]
+    if not parts:
         return None
-    spec["parts"] = parts[:24]
-    spec.setdefault("title", tema)
+    spec["parts"] = parts
+    spec["title"] = str(spec.get("title") or spec.get("titulo") or tema)[:60]
+    spec["spin"] = bool(spec.get("spin") or spec.get("girar"))
     return spec
+
+
+def _salvage(txt: str, tema: str) -> dict | None:
+    """JSON cortado no meio: extrai todo objeto {...} completo de dentro de parts."""
+    tm = re.search(r'"tit(?:le|ulo)"\s*:\s*"([^"]*)"', txt)
+    sp = re.search(r'"(?:spin|girar)"\s*:\s*(true|false)', txt)
+    pi = txt.find('"parts"')
+    if pi < 0:
+        pi = txt.find('"elementos"')
+    if pi < 0:
+        return None
+    br = txt.find("[", pi)
+    if br < 0:
+        return None
+    depth, cur, objs = 0, "", []
+    for ch in txt[br + 1:]:
+        if ch == "{":
+            depth += 1
+        if depth > 0:
+            cur += ch
+        if ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    objs.append(json.loads(cur))
+                except ValueError:
+                    pass
+                cur = ""
+        elif ch == "]" and depth == 0:
+            break
+    if not objs:
+        return None
+    return {"title": tm.group(1) if tm else tema,
+            "spin": bool(sp and sp.group(1) == "true"),
+            "parts": objs}
