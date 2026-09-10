@@ -1,6 +1,8 @@
 # modelos / binários — nunca converter fim de linha
 jarvis-app/ui/lib/face-api/*-shard*   binary
 jarvis-app/ui/lib/face-api/face-api.min.js   -text
+jarvis-app/ui/lib/tess/*.traineddata*   binary
+jarvis-app/ui/lib/tess/*.js   -text
 *.onnx   binary
 *.tflite   binary
 *.bin   binary
