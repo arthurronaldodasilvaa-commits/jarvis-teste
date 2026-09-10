@@ -115,28 +115,46 @@
   }
 
   // ---------- feed de notificações ----------
-  //  notas somem sozinhas depois de ~11s; o DOM só muda quando o conjunto muda
+  //  cada nota entra com fade-in e sai com fade-out ~11 s depois. O DOM é
+  //  reconciliado por chave (t:msg) — nós que continuam vivos não piscam.
   const FEED_TTL = 11000;
-  let feedKey = "";
+  const feedNodes = new Map();                  // chave -> {el, timer}
   function renderFeed(notes) {
     if (!Array.isArray(notes)) return;
     const host = $("feed");
     if (!host || !host.appendChild) return;
     const now = Date.now();
-    const live = notes
-      .filter((n) => n && n.t && (now - n.t * 1000) < FEED_TTL)
-      .slice(-3);
-    const key = live.map((n) => (n.t + ":" + n.msg)).join("|");
-    if (key === feedKey) return;                 // nada mudou -> não mexe no DOM
-    feedKey = key;
-    host.innerHTML = "";
+    const live = notes.filter((n) => n && n.t && (now - n.t * 1000) < FEED_TTL).slice(-3);
+    const seen = new Set();
+
     live.forEach((n) => {
+      const key = n.t + ":" + n.msg;
+      seen.add(key);
+      if (feedNodes.has(key)) return;           // já está na tela
       const div = document.createElement("div");
       div.textContent = n.msg || "";
       if (n.kind) div.classList.add(n.kind);
       host.appendChild(div);
-      requestAnimationFrame(() => div.classList.add("on"));
+      void div.offsetWidth;                   // reflow: garante o fade-in mesmo com rAF parado (janela oculta)
+      div.classList.add("on");
+      // agenda a saída pro momento exato em que essa nota expira
+      const ttl = Math.max(400, FEED_TTL - (now - n.t * 1000));
+      const timer = setTimeout(() => dropFeed(key), ttl);
+      feedNodes.set(key, { el: div, timer });
     });
+
+    // some com quem não está mais vivo
+    for (const key of [...feedNodes.keys()]) {
+      if (!seen.has(key)) dropFeed(key);
+    }
+  }
+  function dropFeed(key) {
+    const rec = feedNodes.get(key);
+    if (!rec) return;
+    feedNodes.delete(key);
+    clearTimeout(rec.timer);
+    rec.el.classList.remove("on");              // dispara o fade-out (CSS)
+    setTimeout(() => rec.el.remove(), 450);
   }
 
   // ---------- fase (pensando / pesquisando / erro) ----------
