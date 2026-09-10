@@ -821,6 +821,202 @@ window.jarvisModels = (() => {
     return g;
   }
 
+  // ================= E1 — óptica: lente convergente =================
+  function lente() {
+    const g = new THREE.Group();
+    g.add(axes(3.2, false));
+    // lente (elipse fina no eixo y)
+    const lens = [];
+    for (let i = 0; i <= 40; i++) { const a = i / 40 * TAU; lens.push(V(Math.cos(a) * 0.22, Math.sin(a) * 1.6)); }
+    g.add(line(lens, NEON, 0.9));
+    const obj = arrow(V(-2.4, 0), V(-2.4, 1.1), GREEN, "objeto"); g.add(obj);
+    const img = line([V(0, 0), V(0, 0)], AMBER, 1); g.add(img);
+    const r1 = line([V(0, 0), V(0, 0)], 0x6fcbe0, 0.6); g.add(r1);
+    const r2 = line([V(0, 0), V(0, 0)], 0x6fcbe0, 0.6); g.add(r2);
+    put(g, label("F", { color: SOFT, font: 22 }), 1.4, -0.3, 0.5);
+    put(g, label("F", { color: SOFT, font: 22 }), -1.4, -0.3, 0.5);
+    const read = dynLabel(520, 56); put(g, read, 0, -2.6, 0.6);
+    put(g, label("LENTE CONVERGENTE   1/f = 1/p + 1/p'", { font: 23, color: SOFT }), 0, 2.7, 0.6);
+    const S = sliders([
+      { name: "p", label: "distância do objeto", min: 1.2, max: 4.5, value: 2.4, unit: "" },
+      { name: "f", label: "foco f", min: 0.6, max: 1.6, value: 1.2, unit: "" },
+    ]);
+    g.add(S.group);
+    g.userData.type = "lente";
+    g.userData.params = S.params;
+    g.userData.sliders = S;
+    g.userData.update = () => {
+      const p = S.get("p"), f = S.get("f"), ho = 1.1;
+      obj.children[0].geometry.setFromPoints([V(-p, 0), V(-p, ho)]);
+      const pl = 1 / (1 / f - 1 / p);           // distância da imagem (>0 = real, do outro lado)
+      const hi = -ho * pl / p;
+      img.geometry.setFromPoints([V(pl, 0), V(pl, hi)]);
+      r1.geometry.setFromPoints([V(-p, ho), V(0, ho), V(pl, hi)]);       // raio paralelo -> foco
+      r2.geometry.setFromPoints([V(-p, ho), V(0, 0), V(pl, hi)]);        // raio pelo centro
+      read.setText(pl > 0
+        ? `imagem REAL e invertida a ${pl.toFixed(1)}   ·   aumento ${(hi / ho).toFixed(2)}`
+        : `imagem VIRTUAL e direita   ·   aumento ${Math.abs(hi / ho).toFixed(2)}`);
+      S.refresh();
+    };
+    g.userData.update();
+    return g;
+  }
+
+  // ================= E4 — colisão de dois blocos =================
+  function colisao(opts) {
+    const g = new THREE.Group();
+    const elast = !(opts && /inel/.test(String(opts.kind || "")));
+    g.add(line([V(-3.2, -0.8), V(3.2, -0.8)], 0x4bb6d6, 0.6));
+    const a = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.5),
+      new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.2 }));
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.5),
+      new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0.2 }));
+    g.add(a); g.add(b);
+    put(g, label("A  m=1", { font: 20, color: NEON }), -2, 0.5, 0.5);
+    put(g, label("B  m=2", { font: 20, color: AMBER }), 2, 0.5, 0.5);
+    put(g, label(elast ? "COLISÃO ELÁSTICA (p e Ec conservados)" : "COLISÃO INELÁSTICA (só p conservado)",
+      { font: 22, color: SOFT }), 0, 2.2, 0.6);
+    const m1 = 1, m2 = 2;
+    let x1 = -2.6, x2 = 1.4, v1 = 1.6, v2 = -0.6, hit = false;
+    g.userData.type = "colisao_" + (elast ? "elastica" : "inelastica");
+    g.userData.update = (t) => {
+      const dt = 0.03;
+      x1 += v1 * dt; x2 += v2 * dt;
+      if (!hit && x2 - x1 < 0.85) {
+        hit = true;
+        if (elast) {
+          const nv1 = ((m1 - m2) * v1 + 2 * m2 * v2) / (m1 + m2);
+          const nv2 = ((m2 - m1) * v2 + 2 * m1 * v1) / (m1 + m2);
+          v1 = nv1; v2 = nv2;
+        } else { v1 = v2 = (m1 * v1 + m2 * v2) / (m1 + m2); }
+      }
+      if (x1 < -3 || x1 > 3) v1 *= -1;
+      if (x2 < -3 || x2 > 3) v2 *= -1;
+      if (x2 - x1 > 1.2) hit = false;
+      a.position.set(x1, -0.45, 0); b.position.set(x2, -0.35, 0);
+    };
+    return g;
+  }
+
+  // ================= E4 — circuito em paralelo =================
+  function circuitoParalelo() {
+    const g = new THREE.Group();
+    g.add(line([V(-2.4, -1.6), V(2.4, -1.6), V(2.4, 1.6), V(-2.4, 1.6), V(-2.4, -1.6)], NEON, 0.6));
+    // dois ramos verticais no meio
+    [-0.5, 0.9].forEach((x, i) => {
+      g.add(line([V(x, 1.6), V(x, -1.6)], NEON, 0.5));
+      const zz = [V(x, 0.5)];
+      for (let k = 0; k < 5; k++) zz.push(V(x + (k % 2 ? 0.22 : -0.22), 0.5 - k * 0.2 - 0.1));
+      zz.push(V(x, -0.5));
+      g.add(line(zz, GREEN, 1));
+      put(g, label("R" + (i + 1), { color: GREEN, font: 20 }), x + 0.35, 0, 0.5);
+    });
+    g.add(line([V(-2.15, -1.6), V(-2.15, -1.25)], SOFT, 1));
+    g.add(line([V(-1.9, -1.6), V(-1.9, -1.9)], SOFT, 1));
+    const dots = [];
+    for (let i = 0; i < 8; i++) { const d = ball(0.06, AMBER); g.add(d); dots.push(d); }
+    put(g, label("CIRCUITO EM PARALELO\n1/Req = 1/R1 + 1/R2     mesma tensão nos ramos",
+      { font: 22, color: SOFT }), 0, 2.3, 0.6);
+    g.userData.type = "circuito_paralelo";
+    g.userData.update = (t) => {
+      dots.forEach((d, i) => {
+        const u = (t * 0.3 + i / 8) % 1;
+        // percorre o retângulo externo
+        const per = [[-2.4, -1.6, 4.8, 0], [2.4, -1.6, 0, 3.2], [2.4, 1.6, -4.8, 0], [-2.4, 1.6, 0, -3.2]];
+        const seg = Math.floor(u * 4), fr = u * 4 - seg;
+        const s = per[seg];
+        d.position.set(s[0] + s[2] * fr, s[1] + s[3] * fr, 0);
+      });
+    };
+    return g;
+  }
+
+  // ================= E5 — árvore de probabilidade =================
+  function arvoreProb() {
+    const g = new THREE.Group();
+    const node = (x, y, lab, c) => { const b = ball(0.09, c || NEON); b.position.set(x, y, 0); g.add(b);
+      if (lab) put(g, label(lab, { font: 18, color: SOFT }), x, y + 0.28, 0.5); };
+    node(-2.4, 0, "início");
+    const p1 = 0.6;
+    g.add(line([V(-2.4, 0), V(-0.4, 1.4)], GREEN, 0.9));
+    g.add(line([V(-2.4, 0), V(-0.4, -1.4)], 0xff9de0, 0.9));
+    put(g, label(p1.toFixed(1), { color: GREEN, font: 18 }), -1.5, 0.9, 0.45);
+    put(g, label((1 - p1).toFixed(1), { color: "#ff9de0", font: 18 }), -1.5, -0.9, 0.45);
+    node(-0.4, 1.4, "A"); node(-0.4, -1.4, "não A");
+    [[1.4, 0.4], [1.4, -0.4], [-1.4, -1.9], [-1.4, -0.9]].forEach(() => {});
+    const leaves = [[1.9, 2.0, "A∩B", 0.36], [1.9, 0.9, "A∩B'", 0.24],
+      [1.9, -0.9, "A'∩B", 0.12], [1.9, -2.0, "A'∩B'", 0.28]];
+    [[-0.4, 1.4, 1.9, 2.0, "0.6"], [-0.4, 1.4, 1.9, 0.9, "0.4"],
+    [-0.4, -1.4, 1.9, -0.9, "0.3"], [-0.4, -1.4, 1.9, -2.0, "0.7"]].forEach((s) => {
+      g.add(line([V(s[0], s[1]), V(s[2], s[3])], SOFT, 0.6));
+      put(g, label(s[4], { font: 16, color: SOFT }), (s[0] + s[2]) / 2, (s[1] + s[3]) / 2 + 0.15, 0.4);
+    });
+    leaves.forEach((l) => { node(l[0], l[1], "", AMBER);
+      put(g, label(`${l[2]} = ${l[3]}`, { font: 17, color: AMBER }), l[0] + 0.85, l[1], 0.45); });
+    put(g, label("ÁRVORE DE PROBABILIDADE   (multiplica ao longo do galho)", { font: 21, color: SOFT }), 0, 2.7, 0.6);
+    g.userData.type = "arvore_probabilidade";
+    return g;
+  }
+
+  // ================= E3 — neurônio + sinapse =================
+  function neuronio() {
+    const g = new THREE.Group();
+    const soma = ball(0.4, NEON); g.add(soma);
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * TAU + 0.3;
+      g.add(line([V(0, 0), V(Math.cos(a) * 0.9, Math.sin(a) * 0.9), V(Math.cos(a) * 1.3, Math.sin(a) * 1.3 + (Math.random() - 0.5) * 0.3)], SOFT, 0.7));
+    }
+    put(g, label("dendritos", { font: 18, color: SOFT }), -1.5, 1.0, 0.5);
+    const axon = line([V(0.35, 0), V(2.4, 0)], NEON, 0.9); g.add(axon);
+    put(g, label("axônio", { font: 18, color: SOFT }), 1.3, 0.28, 0.5);
+    // bainha de mielina
+    for (let x = 0.8; x < 2.3; x += 0.45) { const m = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12),
+      new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0.3 })); m.position.set(x, 0, -0.01); g.add(m); }
+    const term = ball(0.18, GREEN); term.position.set(2.5, 0, 0); g.add(term);
+    put(g, label("sinapse", { font: 18, color: GREEN }), 2.6, 0.35, 0.5);
+    const pulse = ball(0.1, 0xbff0ff); g.add(pulse);
+    put(g, label("NEURÔNIO   (impulso: dendrito → soma → axônio → sinapse)", { font: 21, color: SOFT }), 0, 2.3, 0.6);
+    g.userData.type = "neuronio";
+    g.userData.update = (t) => {
+      const u = (t * 0.5) % 1.4;
+      pulse.position.set(-1.3 + u * 2.7, 0, 0.05);
+      pulse.material.opacity = u < 1.3 ? 0.95 : 0;
+    };
+    return g;
+  }
+
+  // ================= E6 — pilha eletroquímica =================
+  function pilha() {
+    const g = new THREE.Group();
+    const cellA = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.8),
+      new THREE.MeshBasicMaterial({ color: 0x8ab6ff, transparent: true, opacity: 0.1 }));
+    cellA.position.set(-1.5, -0.4, -0.02); g.add(cellA);
+    const cellB = cellA.clone(); cellB.position.set(1.5, -0.4, -0.02);
+    cellB.material = cellB.material.clone(); cellB.material.color.set(0xff9de0); g.add(cellB);
+    g.add(line([V(-1.5, 1.4), V(-1.5, 0.4)], SOFT, 1));   // eletrodo Zn
+    g.add(line([V(1.5, 1.4), V(1.5, 0.4)], SOFT, 1));     // eletrodo Cu
+    g.add(line([V(-1.5, 1.4), V(0, 2.0), V(1.5, 1.4)], NEON, 1));   // fio externo
+    put(g, label("e⁻ →", { color: NEON, font: 20 }), 0, 2.25, 0.5);
+    // ponte salina
+    g.add(line([V(-1.5, 0.4), V(-1.0, -1.4), V(1.0, -1.4), V(1.5, 0.4)], AMBER, 0.5));
+    put(g, label("ponte salina", { color: AMBER, font: 17 }), 0, -1.65, 0.45);
+    put(g, label("ânodo (−)\nZn → Zn²⁺ + 2e⁻", { font: 18, color: SOFT }), -1.5, -0.4, 0.5);
+    put(g, label("cátodo (+)\nCu²⁺ + 2e⁻ → Cu", { font: 18, color: SOFT }), 1.5, -0.4, 0.5);
+    put(g, label("PILHA DE DANIELL   ΔE = E°cátodo − E°ânodo = +1,10 V", { font: 21, color: SOFT }), 0, 2.7, 0.6);
+    const es = [];
+    for (let i = 0; i < 5; i++) { const e = ball(0.06, 0xbff0ff); g.add(e); es.push(e); }
+    g.userData.type = "pilha";
+    g.userData.update = (t) => {
+      es.forEach((e, i) => {
+        const u = (t * 0.4 + i / 5) % 1;
+        const pts = [V(-1.5, 1.4), V(0, 2.0), V(1.5, 1.4), V(1.5, 0.4)];
+        const seg = Math.min(2, Math.floor(u * 3)), fr = u * 3 - seg;
+        e.position.copy(pts[seg]).lerp(pts[seg + 1], fr);
+      });
+    };
+    return g;
+  }
+
   // ================= D — holograma gerado por spec (o Jarvis "inventa") =================
   //  spec = { title, parts:[ {t, ...} ], spin }
   //  t: ball|stick|arrow|line|curve|ring|box|plane|label|cone|torus
@@ -953,6 +1149,15 @@ window.jarvisModels = (() => {
 
     // --- lote D: holograma que o Jarvis inventa (a partir de um spec JSON) ---
     spec: fromSpec, holograma_gerado: fromSpec, inventado: fromSpec,
+
+    // --- lote E: óptica / colisão / circuitos / probabilidade / bio / química ---
+    lente: lente, lente_convergente: lente, optica: lente, refracao: lente,
+    colisao: colisao, colisao_elastica: colisao,
+    colisao_inelastica: () => colisao({ kind: "inelastica" }),
+    circuito_paralelo: circuitoParalelo, circuito_em_paralelo: circuitoParalelo,
+    arvore_probabilidade: arvoreProb, arvore_de_probabilidade: arvoreProb, probabilidade: arvoreProb,
+    neuronio: neuronio, sinapse: neuronio, celula_nervosa: neuronio,
+    pilha: pilha, pilha_eletroquimica: pilha, pilha_de_daniell: pilha, eletroquimica: pilha,
   };
   return {
     has: (name) => !!B[name],

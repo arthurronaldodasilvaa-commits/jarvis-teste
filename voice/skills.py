@@ -201,7 +201,7 @@ _MODELS = [
     (r"\bonda\s+(senoidal|transversal|eletromagnetica)?\b|onda\s+na\s+corda|"
      r"\bfuncao\s+de\s+onda\b|movimento\s+ondulatorio", "onda", "Onda"),
     (r"pendulo\s+simples|\bpendulo\b|movimento\s+harmonico", "pendulo", "Pêndulo simples"),
-    (r"circuito\s+(eletrico|em serie|simples)|\bcircuito\b|lei\s+de\s+ohm", "circuito",
+    (r"circuito\s+(eletrico|em serie|simples)|\bcircuito\b(?!.*paralelo)|lei\s+de\s+ohm", "circuito",
      "Circuito em série"),
     (r"campo\s+eletrico|linhas?\s+de\s+campo|duas\s+cargas|forca\s+entre\s+cargas",
      "campo_eletrico", "Campo elétrico"),
@@ -234,6 +234,19 @@ _MODELS = [
     (r"homotetia|amplia[cç][ãa]o\s+proporcional", "homotetia", "Homotetia"),
     (r"transforma[cç][õo]es\s+geometricas|geometria\s+de\s+transforma", "transformacoes",
      "Transformações geométricas"),
+    # --- lote E ---
+    (r"\blente\b|lente\s+convergente|\boptica\b|forma[cç][aã]o\s+de\s+imagem|"
+     r"equacao\s+dos?\s+pontos?\s+conjugados?", "lente", "Lente convergente"),
+    (r"colis[aã]o\s+inel[aá]stica", "colisao_inelastica", "Colisão inelástica"),
+    (r"colis[aã]o(\s+el[aá]stica)?|choque\s+entre\s+(dois\s+)?(blocos|corpos)|"
+     r"conserva[cç][aã]o\s+d[ao]\s+(momento|quantidade de movimento)", "colisao", "Colisão"),
+    (r"circuito\s+(em\s+)?paralelo|resist[eê]ncias?\s+em\s+paralelo", "circuito_paralelo",
+     "Circuito em paralelo"),
+    (r"[aá]rvore\s+d[ea]\s+probabilidade|diagrama\s+de\s+[aá]rvore|"
+     r"probabilidade\s+condicional", "arvore_probabilidade", "Árvore de probabilidade"),
+    (r"\bneur[oô]nio\b|\bsinapse\b|c[eé]lula\s+nervosa|impulso\s+nervoso", "neuronio", "Neurônio"),
+    (r"\bpilha\b|pilha\s+(eletroquimica|de daniell)|c[eé]lula\s+galv[aâ]nica|"
+     r"\beletroquimica\b|potencial\s+de\s+reducao", "pilha", "Pilha eletroquímica"),
 ]
 
 # geometrias VSEPR nomeadas -> variação do modelo
@@ -363,7 +376,7 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
     _auto = ("tabela", "circulo", "molecula", "onda", "pendulo", "circuito", "campo",
              "vetores", "derivada", "integral", "superficie", "geometria",
              "dna", "sistema_solar", "coracao", "grafico", "translacao", "reflexao",
-             "homotetia", "transforma")
+             "homotetia", "transforma", "lente", "colisao", "arvore", "neuronio", "pilha")
     for pat, name, nome in _MODELS:
         if re.search(pat, t) and (has_verb or name.startswith(_auto)
                                   or re.search(r"\b(triangulo retangulo|corpo livre|plano inclinado)\b", t)):
