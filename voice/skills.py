@@ -933,6 +933,17 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="Não estou te vendo na câmera agora, senhor. "
                                 "Abra a câmera e diga \"aprende meu rosto\".")
 
+    # --- modo aula: "me dá uma aula sobre X" ---
+    if brain is not None:
+        try:
+            import aula
+            _at = aula.match(t)
+            if _at:
+                speak(f"Um momento, senhor. Montando a aula sobre {_at}.")
+                return aula.start(_at, cfg, brain, speak)
+        except Exception as exc:  # noqa: BLE001
+            log(f"aula: {exc}")
+
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:
         if study.active() and study.match_exit(t):
