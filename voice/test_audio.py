@@ -12,6 +12,7 @@ Diagnóstico. Rode cada teste separado:
     python test_audio.py actions
     python test_audio.py skill "abrir palworld"
     python test_audio.py index
+    python test_audio.py safety
 """
 import sys
 import time
@@ -114,8 +115,42 @@ def skill():
     print("Result:", res)
 
 
+def safety():
+    """Verifica a trava anti-loop de comandos (_guard_command). Não fala nada,
+    não abre nada — só exercita a lógica."""
+    import collections
+    cfg = jv.load_cfg()
+    paused = [False]
+    orig = jv.set_paused
+    jv.set_paused = lambda p, **k: paused.__setitem__(0, p)
+
+    class M:
+        def say(self, t): print(f"   [fala] {t}")
+
+    def run(name, cmds, expect_pause):
+        paused[0] = False
+        st = {"recent": collections.deque(maxlen=16), "pending": None, "await": None}
+        blocked = [jv._guard_command(jv.norm(c), st, M(), cfg) for c in cmds]
+        ok = paused[0] == expect_pause
+        print(f"  {'OK ' if ok else 'FALHOU '}{name}: bloqueados={blocked} pausou={paused[0]}")
+        return ok
+
+    allok = True
+    allok &= run("comando idêntico 4x", ["me lembra de tirar o bolo em 20 minutos"] * 4, True)
+    allok &= run("variações do Whisper",
+                 ["pesquisa gato no google", "pesquisa gatos no google",
+                  "pesquise gato no google"], True)
+    allok &= run("4 comandos distintos (uso normal)",
+                 ["que horas sao", "como esta o tempo", "abre a steam", "qual a fase da lua"], False)
+    allok &= run("5 comandos distintos (enxurrada)",
+                 ["que horas sao", "como esta o tempo", "abre a steam",
+                  "qual a fase da lua", "quanto e dois mais dois"], True)
+    jv.set_paused = orig
+    print("\n" + ("== TUDO OK ==" if allok else "== ALGO FALHOU =="))
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "devices"
     {"devices": devices, "voice": voice, "llm": llm, "whisper": whisper,
      "meter": meter, "clap": clap, "actions": actions, "index": index,
-     "skill": skill}[cmd]()
+     "skill": skill, "safety": safety}[cmd]()
