@@ -74,6 +74,21 @@ Rodada 5 (10/09, madrugada) — commits ~74–95:
 Daemon reiniciado 3× nesta rodada, todos boot limpo. Estado final: rodando,
 quieto, `reminders.json`/`tasks.json` limpos, tema cyan.
 
+**10/09 13:00–13:45 — pacote final pro pai (Robson):**
+- `manual/jarvis-manual.html` — site único, offline, tema HUD holográfico:
+  busca de comando, índice com scroll-spy, copiar comando, esfera em canvas
+  que cicla as cores de fase, 5 temas de acento (= os do app), tamanho de
+  texto, modo calmo, impressão, cartão de bolso. Abre por voz:
+  "Jarvis, como você funciona" (`skills._find_manual`).
+- Reconhecimento facial: "aprende meu rosto" agora **pergunta o nome** e
+  anexa (`face.clean_name`, `await_reply`); confirma falando o nome.
+- Correções de cor de fase (verde só em busca real; volta pro ciano ao
+  responder) + o fix de rolagem do manual.
+- Rebuild final: `JarvisVoice.exe` 13:36, `JarvisApp.exe` 13:34, manual,
+  `installer/pacote/Jarvis/` (2,6 GB). Testado: daemon do pacote sobe limpo
+  no perfil **robson**. `LEIA-ME.txt` e `MONTAR_PACOTE.md` atualizados.
+  **Pronto pro Drive.**
+
 **10/09 06:30 — Arthur voltou:** pediu pra reiniciar o Jarvis dele e regerar
 o pacote pro pai.
 - Reiniciei daemon (fonte) + JarvisApp (build novo). Achei um `JarvisVoice.exe`

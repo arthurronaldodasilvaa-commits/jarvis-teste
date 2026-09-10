@@ -9,11 +9,11 @@ holográfico, os modelos de voz, o instalador e o Ollama. Você só precisa
 pai**. Ele baixa, extrai e clica em `JarvisSetup.exe`. Perfil já vem em
 **robson** e voz em **piper**.
 
-> **Regerada em 10/09** com: trava de segurança contra loop de comandos
-> (depois do incidente), Whisper mais rápido no arranque, temas de cor do
-> holograma, cérebro que muda de cor por fase, HUD polido, modo estudo/aula,
-> OCR, reconhecimento facial, diário de bordo. A pasta que você mandou antes
-> não tem nada disso.
+> **Regerada em 10/09 (tarde)** com tudo: trava de segurança contra loop de
+> comandos, Whisper mais rápido, temas de cor, cérebro que muda de cor por
+> fase, HUD polido, modo estudo/aula, OCR, diário de bordo, **reconhecimento
+> facial que pergunta o nome**, e um **manual completo** (`MANUAL.html` na
+> raiz + abre por voz com "Jarvis, como você funciona").
 >
 > Se 2,6 GB for muito pro Drive: apague `payload/ollama/OllamaSetup.exe`
 > antes de subir (fica ~1,1 GB) — o instalador manda o Robson baixar o
