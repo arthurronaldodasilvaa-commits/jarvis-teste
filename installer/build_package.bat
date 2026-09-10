@@ -43,10 +43,15 @@ if exist "OllamaSetup.exe" (
   echo   ou o instalador vai mandar o usuario baixar do site.
 )
 
-echo [5/6] o instalador ...
+echo [5/6] o instalador + manual ...
 copy /y "dist\JarvisSetup.exe" "%OUT%\JarvisSetup.exe" >nul
 copy /y "LEIA-ME.txt" "%OUT%\LEIA-ME.txt" >nul
 if exist "..\COMANDOS.md" copy /y "..\COMANDOS.md" "%OUT%\COMANDOS.md" >nul
+REM manual html: no lugar que o daemon abre ("Jarvis, abre o manual") + na raiz pra pre-visualizar
+if exist "..\manual\jarvis-manual.html" (
+  copy /y "..\manual\jarvis-manual.html" "%OUT%\payload\voice\manual.html" >nul
+  copy /y "..\manual\jarvis-manual.html" "%OUT%\MANUAL.html" >nul
+)
 
 echo [6/6] pronto.
 echo.

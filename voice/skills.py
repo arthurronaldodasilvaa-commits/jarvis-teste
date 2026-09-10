@@ -762,6 +762,18 @@ def _append(fname: str, text: str) -> None:
 STOP_WORDS = ("para", "parar", "chega", "obrigado", "obrigada", "valeu",
               "tchau", "pode ir", "encerra", "silencio", "cala a boca", "cancela")
 
+def _find_manual() -> "Path | None":
+    """Acha o site html do manual. Cobre o layout de dev e o do pacote instalado."""
+    names = ("manual.html", "jarvis-manual.html", "MANUAL.html")
+    roots = (HERE, HERE / "manual", HERE.parent, HERE.parent / "manual")
+    for r in roots:
+        for n in names:
+            p = r / n
+            if p.is_file():
+                return p
+    return None
+
+
 # --- "manual" do Jarvis: perguntas de "como eu faço X com você" -----------
 # Cada item: (regex no texto normalizado, resposta falada).
 # Checado bem no início do dispatch — resposta sempre certa, sem depender do LLM.
@@ -1000,6 +1012,24 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         if brain is not None and hasattr(brain, "forget"):
             brain.forget()
         return Result(speak="Esquecido, senhor. Assunto novo.")
+
+    # --- abrir o MANUAL (site html local) ---
+    #     "como você pode me ajudar", "como você funciona", "abre o manual"
+    if re.search(r"\b(como\s+(voce|vc|tu)\s+(pode|poderia|consegue)\s+(me\s+)?ajud\w*|"
+                 r"como\s+(voce|vc|tu|o jarvis)\s+funciona\w*|"
+                 r"como\s+(eu\s+)?(uso|utilizo|te uso|mexo (com|no))\s*(voce|vc|o jarvis)?|"
+                 r"(abr\w*|mostr\w*|exib\w*|ve\w*|quero ver)\s+(\w+\s+){0,2}(o\s+)?"
+                 r"(manual|guia|instru\w+|tutorial)\b|"
+                 r"\bmanual\s+d[eo]\s+(instru\w+|uso|opera\w+|jarvis)\b)", t):
+        p = _find_manual()
+        if p:
+            try:
+                webbrowser.open(p.as_uri())
+            except Exception:  # noqa: BLE001
+                os.startfile(str(p))  # noqa: S606
+            return Result(speak="Abri o manual completo pro senhor, na tela.")
+        return Result(speak="Não encontrei o arquivo do manual, senhor. Ele deveria "
+                            "estar na pasta do Jarvis.")
 
     # --- "manual": "como eu faço X com você?" -> instrução (não executa nada) ---
     # Só entra se a pergunta é sobre COMO usar o Jarvis (menciona "você/te/jarvis"
