@@ -8,6 +8,8 @@ window.jarvisHands = (() => {
   let tracked = [];        // [{id, lm, handed, score, lastSeen, role, gesture}]
   let nextId = 1;
   let latest = { hands: [], t: 0 };
+  let lastHandAt = 0;      // performance.now() da última vez que vimos uma mão
+  let feedTick = 0;        // contador de frames pra "downshift" quando ocioso
 
   function dbg(m) {
     const a = window.pywebview && window.pywebview.api;
@@ -40,6 +42,7 @@ window.jarvisHands = (() => {
     }
     // some quem não aparece há > 220 ms
     tracked = tracked.filter((tk) => now - tk.lastSeen < 220);
+    if (tracked.length) lastHandAt = now;
     // 2 rastreados quase no mesmo pulso -> mão fantasma: fica com a mais confiante
     if (tracked.length === 2) {
       const dist = Math.hypot(tracked[0].lm[0].x - tracked[1].lm[0].x,
@@ -91,6 +94,12 @@ window.jarvisHands = (() => {
   async function feed(video) {
     if (!running || !ready || busy || errStreak > 6) return;
     if (!video || !video.videoWidth) return;
+    // Downshift quando ocioso: sem mão há > 2 s, roda a inferência só 1 a cada
+    // 3 frames (ainda pega a mão de volta em ~100 ms). Com mão na tela, todo
+    // frame. Corta ~⅔ da carga de GPU no caso comum "câmera ligada, olhando
+    // o holograma, mãos paradas".
+    feedTick++;
+    if (performance.now() - lastHandAt > 2000 && (feedTick % 3) !== 0) return;
     busy = true;
     try {
       await hands.send({ image: video });

@@ -6,6 +6,21 @@
   const NEON_SOFT = 0x9becff;
   const TAU = Math.PI * 2;
 
+  // cor do núcleo por fase — o cérebro muda de humor conforme o que o Jarvis faz.
+  // Cores BEM saturadas nos canais fora do tom: as cascas usam blending aditivo
+  // e várias camadas empilhadas puxam tudo pro branco. Vermelho só "lê" como
+  // vermelho se verde/azul ficarem baixos.
+  const PHASE_COL = {
+    "": new THREE.Color(NEON),
+    PENSANDO: new THREE.Color(0x6a3cff),      // violeta — raciocinando
+    PROCESSANDO: new THREE.Color(0x6a3cff),
+    PESQUISANDO: new THREE.Color(0x16ff9c),   // verde-água — buscando
+    ERRO: new THREE.Color(0xff1f2e),          // vermelho — deu ruim
+  };
+  const COL_SPEAK = new THREE.Color(0x9becff); // clareia um tom ao falar
+  const curCol = new THREE.Color(NEON);        // cor atual, suavizada a cada frame
+  const _tmpCol = new THREE.Color();
+
   const host = document.getElementById("scene");
   const statusEl = document.getElementById("status");
 
@@ -26,9 +41,11 @@
     const c = document.createElement("canvas");
     c.width = c.height = size;
     const ctx = c.getContext("2d");
+    // base quase branca — a cor real vem de glow.material.color (multiplica),
+    // que segue a fase do cérebro
     const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0.0, "rgba(120,230,255,0.55)");
-    g.addColorStop(0.35, "rgba(70,214,255,0.18)");
+    g.addColorStop(0.0, "rgba(215,240,255,0.55)");
+    g.addColorStop(0.35, "rgba(200,235,255,0.18)");
     g.addColorStop(1.0, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
@@ -245,6 +262,15 @@
 
     // pulso LENTO (~0.55 Hz) — a "respiração" enquanto fala
     const slow = 0.5 + 0.5 * Math.sin(t * TAU * 0.55);
+    // tremular RÁPIDO (~7 Hz) só quando fala — dá vida à voz (2 senos = menos robótico)
+    const fast = spk * (0.5 + 0.5 * Math.sin(t * TAU * 7 + Math.sin(t * 11)));
+
+    // ---- cor do núcleo: alvo pela fase (ou pausado), suavizada ----
+    let target = PHASE_COL[state.phase] || PHASE_COL[""];
+    if (pz > 0.5) target = PHASE_COL[""];
+    _tmpCol.copy(target);
+    if (spk > 0.01) _tmpCol.lerp(COL_SPEAK, 0.14 * spk);   // clareia de leve; a fase manda
+    curCol.lerp(_tmpCol, 0.05);
 
     // escala do núcleo: idle respira de leve; falando pulsa devagar e mais forte
     const idleBreath = 1 + Math.sin(t * 1.4) * 0.015;
@@ -264,14 +290,21 @@
     shells.forEach((s) => {
       const d = s.userData;
       const wave = 0.5 + 0.5 * Math.sin(t * TAU * d.freq + d.phase);
-      s.material.opacity = d.opacity * dim * (1 + spk * depth * (0.7 + 1.4 * wave));
+      s.material.opacity = d.opacity * dim * (1 + spk * depth * (0.7 + 1.4 * wave) + fast * 0.25);
+      s.material.color.copy(curCol);
     });
-    points.material.opacity = 0.9 * dim;
-    rings.forEach((r) => { r.material.opacity = r.userData.baseOpacity * dim; });
+    points.material.opacity = (0.9 + fast * 0.3) * dim;
+    points.material.color.copy(curCol).lerp(COL_SPEAK, 0.4);
+    rings.forEach((r) => {
+      r.material.opacity = r.userData.baseOpacity * dim * (1 + fast * 0.2);
+      r.material.color.copy(curCol);
+    });
     blobMat.opacity = (0.06 + spk * depth * (0.10 + 0.14 * slow)) * dim;
+    blobMat.color.copy(curCol);
 
     glow.scale.setScalar((9 + spk * depth * (2.2 + 2.0 * slow)) * (1 - pz * 0.25));
     glow.material.opacity = (0.85 + spk * 0.15 * slow) * (1 - pz * 0.5);
+    glow.material.color.copy(curCol);          // o brilho central acompanha a fase
 
     camera.position.z = 4.2 - spk * depth * (0.30 + 0.22 * slow) + pz * 0.35;
     camera.lookAt(0, 0, 0);
