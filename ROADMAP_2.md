@@ -119,8 +119,9 @@ O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 - [x] **`_patch_toml_line` por seção** — feito (commit `fix: _patch_toml_line
       respeita a seção`).
 - [ ] Modo "co-piloto de código" leve — lê um arquivo, explica, sugere (2b limitado).
-- [ ] "Diário de bordo" — o Jarvis registra o que você fez no dia (comandos,
-      tempo de estudo) e faz um resumo à noite.
+- [x] **"Diário de bordo"** — "o que eu fiz hoje" / "resumo do dia".
+      `diary.py` lê o próprio log (agora com `[MM-DD ...]`) e agrupa por
+      categoria. Não escreve nada novo.
 - [ ] Gestos configuráveis (`gestures.toml`).
 - [ ] Temas de cor do holograma (`[app] theme`).
 - [ ] Atalho de teclado global pra "print + OCR + copia".

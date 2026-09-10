@@ -26,6 +26,7 @@ escuta sozinho** e avisa. Volte com `Ctrl+Alt+J`. Ajuste em `[safety]` no config
 | "repete" · "esquece" · "fala mais devagar / rápido" | controle da fala |
 | "traduz bom dia pra inglês" · "soletra necessário" | tradução / soletração |
 | "me dá uma frase motivacional" | citação do dia |
+| "o que eu fiz hoje" · "resumo do dia" | diário de bordo — o que o senhor pediu ao Jarvis hoje (lê o log) |
 
 ## Ensinar o Jarvis (ele se estende sozinho)
 

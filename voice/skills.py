@@ -1295,6 +1295,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         mq = re.search(r"\b(?:noticias?|manchetes?)\s+(?:de|sobre|do|da|dos|das)\s+(.+)", t)
         return Result(speak=news.headlines(mq.group(1) if mq else ""))
 
+    # --- diário de bordo: "o que eu fiz hoje" ---
+    try:
+        import diary
+        _dq = diary.match(t)
+        if _dq:
+            return Result(speak=diary.resumo(_dq, brain))
+    except Exception as exc:  # noqa: BLE001
+        log(f"diary: {exc}")
+
     # --- contas / porcentagem / conversão de unidades e moeda ---
     fala = calc.handle(t)
     if fala is not None:

@@ -135,7 +135,7 @@ def rotate_log(max_kb: int = 512) -> None:
 
 
 def log(msg: str) -> None:
-    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    line = f"[{time.strftime('%m-%d %H:%M:%S')}] {msg}"   # mês-dia ajuda forense + diário
     print(line, flush=True)
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as fh:
