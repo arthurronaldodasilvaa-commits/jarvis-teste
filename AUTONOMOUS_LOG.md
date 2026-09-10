@@ -14,11 +14,13 @@ Progresso (atualizo aqui conforme fecho cada onda):
 - [x] Onda B — Jarvis lê os materiais (RAG-lite, BM25, pypdf) — commit 67
 - [x] Onda C — APIs sem chave (facts.py: B3, CEP, feriado, ar, sol/lua, história) — 64
 - [x] Onda D — Windows (tarefas, top procs, pomodoro, apresentação, ler em voz, memo) — 65-66
-- [ ] Onda E — modelos de estudo + modo aula
-- [ ] Onda F — OCR + anatomia (downloads)
-- [ ] Onda G — temp CPU/GPU no HUD + pendências
+- [x] Onda E — 7 modelos novos + modo aula — commits 69-70
+- [x] Onda F — OCR (tesseract.js, ~15 MB) + anatomia procedural — 71-73
+- [x] Onda G1 — temperatura GPU no HUD + voz (CPU temp bloqueada por permissão) — 68
 - [ ] Onda H — otimização / revisão / polimento
 - [ ] Onda I — ideias novas
+
+Total até aqui: 73 commits. Instaladas: pypdf, face-api.js, tesseract.js.
 
 Reconhecimento facial: já feito antes (rodada anterior). face-api.js local.
 

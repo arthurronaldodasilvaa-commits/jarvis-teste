@@ -218,7 +218,7 @@ def _hoje_historia(t: str):
         if not ev:
             return "Não achei nada pra hoje, senhor."
         linhas = [f"em {e.get('year','?')}, {e.get('text','')}" for e in ev]
-        return f"Num dia como hoje, senhor: " + "; ".join(linhas) + "."
+        return "Num dia como hoje, senhor: " + "; ".join(linhas) + "."
     except Exception as exc:  # noqa: BLE001
         log(f"facts/história: {exc}")
         return "Não consegui as efemérides, senhor."

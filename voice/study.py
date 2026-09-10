@@ -255,7 +255,6 @@ def _next_question(brain) -> "object":
     _push_hud()
 
     def _grade(resposta: str):
-        import skills as _sk
         try:
             verdict = brain._post(
                 [{"role": "system", "content":

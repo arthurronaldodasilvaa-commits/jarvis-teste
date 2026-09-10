@@ -259,7 +259,6 @@ def convert(t: str) -> str | None:
         # origem = unidade mais próxima do número (à direita dele, de preferência)
         after = [w for w in units if t.index(w) > npos]
         src = min(after or units, key=lambda w: abs(t.index(w) - npos))
-        tgt_zone = re.split(r"\b(?:em|pra|para|quantos|quantas|vale\w*|da|equivale)\b", t)
         dst = next((w for w in reversed(units)
                     if w != src and table[w] != table[src]), None)
         if not dst:

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 
-from common import _SHARED, log, push_note, write_control
+from common import _SHARED, log, push_note
 
 FILE = _SHARED / "face.json"
 

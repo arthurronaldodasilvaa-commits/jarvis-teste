@@ -456,17 +456,14 @@ def _dias_ate(t: str) -> str | None:
     from datetime import date
     hoje = date.today()
     alvo = None
-    nome = ""
     for k, (d, mth) in _FERIADOS.items():
         if k in t:
             alvo = date(hoje.year, mth, d)
-            nome = k
             break
     if not alvo:
         m = re.search(r"\b(\d{1,2})\s+de\s+([a-z]+)", t)
         if m and m.group(2) in _MESES:
             alvo = date(hoje.year, _MESES[m.group(2)], int(m.group(1)))
-            nome = f"{m.group(1)} de {m.group(2)}"
         else:
             m = re.search(r"\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?", t)
             if m:
@@ -475,7 +472,6 @@ def _dias_ate(t: str) -> str | None:
                     y += 2000
                 try:
                     alvo = date(y, int(m.group(2)), int(m.group(1)))
-                    nome = alvo.strftime("%d/%m")
                 except ValueError:
                     return None
     if not alvo:
@@ -884,7 +880,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         if teach.match_forget(t):
             alvo = re.sub(r".*\bcomando\b\s*", "", t).strip() or t
             ok = skills_extra.remove_learned(alvo)
-            return Result(speak=(f"Esqueci o comando, senhor." if ok
+            return Result(speak=("Esqueci o comando, senhor." if ok
                                  else "Não achei esse comando pra esquecer, senhor."))
         if teach.match_enter(t):
             if len(t.split()) < 5:
@@ -908,8 +904,8 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             nome = str(cfg.get("profile", {}).get("active", "")).strip().lower() or "arthur"
             write_control(view="camera",
                           face_enroll=nome + "|" + str(int(time.time())))
-            return Result(speak=f"Olhe pra câmera um instante, senhor. "
-                                f"Estou memorizando o seu rosto.")
+            return Result(speak="Olhe pra câmera um instante, senhor. "
+                                "Estou memorizando o seu rosto.")
         if facemod.match_forget(t):
             from common import _SHARED
             try:
@@ -1279,7 +1275,8 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if re.search(r"\b(tempo|clima|previs\w+|vai chov\w+|ta chov\w+|esta chov\w+|"
                  r"quantos graus|qual (a )?temperatura|ta (frio|calor|quente)|"
                  r"faz (frio|calor)|tempo la fora)\b", t) and not re.search(
-                 r"\b(quanto tempo|ao mesmo tempo|com o tempo|perde\w* tempo|um tempo)\b", t):
+                 r"\b(quanto tempo|ao mesmo tempo|com o tempo|perde\w* tempo|um tempo|"
+                 r"cpu|gpu|placa|processador|\bpc\b|computador|maquina|notebook)\b", t):
         dia = "amanhã" if re.search(r"\bamanha\b", t) else "hoje"
         _tw = "hoje|amanha|agora|de manha|de tarde|de noite|hoje a noite|essa semana|senhor|la fora|aqui|fora"
         mc = re.search(rf"\b(?:em|no|na)\s+([a-z][a-z\s]+?)(?:\s+(?:{_tw}))*\s*$", t)
@@ -1412,9 +1409,10 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak="Seus memos, senhor. " + " ... ".join(linhas))
 
     # --- temperatura CPU/GPU ---
-    if re.search(r"\btemperatura\b.*\b(cpu|gpu|placa|processador|pc|computador|maquina)\b|"
-                 r"\b(cpu|gpu|placa|processador)\b.*\btemperatura\b|\bquente\b.*\b(cpu|gpu|pc)\b|"
-                 r"\bo pc (ta|esta) quente\b", t):
+    if re.search(r"\btemperatura\b.*\b(cpu|gpu|placa|processador|pc|computador|maquina|notebook)\b|"
+                 r"\b(cpu|gpu|placa|processador)\b.*\btemperatura\b|"
+                 r"\b(quente|esquentando|aquecid\w+|fervendo)\b.*\b(cpu|gpu|placa|pc|computador|maquina|notebook)\b|"
+                 r"\b(o|meu)\s+(pc|computador|notebook|processador)\s+(ta|esta|está)\s+(quente|esquentando)\b", t):
         try:
             import hud
             s = hud._sys_snapshot()
@@ -1426,7 +1424,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             elif not partes:
                 return Result(speak="Não consigo ler as temperaturas nessa máquina, senhor.")
             if s.get("cpu_t") is None and partes:
-                partes.append(f"a da CPU o Windows não deixa ver sem administrador, senhor")
+                partes.append("a da CPU o Windows não deixa ver sem administrador, senhor")
             return Result(speak=", ".join(partes) + ".")
         except Exception as exc:  # noqa: BLE001
             log(f"temp: {exc}")
