@@ -41,4 +41,11 @@ exe = EXE(
     name="JarvisVoice", console=False, disable_windowed_traceback=False,
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="JarvisVoice")
+# gêmeo COM console — só pra diagnóstico ("por que não abre?"). Compartilha o
+# mesmo _internal. Robson roda este e vê o erro na tela.
+exe_diag = EXE(
+    pyz, a.scripts, [], exclude_binaries=True,
+    name="JarvisVoice_diag", console=True, disable_windowed_traceback=False,
+    upx=False,
+)
+coll = COLLECT(exe, exe_diag, a.binaries, a.datas, strip=False, upx=False, name="JarvisVoice")
