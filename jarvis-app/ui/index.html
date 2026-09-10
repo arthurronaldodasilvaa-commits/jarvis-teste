@@ -131,6 +131,19 @@
          font-family: "Segoe UI", Consolas, monospace; }
   #hud .panel { position: fixed; text-shadow: 0 0 8px var(--neon); }
 
+  /* painel do modo estudo (aparece só na sessão) */
+  #study-box { top: 22px; left: 50%; transform: translateX(-50%); text-align: center;
+    border: 1px solid var(--neon-dim); border-radius: 10px; padding: 8px 20px 10px;
+    background: rgba(70,214,255,0.05); opacity: 0; transition: opacity .4s;
+    min-width: 240px; }
+  #study-box.on { opacity: 0.92; }
+  #study-mode { font-size: 11px; letter-spacing: 5px; text-transform: uppercase; opacity: 0.7; }
+  #study-time { font-size: 30px; letter-spacing: 3px; line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  #study-time.low { color: #ffb24d; text-shadow: 0 0 10px #ffb24d; }
+  #study-sub { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.6; margin-top: 4px; }
+  #study-score { font-size: 11px; letter-spacing: 2px; opacity: 0.75; margin-top: 3px; }
+  body.camera #study-box { display: none; }
+
   #clock-box { top: 54px; right: 28px; text-align: right; }
   #clock { font-size: 36px; letter-spacing: 4px; line-height: 1; font-variant-numeric: tabular-nums; }
   #date  { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; opacity: 0.6; margin-top: 6px; }
@@ -221,6 +234,12 @@
   <div id="cam-help">👌 seleciona/arrasta &nbsp;·&nbsp; 2×👌 escala &nbsp;·&nbsp; ✊✊ gira (bola) &nbsp;·&nbsp; ✋ segura → menu, empurra a mão pra escolher &nbsp;·&nbsp; ✋ na animação = congela/navega &nbsp;·&nbsp; ☝️ encosta = apaga</div>
 
   <div id="hud">
+    <div id="study-box" class="panel">
+      <div id="study-mode">Estudo</div>
+      <div id="study-time">00:00</div>
+      <div id="study-sub"></div>
+      <div id="study-score"></div>
+    </div>
     <div id="clock-box" class="panel">
       <div id="clock">--:--</div>
       <div id="date">—</div>

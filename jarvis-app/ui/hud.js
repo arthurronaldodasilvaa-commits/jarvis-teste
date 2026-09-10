@@ -57,6 +57,29 @@
   }
   function esc(s) { return String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])); }
 
+  // ---------- modo estudo ----------
+  let studyBase = null;   // {t0_ms, elapsed_at_update, limit}
+  function renderStudy(st) {
+    const box = $("study-box");
+    if (!st || !st.active) { box.classList.remove("on"); studyBase = null; return; }
+    box.classList.add("on");
+    $("study-mode").textContent = st.name || "Estudo";
+    // relógio anda suave no cliente entre os updates do Python
+    if (!studyBase || studyBase.serverElapsed !== st.elapsed) {
+      studyBase = { at: Date.now(), serverElapsed: st.elapsed || 0, limit: st.limit || 0 };
+    }
+    const localElapsed = studyBase.serverElapsed + (Date.now() - studyBase.at) / 1000;
+    let secs, low = false;
+    if (studyBase.limit > 0) { secs = Math.max(0, studyBase.limit - localElapsed); low = secs < 300; }
+    else secs = localElapsed;
+    const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+    const ss = String(Math.floor(secs % 60)).padStart(2, "0");
+    $("study-time").textContent = `${mm}:${ss}`;
+    $("study-time").classList.toggle("low", low);
+    $("study-sub").textContent = st.subject || "";
+    $("study-score").textContent = st.q ? `${st.hits}/${st.q} questões` : "";
+  }
+
   // ---------- feed de notificações ----------
   let feedSeen = 0;
   function renderFeed(notes) {
@@ -101,6 +124,7 @@
       setGauge("ram", +sys.ram || 0);
       setGauge("gpu", +sys.gpu || 0);
       if (typeof s.weather === "string") $("wx").textContent = s.weather;
+      renderStudy(s.study);
       renderRem(s.reminders);
       renderTrack(s.track);
       renderFeed(s.notes);

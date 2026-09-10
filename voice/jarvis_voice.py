@@ -133,6 +133,11 @@ _ROUTER_TEMPLATES = {
     "modo_medida": "modo medida",
     "modo_normal": "modo normal",
     "limpar_desenho": "limpa o desenho e as medidas",
+    "modo_enem": "modo enem",
+    "modo_redacao": "modo redação",
+    "modo_prova": "modo prova",
+    "modo_estudo": "modo estudo",
+    "proxima_questao": "próxima questão",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -163,6 +168,8 @@ cmd possíveis:
  hora_mundo (arg=cidade)   clipboard_ler   minimizar   dias_ate (arg=data/feriado)
  modo_desenho (desenhar no ar na câmera)   modo_medida (medir distância na câmera)
  modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
+ modo_enem / modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
+ proxima_questao (pedir uma questão no modo estudo)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
@@ -195,6 +202,10 @@ Exemplos:
 "pode sair do modo medida" -> {"cmd":"modo_normal"}
 "apaga o que eu desenhei" -> {"cmd":"limpar_desenho"}
 "tira essas medidas da tela" -> {"cmd":"limpar_desenho"}
+"bora estudar pro enem" -> {"cmd":"modo_enem"}
+"quero treinar redação" -> {"cmd":"modo_redacao"}
+"vamos fazer um simulado" -> {"cmd":"modo_prova"}
+"me faz outra pergunta" -> {"cmd":"proxima_questao"}
 "tá calor lá fora?" -> {"cmd":"clima"}
 "me atualiza das notícias" -> {"cmd":"noticias"}
 "me lembra de ligar pro dentista amanhã de manhã" -> {"cmd":"lembrete","arg":"ligar pro dentista amanhã de manhã"}
@@ -583,6 +594,7 @@ class Brain:
         self.keepwarm_minutes = float(a.get("keepwarm_minutes", 10))
         self._hist: deque = deque(maxlen=6)   # últimas 3 trocas (user/assistant)
         self.last_reply = ""
+        self.extra_system = ""   # add-on temporário (ex: persona de tutor no modo estudo)
 
     def _post(self, messages, num_predict, temperature=0.4):
         return self._llm.chat(messages, num_predict, temperature)
@@ -610,11 +622,13 @@ class Brain:
         log(f"keep-warm do LLM a cada {self.keepwarm_minutes:g} min")
 
     def ask(self, question: str) -> str:
-        msgs = [{"role": "system", "content": self.system}]
+        sysmsg = self.system + (("\n\n" + self.extra_system) if self.extra_system else "")
+        msgs = [{"role": "system", "content": sysmsg}]
         msgs.extend(self._hist)
         msgs.append({"role": "user", "content": question})
         try:
-            ans = self._post(msgs, self.num_predict) \
+            npred = self.num_predict if not self.extra_system else max(self.num_predict, 200)
+            ans = self._post(msgs, npred) \
                 or "Perdão, senhor, não consegui elaborar uma resposta."
         except Exception as exc:  # noqa: BLE001
             log(f"erro LLM: {exc}")
@@ -939,6 +953,11 @@ def _reminder_loop(mouth: "Mouth", cfg: dict | None = None, brain=None) -> None:
                 time.sleep(1.0)
         except Exception as exc:  # noqa: BLE001
             log(f"loop de lembretes: {exc}")
+        try:
+            import study
+            study.tick(mouth)
+        except Exception as exc:  # noqa: BLE001
+            log(f"study tick: {exc}")
         time.sleep(15)
 
 

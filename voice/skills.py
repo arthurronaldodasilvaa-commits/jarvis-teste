@@ -36,6 +36,12 @@ except Exception as _exc:  # noqa: BLE001
     skills_extra = None
     log(f"skills_extra não disponível: {_exc}")
 
+try:
+    import study
+except Exception as _exc:  # noqa: BLE001
+    study = None
+    log(f"study não disponível: {_exc}")
+
 PROFILES_DIR = HERE / "profiles"
 
 
@@ -750,6 +756,18 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 r"\b(desenh\w*|desenhar|caneta|pincel|lapis|risco\w*|tra[cç]o\w*|"
                 r"rabisc\w*|medi\w*|medir|regua|modo)\b", t):
             return Result(speak="Às ordens, senhor.", stop=True)
+
+    # --- modo estudo: entrar / sair / atalhos da sessão ---
+    if study is not None:
+        if study.active() and study.match_exit(t):
+            return Result(speak=study.exit_session(brain))
+        _sm = study.match_enter(t)
+        if _sm:
+            return Result(speak=study.enter(_sm, cfg, brain))   # entra ou troca de modo
+        if study.active():
+            _sr = study.handle(raw, cfg, speak, brain)
+            if _sr is not None:
+                return _sr
 
     # --- encadear 2 comandos: "abre o navegador e pesquisa X" ---
     if _depth == 0 and brain is not None:
