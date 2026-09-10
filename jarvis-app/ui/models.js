@@ -1017,6 +1017,69 @@ window.jarvisModels = (() => {
     return g;
   }
 
+  // ================= F — anatomia (procedural, rotulado pra estudo) =================
+  function esqueleto() {
+    const g = new THREE.Group();
+    const bone = 0xe8eef5;
+    // crânio
+    const skull = [];
+    for (let i = 0; i <= 40; i++) { const a = i / 40 * Math.PI; skull.push(V(Math.cos(a) * 0.5, 2.3 + Math.sin(a) * 0.55)); }
+    skull.push(V(-0.35, 2.0), V(-0.25, 1.75), V(0.25, 1.75), V(0.35, 2.0), V(-0.5, 2.3));
+    g.add(line(skull, bone, 0.9));
+    g.add(line([V(0, 1.7), V(0, -0.4)], bone, 0.9));   // coluna
+    for (let k = 0; k < 7; k++) g.add(line([V(-0.12, 1.6 - k * 0.28), V(0.12, 1.6 - k * 0.28)], bone, 0.7));
+    // caixa torácica
+    for (let k = 0; k < 5; k++) {
+      const y = 1.45 - k * 0.24, w = 1.15 - k * 0.06;
+      const rib = [];
+      for (let i = 0; i <= 20; i++) { const a = i / 20 * Math.PI; rib.push(V(-w * Math.sin(a), y - Math.cos(a) * 0.15 * (1 - a / Math.PI))); }
+      g.add(line(rib, bone, 0.6));
+    }
+    g.add(line([V(-0.9, 0.1), V(0.9, 0.1)], bone, 0.8));    // bacia
+    g.add(line([V(-0.9, 0.1), V(-0.5, -0.5), V(-0.6, -2.4)], bone, 0.85));   // perna esq
+    g.add(line([V(0.9, 0.1), V(0.5, -0.5), V(0.6, -2.4)], bone, 0.85));      // perna dir
+    g.add(line([V(0, 1.5), V(-1.4, 1.0), V(-1.5, -0.2)], bone, 0.85));       // braço esq
+    g.add(line([V(0, 1.5), V(1.4, 1.0), V(1.5, -0.2)], bone, 0.85));         // braço dir
+    put(g, label("crânio", { font: 18, color: SOFT }), 0.9, 2.4, 0.5);
+    put(g, label("coluna vertebral", { font: 17, color: SOFT }), 1.6, 0.9, 0.5);
+    put(g, label("caixa torácica", { font: 17, color: SOFT }), -1.9, 1.2, 0.5);
+    put(g, label("bacia", { font: 17, color: SOFT }), 1.2, 0.1, 0.5);
+    put(g, label("fêmur", { font: 17, color: SOFT }), 1.1, -1.4, 0.5);
+    put(g, label("ESQUELETO HUMANO   (206 ossos)", { font: 22, color: SOFT }), 0, -2.9, 0.6);
+    g.userData.type = "esqueleto";
+    g.userData.update = (t) => { g.rotation.y = Math.sin(t * 0.3) * 0.25; };
+    return g;
+  }
+
+  function cerebro() {
+    const g = new THREE.Group();
+    const c = 0xffc9d4;
+    // contorno do cérebro (vista lateral) com sulcos
+    const brain = [];
+    for (let i = 0; i <= 60; i++) {
+      const a = i / 60 * TAU;
+      const r = 1.5 + 0.12 * Math.sin(a * 7) + 0.08 * Math.sin(a * 13);
+      brain.push(V(Math.cos(a) * r * 1.2, Math.sin(a) * r * 0.85 + 0.3));
+    }
+    g.add(line(brain, c, 0.9));
+    g.add(line([V(0, 1.9), V(0.1, -0.9)], c, 0.5));   // fissura central-ish
+    // cerebelo
+    const cer = [];
+    for (let i = 0; i <= 24; i++) { const a = i / 24 * Math.PI; cer.push(V(-1.4 + Math.cos(a + 2) * 0.5, -0.8 + Math.sin(a + 2) * 0.5)); }
+    g.add(line(cer, 0xff9de0, 0.8));
+    g.add(line([V(-0.6, -1.0), V(-0.5, -1.9)], c, 0.7));   // tronco encefálico
+    put(g, label("lobo frontal", { font: 17, color: SOFT }), 1.7, 1.3, 0.5);
+    put(g, label("lobo parietal", { font: 17, color: SOFT }), -1.9, 1.5, 0.5);
+    put(g, label("lobo occipital", { font: 17, color: SOFT }), -2.2, 0.0, 0.5);
+    put(g, label("lobo temporal", { font: 17, color: SOFT }), 1.9, -0.7, 0.5);
+    put(g, label("cerebelo", { font: 17, color: "#ff9de0" }), -2.0, -1.3, 0.5);
+    put(g, label("tronco encefálico", { font: 16, color: SOFT }), 0.7, -1.9, 0.5);
+    put(g, label("CÉREBRO — divisão em lobos", { font: 22, color: SOFT }), 0, 2.6, 0.6);
+    g.userData.type = "cerebro";
+    g.userData.update = (t) => { g.rotation.y = Math.sin(t * 0.25) * 0.2; };
+    return g;
+  }
+
   // ================= D — holograma gerado por spec (o Jarvis "inventa") =================
   //  spec = { title, parts:[ {t, ...} ], spin }
   //  t: ball|stick|arrow|line|curve|ring|box|plane|label|cone|torus
@@ -1158,6 +1221,10 @@ window.jarvisModels = (() => {
     arvore_probabilidade: arvoreProb, arvore_de_probabilidade: arvoreProb, probabilidade: arvoreProb,
     neuronio: neuronio, sinapse: neuronio, celula_nervosa: neuronio,
     pilha: pilha, pilha_eletroquimica: pilha, pilha_de_daniell: pilha, eletroquimica: pilha,
+
+    // --- lote F: anatomia ---
+    esqueleto: esqueleto, esqueleto_humano: esqueleto, ossos: esqueleto,
+    cerebro: cerebro, cérebro: cerebro, encefalo: cerebro, lobos_cerebrais: cerebro,
   };
   return {
     has: (name) => !!B[name],

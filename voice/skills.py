@@ -247,6 +247,10 @@ _MODELS = [
     (r"\bneur[oô]nio\b|\bsinapse\b|c[eé]lula\s+nervosa|impulso\s+nervoso", "neuronio", "Neurônio"),
     (r"\bpilha\b|pilha\s+(eletroquimica|de daniell)|c[eé]lula\s+galv[aâ]nica|"
      r"\beletroquimica\b|potencial\s+de\s+reducao", "pilha", "Pilha eletroquímica"),
+    (r"\besqueleto\b|\bossos\b|corpo\s+humano.*ossos|sistema\s+esquel[eé]tico", "esqueleto",
+     "Esqueleto humano"),
+    (r"\bc[eé]rebro\b|\benc[eé]falo\b|lobos?\s+(cerebrais|do cerebro)|sistema\s+nervoso\s+central",
+     "cerebro", "Cérebro"),
 ]
 
 # geometrias VSEPR nomeadas -> variação do modelo
@@ -376,7 +380,8 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
     _auto = ("tabela", "circulo", "molecula", "onda", "pendulo", "circuito", "campo",
              "vetores", "derivada", "integral", "superficie", "geometria",
              "dna", "sistema_solar", "coracao", "grafico", "translacao", "reflexao",
-             "homotetia", "transforma", "lente", "colisao", "arvore", "neuronio", "pilha")
+             "homotetia", "transforma", "lente", "colisao", "arvore", "neuronio", "pilha",
+             "esqueleto", "cerebro")
     for pat, name, nome in _MODELS:
         if re.search(pat, t) and (has_verb or name.startswith(_auto)
                                   or re.search(r"\b(triangulo retangulo|corpo livre|plano inclinado)\b", t)):
