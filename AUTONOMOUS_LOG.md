@@ -2,6 +2,37 @@
 
 ---
 
+## ⚠️ INCIDENTE (10/09 ~00:33) — Jarvis em loop de comandos
+
+**O que aconteceu:** Arthur estava ao telefone. O Whisper transcreveu trechos
+da conversa/ruído como se fossem comandos ("jarvis me lembra de tirar o bolo
+em 20 minutos", buscas no Google por "gato", tocar música no Spotify) e o
+daemon executou **em sequência, sem parar**. Em 2,5 min foram criados **41
+lembretes** idênticos. Arthur teve que **forçar o desligamento do PC**.
+
+**Causa raiz:** o gate da wake-word era frouxo (similaridade ≥ 0,6 com
+"jarvis" — ruído de TV/telefone passava) e **não havia nenhuma trava contra
+repetição**: cada transcrição virava um comando, sem dedup nem limite de taxa.
+(Os "2 processos pythonw" no Gerenciador são normais: a venv do `uv` usa um
+trampolim + o interpretador real. Era 1 daemon só.)
+
+**Correções (commit `fix(seguranca)`):**
+- `_guard_command()` no `jarvis_voice.py`: 3 comandos quase iguais
+  (similaridade ≥ 0,75) OU 5 comandos em 20 s → **PAUSA a escuta** + aviso
+  falado + nota no HUD (volta com Ctrl+Alt+J). Comando idêntico repetido em
+  < 12 s é ignorado. Config em `[safety]` (dá pra desligar com `enabled=false`).
+- `strip_wake_word()`: gate mais rígido (0,6 → 0,72; ≥ 4 letras; prefixo
+  "jarvi"). Ruído para de virar comando.
+- `reminders.add()`: dedup de 90 s por texto.
+- `ensure_single_instance()`: handle do mutex não é mais coletado pelo GC.
+- `common.sweep_tmp()` no arranque limpa `.tmp` órfão de escrita atômica.
+- `reminders.json` limpo (41 → 0).
+
+Testado: replay do incidente é cortado no 3º comando; uso legítimo rápido
+(2–4 comandos distintos) passa normal. Daemon reiniciado 00:55, boot limpo.
+
+---
+
 ## RODADA 4 (09/09, noite) — ROADMAP_2.md
 
 Arthur saiu de novo. Pediu: aplicar TUDO do `ROADMAP_2.md` (ondas A–I) +
@@ -17,10 +48,13 @@ Progresso (atualizo aqui conforme fecho cada onda):
 - [x] Onda E — 7 modelos novos + modo aula — commits 69-70
 - [x] Onda F — OCR (tesseract.js, ~15 MB) + anatomia procedural — 71-73
 - [x] Onda G1 — temperatura GPU no HUD + voz (CPU temp bloqueada por permissão) — 68
-- [ ] Onda H — otimização / revisão / polimento
+- [~] Onda H — otimização / revisão / polimento (H1,H3-H8 feitos; H2 parcial)
 - [ ] Onda I — ideias novas
 
-Total até aqui: 73 commits. Instaladas: pypdf, face-api.js, tesseract.js.
+Rodada 5 (10/09, madrugada): H8 COMANDOS.md · H6/H7 escrita atômica + Whisper
+lazy + norm cacheado · H3/H5 mãos com downshift + cérebro reage à fase ·
+H4 tokens de cor no HUD + feed com fade-out · **+ fix de segurança do
+incidente** (ver topo).
 
 Reconhecimento facial: já feito antes (rodada anterior). face-api.js local.
 

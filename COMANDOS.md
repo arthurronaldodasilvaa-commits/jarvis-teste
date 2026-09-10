@@ -6,6 +6,10 @@ executa o comando certo (roteador por IA).
 
 Para ele **parar de ouvir**: "Jarvis, modo cinema". Para **voltar**: `Ctrl+Alt+J`.
 
+**Trava de segurança:** se algo (TV, conversa ao telefone, a própria música do
+Jarvis) fizer ele receber vários comandos parecidos em sequência, ele **pausa a
+escuta sozinho** e avisa. Volte com `Ctrl+Alt+J`. Ajuste em `[safety]` no config.
+
 ---
 
 ## Conversa e conhecimento
