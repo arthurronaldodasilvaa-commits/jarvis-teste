@@ -25,7 +25,7 @@ window.jarvisBoard = (() => {
     const api = window.pywebview && window.pywebview.api;
     try { return (await api.board_list()) || []; } catch (e) { return []; }
   }
-  async function load(rel) {
+  async function load(rel, keepView) {
     const api = window.pywebview && window.pywebview.api;
     if (!api || !api.board_read) return;
     let data;
@@ -34,8 +34,16 @@ window.jarvisBoard = (() => {
     S.nodes = (data.nodes || []).map((n) => ({ ...n }));
     S.edges = (data.edges || []).map((e) => ({ ...e }));
     S.jarvis = data._jarvis || {};
-    S._fitFrames = 24;   // re-enquadra nos primeiros frames (absorve timing de layout)
+    if (!keepView) S._fitFrames = 24;   // re-enquadra (absorve timing de layout)
     render();
+    pushCtx();
+  }
+  function pushCtx() {
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.brain_ctx) {
+      try { api.brain_ctx({ board: S.rel, selected: S.sel || "",
+        sub: window.jarvisBrainUI ? window.jarvisBrainUI.sub() : "board" }); } catch (e) {}
+    }
   }
   function scheduleSave() {
     S.dirty = true; S.saveT = performance.now() + 700;
@@ -275,7 +283,16 @@ window.jarvisBoard = (() => {
     if (!ev) return;
     if (ev.op === "add_cell") addCell(ev.own ? "ai" : "text", ev.text || "");
     else if (ev.op === "open_board" && ev.rel) load(ev.rel);
-    else if (ev.op === "reload") load(S.rel);
+    else if (ev.op === "reload") { if (S.rel) load(S.rel, true); }
+    else if (ev.op === "obsidian") {
+      const api = window.pywebview && window.pywebview.api;
+      const rel = S.sel && S.nodes.find((n) => n.id === S.sel);
+      if (api && api.board_open_obsidian) {
+        api.board_open_obsidian(rel && rel.type === "file"
+          ? S.rel.split("/").slice(0, -1).concat(rel.file).join("/").replace(/^\//, "")
+          : S.rel);
+      }
+    }
   }
 
   // ---------------- gesto (mão na janelinha da webcam) ----------------

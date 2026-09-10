@@ -43,6 +43,12 @@ except Exception as _exc:  # noqa: BLE001
     log(f"study não disponível: {_exc}")
 
 try:
+    import vault
+except Exception as _exc:  # noqa: BLE001
+    vault = None
+    log(f"vault (segundo cérebro) não disponível: {_exc}")
+
+try:
     import teach
 except Exception as _exc:  # noqa: BLE001
     teach = None
@@ -962,6 +968,16 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 return aula.start(_at, cfg, brain, speak)
         except Exception as exc:  # noqa: BLE001
             log(f"aula: {exc}")
+
+    # --- segundo cérebro: entrar/sair + navegar a teia + mexer no quadro ---
+    if vault is not None and _depth == 0:
+        try:
+            _vr = vault.handle(raw, cfg, speak, brain)
+        except Exception as exc:  # noqa: BLE001
+            log(f"vault handle: {exc!r}")
+            _vr = None
+        if _vr is not None:
+            return Result(speak=_vr)
 
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:

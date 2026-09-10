@@ -36,9 +36,10 @@ mkdir "%OUT%\voice"
 copy /y "..\voice\*.py"    "%OUT%\voice\" >nul
 copy /y "..\voice\*.toml"  "%OUT%\voice\" >nul
 copy /y "..\voice\remote_page.html" "%OUT%\voice\" >nul
-xcopy /e /i /q /y "..\voice\study"    "%OUT%\voice\study" >nul
-xcopy /e /i /q /y "..\voice\profiles" "%OUT%\voice\profiles" >nul
-xcopy /e /i /q /y "..\voice\piper"    "%OUT%\voice\piper" >nul
+xcopy /e /i /q /y "..\voice\study"      "%OUT%\voice\study" >nul
+xcopy /e /i /q /y "..\voice\profiles"   "%OUT%\voice\profiles" >nul
+xcopy /e /i /q /y "..\voice\piper"      "%OUT%\voice\piper" >nul
+xcopy /e /i /q /y "..\voice\vault_seed" "%OUT%\voice\vault_seed" >nul
 copy /y "..\manual\jarvis-manual.html" "%OUT%\voice\manual.html" >nul
 del /q "%OUT%\voice\test_audio.py" 2>nul
 del /q "%OUT%\voice\secrets.toml" 2>nul

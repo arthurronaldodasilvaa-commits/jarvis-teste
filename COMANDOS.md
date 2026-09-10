@@ -132,6 +132,36 @@ Também: **"lê o QR code"** · **"lê o texto"** (OCR — ele lê e copia pra �
 
 ---
 
+## Segundo Cérebro (3º modo do app — estudo tipo Obsidian)
+
+O botão do app cicla **Jarvis → Câmera → Segundo Cérebro**. É um vault de
+arquivos `.md` + `.canvas` em `Documentos\Jarvis Vault` — abre no Obsidian de
+verdade pra editar; o Jarvis visualiza, navega e cria.
+
+| Você diz | O que acontece |
+|---|---|
+| "modo segundo cérebro" / "abre o segundo cérebro" | entra no 3º modo |
+| "modo jarvis" / "sair do segundo cérebro" | volta pro cérebro |
+| "mostra a teia" / "vê o grafo" | grafo de todas as notas e seus `[[links]]` |
+| "volta pro quadro" / "abre o quadro" | a lousa de células (`.canvas`) |
+| "abre a matéria/tópico/nota X" · "vai pra X" | centraliza o nó + abre a nota |
+| "mostra as ligações de X" · "o que conecta com X" | realça os vizinhos na teia |
+| "mostra as questões de X" | filtra as notas do tipo questão ligadas a X |
+| "me explica X" · "resume o que eu tenho sobre X" | responde a partir das suas notas |
+| "anota: ..." · "cria uma célula sobre X" | nova célula no quadro aberto |
+| "cria uma célula própria sobre X" | célula do Jarvis (IA), guardada num sidecar |
+| "liga essa com aquela" · "conecta X e Y" | cria uma linha entre células |
+| "apaga a célula X" | apaga (pede confirmação no app) |
+| "novo quadro X" | cria `X.canvas` e abre |
+| "atualiza meu segundo cérebro" | reindexa na hora |
+
+**Mouse/teclado no modo:** arrastar = mover; scroll = zoom; clicar o nó/célula
+= abrir; `/` foca a busca; duplo-clique numa célula edita; `Delete` apaga;
+puxar da borda de uma célula pra outra = liga.
+**Gesto (webcam do canto):** punho pega e arrasta a célula · palma arrasta o quadro.
+
+---
+
 ## HUD do cérebro (a tela do app)
 
 Mostra sozinho: relógio + data + clima · cronômetro/pomodoro · painel de estudo ·

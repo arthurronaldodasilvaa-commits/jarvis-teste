@@ -113,6 +113,9 @@ _ROUTER_TEMPLATES = {
     "digitar": "digitar {arg}",
     "anotar": "anota {arg}",
     "modo_cinema": "modo cinema",
+    "segundo_cerebro": "modo segundo cerebro",
+    "teia": "mostra a teia",
+    "celula_nota": "cria uma celula sobre {arg}",
     "fechar": "fechar {arg}",
     "clima": "como esta o tempo",
     "noticias": "quais as noticias",
@@ -171,6 +174,8 @@ cmd possíveis:
  modo_desenho (desenhar no ar na câmera)   modo_medida (medir distância na câmera)
  modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
  modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
+ segundo_cerebro (abrir o 3º modo: vault de estudo tipo Obsidian — quadro + teia)
+ teia (ver o grafo das notas)   celula_nota (arg=assunto — criar uma anotação no quadro)
  proxima_questao (pedir uma questão no modo estudo)
  esquecer_comando (arg=nome do comando aprendido pra apagar)
 

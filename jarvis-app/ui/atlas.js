@@ -267,7 +267,12 @@ window.jarvisAtlas = (() => {
     if (!ev) return;
     if (ev.action === "focus" && ev.id) {
       const n = S.byId.get(ev.id);
-      if (n) { S.cam.x = n.x; S.cam.y = n.y; S.cam.z = Math.max(S.cam.z, 1.1); openNote(n); S.highlight = null; }
+      if (n) {
+        S.cam.z = Math.max(S.cam.z, 1.1);
+        openNote(n);
+        S.cam.x = n.x + 210 / S.cam.z;   // painel cobre a direita
+        S.cam.y = n.y; S.highlight = null;
+      }
     } else if (ev.action === "neighbors" && ev.id) {
       const n = S.byId.get(ev.id);
       if (n) { S.highlight = new Set([n.id, ...n.links]); S.cam.x = n.x; S.cam.y = n.y; }

@@ -398,3 +398,50 @@ Estado: daemon vivo (pythonw 20664) com o servidor remoto no ar
   depois passar o Malwarebytes.
 - **Compactar `installer\pacoteB\Jarvis\` e subir no Drive** pro Robson (rodar
   `build_package_src.bat` antes pra pegar o remote + a limpeza do secrets).
+
+## Segundo Cérebro — 3º modo (10/09, ~18h)
+
+Arthur: "vamos transformar o jarvis em um segundo cérebro para estudar... modo
+cérebro(agora 'jarvis'), modo camera, modo segundo cerebro... teia de arquivos
+igual no obsidian... mouse e teclado e também comando de voz". Depois, mid-turn:
+"os arquivos de estudos serão compostos por células de anotações... manipuladas
+por comando de movimento, pinça... webcam pequena no canto... quadro branco
+(cor do tema) livre pra anotações por texto ou por voz" (print do "JARVIS.AIR"
+do vídeo dos Maestros da IA). E mandou 4 repos de referência.
+
+**Plano aprovado:** `C:\Users\thurg\.claude\plans\lazy-bubbling-llama.md`.
+Decisões: integrar Obsidian de verdade (vault `.md` + `.canvas` em
+`Documentos\Jarvis Vault`); o Jarvis classifica as notas; começar vault novo
+com semente; quadro + teia juntos nesta leva.
+
+Feito (commits `feat(brain2): … fundação` + o de voz/empacotamento):
+- **`voice/vault.py`** — bootstrap do vault da semente + `.obsidian` mínimo;
+  indexação incremental (frontmatter, `[[links]]`, `#tags`); classifica cada
+  nota (materia/topico/ideia/questao/quadro/nota) por heurística → LLM só no
+  ambíguo → cache + grava `tipo:` no frontmatter; thread `watch()`; escreve
+  `jarvis-app/brain_graph.json`. CRUD de `.canvas` (add/connect/delete/new) +
+  `handle()` dos comandos de voz.
+- **`ui/atlas.js`** (Teia) — grafo força-dirigida Fruchterman-Reingold em
+  canvas 2D; pan/zoom/arrastar; clicar nó → painel da nota (markdown mínimo
+  próprio, `window.jarvisMD`); hover realça vizinhos; busca `/`; cor por tipo.
+- **`ui/board.js`** (Quadro) — lousa infinita de células `.canvas` (DOM +
+  SVG de arestas bézier); arrastar/resize/conectar/editar/apagar; autosave;
+  barra IA/Texto/Imagem; gesto (punho pega a célula, palma arrasta o quadro —
+  mapeamento do `ada_v2`); webcam encolhida no canto (`camera.js setViewport`).
+- **`app.py`** — Api `brain_graph`/`board_read`/`board_write`/`note_text`/
+  `board_open_obsidian` (`obsidian://`)/`brain_ctx`; view `brain2` no ciclo de 3.
+- **`hologram.js`** — `applyView("brain2")` + sub-view board/teia + hooks +
+  `window.jarvisBrainUI`; botão cicla Jarvis→Câmera→Segundo Cérebro.
+- **`config.toml` `[brain]`**, `common.py` (`brain_ev` efêmero), semente
+  `voice/vault_seed/` (Matemática → Trigonometria: tópicos, questões, ideias,
+  um `.canvas` de 5 células).
+- Empacotamento: `JarvisVoice.spec` + `build_package_src.bat`.
+
+Testado: navegador com mock do bridge — teia (8 nós FR bem espalhados, cores,
+rótulos, arestas), quadro (5 células do `.canvas` + bézier + markdown + painel
+da nota). Daemon: vault criado, 8 notas indexadas, comandos de voz
+("modo segundo cerebro", "mostra a teia", "cria uma celula sobre X",
+"abre a materia matematica") todos OK.
+
+Pendente (Onda J4, roadmap): células IA ao vivo, imagem/print, paridade de
+gesto do `holograms.js`, `watchdog`, repetição espaçada, quadro pelo celular.

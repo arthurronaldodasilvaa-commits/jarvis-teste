@@ -203,11 +203,12 @@
   // evento de voz do segundo cérebro (control.json -> brain_ev)
   function onBrainEvent(ev) {
     if (state.view !== "brain2") applyView("brain2");
-    if (ev.sub) { applyBrainSub(ev.sub); return; }
-    if (ev.action === "board" && window.jarvisBoard) {
-      window.jarvisBoard.onEvent(ev); return;
+    if (ev.sub) applyBrainSub(ev.sub);
+    if (ev.action === "board") {
+      if (window.jarvisBoard) window.jarvisBoard.onEvent(ev);
+      return;
     }
-    if (window.jarvisAtlas) {           // focus / neighbors / filter
+    if (ev.action && window.jarvisAtlas) {   // focus / neighbors / filter / clear
       applyBrainSub("teia");
       window.jarvisAtlas.onEvent(ev);
     }

@@ -131,6 +131,29 @@ O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 - [ ] Integração com o Google Agenda (o MCP/connector já existe no ambiente do
       Claude, mas no Jarvis seria via API — avaliar).
 
+## Onda J — Segundo Cérebro (3º modo do app)  🚧
+
+Vault de estudo estilo Obsidian (`.md` + `.canvas`), pra o Arthur e o Robson.
+Plano completo: `C:\Users\thurg\.claude\plans\lazy-bubbling-llama.md`.
+Ideias externas em `VIDEOS_IDEAS.md` (vídeo "JARVIS.AIR") + repos que o Arthur
+mandou (ada_v2, open-jarvis/OpenJarvis, jarvis-ai-assistant).
+
+- [x] **J1. Fundação** — 3º modo (Jarvis/Câmera/Segundo Cérebro), `voice/vault.py`
+      (indexa, classifica nota por heurística+LLM, `brain_graph.json`),
+      `ui/atlas.js` (Teia — grafo Fruchterman-Reingold), `ui/board.js` (Quadro —
+      células `.canvas` + gesto), `app.py` Api, semente `voice/vault_seed/`.
+      Commit `feat(brain2): … fundação`.
+- [x] **J2. Voz** — `vault.handle`: entrar/sair, "mostra a teia", "abre a
+      matéria X", "mostra as ligações de X", "cria uma célula sobre X", "liga X
+      e Y", "apaga a célula X", "novo quadro X", "atualiza meu segundo cérebro".
+      Router: `segundo_cerebro`/`teia`/`celula_nota`.
+- [x] **J3. Empacotamento** — `JarvisVoice.spec` (hiddenimport `vault` + datas
+      `vault_seed`), `build_package_src.bat` (copia `vault_seed`).
+- [ ] **J4. (depois)** células IA "ao vivo" + imagem/print; paridade de gesto do
+      `holograms.js` (2 mãos, menu de marcação); `watchdog` no lugar do poll;
+      repetição espaçada nas questões; editar o quadro pelo celular (Onda 1);
+      `deep_research` local com citação do nó/fonte; padrão `agentskills.io`.
+
 ---
 
 ## Log de execução
