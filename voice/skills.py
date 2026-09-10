@@ -42,6 +42,12 @@ except Exception as _exc:  # noqa: BLE001
     study = None
     log(f"study não disponível: {_exc}")
 
+try:
+    import teach
+except Exception as _exc:  # noqa: BLE001
+    teach = None
+    log(f"teach não disponível: {_exc}")
+
 PROFILES_DIR = HERE / "profiles"
 
 
@@ -786,6 +792,30 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 r"\b(desenh\w*|desenhar|caneta|pincel|lapis|risco\w*|tra[cç]o\w*|"
                 r"rabisc\w*|medi\w*|medir|regua|modo)\b", t):
             return Result(speak="Às ordens, senhor.", stop=True)
+
+    # --- Jarvis aprende / esquece comandos ("Jarvis, aprende ...") ---
+    if teach is not None and skills_extra is not None and brain is not None:
+        if teach.match_list(t):
+            nomes = skills_extra.learned_names()
+            if not nomes:
+                return Result(speak="Ainda não aprendi nenhum comando, senhor.")
+            return Result(speak="Comandos que aprendi, senhor: " + ", ".join(nomes) + ".")
+        if teach.match_forget(t):
+            alvo = re.sub(r".*\bcomando\b\s*", "", t).strip() or t
+            ok = skills_extra.remove_learned(alvo)
+            return Result(speak=(f"Esqueci o comando, senhor." if ok
+                                 else "Não achei esse comando pra esquecer, senhor."))
+        if teach.match_enter(t) and len(t.split()) >= 5:
+            spec = teach.parse(raw, brain)
+            if not spec:
+                return Result(speak="Não consegui montar o comando, senhor. "
+                                    "Tente: \"aprende: quando eu disser tal coisa, "
+                                    "você fala tal coisa\".")
+
+            def _save(_sp=spec):
+                skills_extra.add_learned(_sp)
+                return f"Pronto, senhor. O comando \"{_sp['name']}\" já está ativo."
+            return Result(confirm=(teach.confirm_text(spec), _save))
 
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:

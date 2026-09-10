@@ -36,6 +36,7 @@ adiciona tem prioridade. Padrões são regex, casados no texto normalizado
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -49,47 +50,119 @@ try:
 except ModuleNotFoundError:                       # py < 3.11
     import tomli as tomllib                        # type: ignore
 
-FILE = HERE / "skills_extra.toml"
+FILE = HERE / "skills_extra.toml"                 # manual (com os exemplos do Arthur)
+LEARNED = HERE / "skills_learned.toml"            # o Jarvis grava aqui ("Jarvis, aprende: ...")
 CNW = 0x08000000
 
-_cache: dict = {"mtime": -1.0, "skills": []}
+_cache: dict = {"key": None, "skills": []}
+
+
+def _mtimes() -> tuple:
+    def _m(p):
+        try:
+            return p.stat().st_mtime
+        except OSError:
+            return 0
+    return (_m(FILE), _m(LEARNED))
+
+
+def _parse_one(s: dict, origem: str) -> dict | None:
+    pats = s.get("patterns") or ([s["pattern"]] if s.get("pattern") else [])
+    if not pats:
+        return None
+    try:
+        rx = [re.compile(p) for p in pats]
+    except re.error as exc:
+        log(f"skills_extra: regex inválida em {s.get('name','?')!r} ({exc})")
+        return None
+    return {
+        "name": s.get("name", pats[0]),
+        "rx": rx,
+        "patterns": pats,
+        "speak": s.get("speak", ""),
+        "open": s.get("open", ""),
+        "run": s.get("run", ""),
+        "then": s.get("then", ""),
+        "confirm": bool(s.get("confirm", False)),
+        "origem": origem,
+    }
 
 
 def _load() -> list[dict]:
-    try:
-        mt = FILE.stat().st_mtime
-    except OSError:
-        if _cache["mtime"] != 0:
-            _cache.update(mtime=0, skills=[])
-        return []
-    if mt == _cache["mtime"]:
+    key = _mtimes()
+    if key == _cache["key"]:
         return _cache["skills"]
     out = []
-    try:
-        data = tomllib.loads(FILE.read_text(encoding="utf-8"))
-        for s in (data.get("skill", []) or []):
-            pats = s.get("patterns") or ([s["pattern"]] if s.get("pattern") else [])
-            if not pats:
-                continue
-            try:
-                rx = [re.compile(p) for p in pats]
-            except re.error as exc:
-                log(f"skills_extra: regex inválida em {s.get('name','?')!r} ({exc})")
-                continue
-            out.append({
-                "name": s.get("name", pats[0]),
-                "rx": rx,
-                "speak": s.get("speak", ""),
-                "open": s.get("open", ""),
-                "run": s.get("run", ""),
-                "then": s.get("then", ""),
-                "confirm": bool(s.get("confirm", False)),
-            })
-        log(f"skills_extra: {len(out)} skill(s) do catálogo")
-    except Exception as exc:                      # noqa: BLE001
-        log(f"skills_extra: skills_extra.toml inválido ({exc}) — ignorando")
-    _cache.update(mtime=mt, skills=out)
+    for path, origem in ((FILE, "manual"), (LEARNED, "aprendido")):
+        if not path.is_file():
+            continue
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+            for s in (data.get("skill", []) or []):
+                one = _parse_one(s, origem)
+                if one:
+                    out.append(one)
+        except Exception as exc:                  # noqa: BLE001
+            log(f"skills_extra: {path.name} inválido ({exc}) — ignorando")
+    log(f"skills_extra: {len(out)} skill(s) no catálogo")
+    _cache.update(key=key, skills=out)
     return out
+
+
+# --------------------------------------------------------------------------
+# gravação (usado pelo teach.py — "Jarvis, aprende ...")
+# --------------------------------------------------------------------------
+def _load_learned_raw() -> list[dict]:
+    if not LEARNED.is_file():
+        return []
+    try:
+        return tomllib.loads(LEARNED.read_text(encoding="utf-8")).get("skill", []) or []
+    except Exception:                             # noqa: BLE001
+        return []
+
+
+def _dump_learned(skills: list[dict]) -> None:
+    lines = ["# skills_learned.toml — comandos que o Jarvis aprendeu por voz.",
+             "# NÃO edite à mão: use \"Jarvis, aprende ...\" e \"Jarvis, esquece o comando ...\".",
+             ""]
+    for s in skills:
+        lines.append("[[skill]]")
+        for k in ("name", "speak", "open", "then", "run"):
+            if s.get(k):
+                lines.append(f"{k} = {json.dumps(str(s[k]), ensure_ascii=False)}")
+        pats = s.get("patterns") or []
+        lines.append("patterns = [" + ", ".join(json.dumps(p, ensure_ascii=False) for p in pats) + "]")
+        if s.get("confirm"):
+            lines.append("confirm = true")
+        lines.append("")
+    LEARNED.write_text("\n".join(lines), encoding="utf-8")
+    _cache["key"] = None
+
+
+def add_learned(spec: dict) -> None:
+    """spec: {name, patterns[], speak?, open?, then?, run?, confirm?}."""
+    skills = [s for s in _load_learned_raw()
+              if norm(s.get("name", "")) != norm(spec.get("name", ""))]
+    skills.append({k: spec[k] for k in ("name", "patterns", "speak", "open", "then", "run", "confirm")
+                   if spec.get(k)})
+    _dump_learned(skills)
+    log(f"skills_extra: aprendeu {spec.get('name')!r}")
+
+
+def remove_learned(name: str) -> bool:
+    n = norm(name)
+    skills = _load_learned_raw()
+    kept = [s for s in skills if n not in norm(s.get("name", ""))
+            and not any(n in norm(p) for p in (s.get("patterns") or []))]
+    if len(kept) == len(skills):
+        return False
+    _dump_learned(kept)
+    log(f"skills_extra: esqueceu {name!r}")
+    return True
+
+
+def learned_names() -> list[str]:
+    return [s.get("name", "?") for s in _load_learned_raw()]
 
 
 def _do_open(target: str) -> None:
