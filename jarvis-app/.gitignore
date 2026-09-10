@@ -8,4 +8,6 @@ state.json
 control.json
 scan.json
 reload.flag
+face.json
+faces.json
 app_debug.log
