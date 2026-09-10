@@ -1247,6 +1247,16 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if fala is not None:
         return Result(speak=fala)
 
+    # --- consultas via APIs sem chave (ações, CEP, feriado, ar, sol/lua, história…) ---
+    try:
+        import facts
+        write_app_state(phase="searching")
+        fr = facts.handle(raw, cfg, brain)
+        if fr is not None:
+            return fr
+    except Exception as exc:  # noqa: BLE001
+        log(f"facts: {exc}")
+
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)
     if fala is not None:
