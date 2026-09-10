@@ -952,7 +952,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         _sm = study.match_enter(t)
         if _sm:
             return Result(speak=study.enter(_sm, cfg, brain))   # entra ou troca de modo
-        if study.active():
+        if study.active() and _depth == 0:      # atalhos de sessão só na fala do usuário
             _sr = study.handle(raw, cfg, speak, brain)
             if _sr is not None:
                 return _sr
@@ -1715,7 +1715,12 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     _is_question = re.search(r"\b(por ?que|porque|qual|quais|quem|quanto\s+(custa|vale)|"
                              r"o\s+que\s+(e|significa|quer dizer)|me\s+(explica|conta|fala\s+sobre)|"
                              r"voce\s+(sabe|acha|pode\s+me\s+dizer))\b|\?", t)
-    if _depth == 0 and brain is not None and hasattr(brain, "route") and not _is_question:
+    # roteador só pra fala que PARECE dirigida: >= 2 palavras e algum conteúdo.
+    # 1 palavra solta que não bateu em nenhuma skill é quase sempre ruído — e o
+    # roteador (2b) mapeava isso pra google/musica/abrir (foi o "gato" do incidente).
+    _routable = len(t.split()) >= 2 and len(t) >= 6
+    if _depth == 0 and _routable and brain is not None \
+            and hasattr(brain, "route") and not _is_question:
         try:
             routed = brain.route(raw)
         except Exception as exc:  # noqa: BLE001
