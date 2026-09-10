@@ -39,9 +39,14 @@ def _load() -> list[dict]:
 
 def _save(items: list[dict]) -> None:
     try:
-        FILE.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
-    except OSError as exc:
+        from common import _atomic_write
+        if not _atomic_write(FILE, json.dumps(items, ensure_ascii=False)):
+            log("reminders: não salvou (escrita atômica falhou)")
+    except Exception as exc:                       # noqa: BLE001
         log(f"reminders: não salvou ({exc})")
+
+
+_fired: set[tuple] = set()   # (text, at) já anunciados — não repete nem se o _save falhar
 
 
 def _num(word: str) -> int | None:
@@ -201,10 +206,18 @@ def add(text: str, when_ts: float, rule: dict | None = None) -> bool:
 
 
 def due(now_ts: float | None = None) -> list[dict]:
-    """Devolve os lembretes vencidos. Remove os pontuais; reagenda os recorrentes."""
+    """Devolve os lembretes vencidos. Remove os pontuais; reagenda os recorrentes.
+    Nunca devolve o MESMO lembrete duas vezes, mesmo se o _save falhar (senão o
+    thread do daemon fica anunciando de 15 em 15 s pra sempre)."""
     now_ts = now_ts or time.time()
     items = _load()
-    ready = [x for x in items if x["at"] <= now_ts]
+    ready = []
+    for x in items:
+        if x["at"] <= now_ts:
+            k = (x.get("text", ""), round(x.get("at", 0), 1))
+            if k not in _fired:
+                _fired.add(k)
+                ready.append(x)
     if not ready:
         return []
     keep = [x for x in items if x["at"] > now_ts]
@@ -213,6 +226,8 @@ def due(now_ts: float | None = None) -> list[dict]:
             nxt = dict(r)
             nxt["at"] = _next_occurrence(r["rule"], datetime.now() + timedelta(seconds=1))
             keep.append(nxt)
+    if len(_fired) > 200:
+        _fired.clear()
     _save(keep)
     return ready
 
