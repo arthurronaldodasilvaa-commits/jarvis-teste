@@ -74,9 +74,20 @@ copy /y "LEIA-ME_src.txt"               "%OUT%\LEIA-ME.txt" >nul
 if exist "..\COMANDOS.md" copy /y "..\COMANDOS.md" "%OUT%\COMANDOS.md" >nul
 copy /y "..\manual\jarvis-manual.html"  "%OUT%\MANUAL.html" >nul
 
+echo [8/8] Compactando num UNICO arquivo (Jarvis.zip) ...
+REM  UM zip so. NAO subir a pasta solta no Drive: o Google Drive quebra a
+REM  pasta em varios zips com nomes estranhos e a estrutura chega errada.
+del /q "pacoteB\Jarvis.zip" 2>nul
+pushd pacoteB
+"%SystemRoot%\System32\tar.exe" -a -c -f Jarvis.zip Jarvis
+popd
+
 echo.
 echo Pasta montada em:  %~dp0%OUT%
+echo ZIP pronto:        %~dp0pacoteB\Jarvis.zip   ^<-- suba SO ESTE arquivo no Drive
 echo.
-echo IMPORTANTE: antes de compactar, teste rodando INSTALAR.bat de dentro
-echo de %OUT% . E avise o Robson pra DESBLOQUEAR o .zip (botao direito ^>
-echo Propriedades ^> Desbloquear) ANTES de extrair.
+echo IMPORTANTE:
+echo  1) teste rodando %OUT%\INSTALAR.bat aqui antes de subir.
+echo  2) suba SOMENTE  pacoteB\Jarvis.zip  (um arquivo). Nao suba a pasta.
+echo  3) o Robson: botao direito no Jarvis.zip -^> Propriedades -^> DESBLOQUEAR
+echo     -^> OK  ANTES de extrair. (instrucoes completas no LEIA-ME.txt)
