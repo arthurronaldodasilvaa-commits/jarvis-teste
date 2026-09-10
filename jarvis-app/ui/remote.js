@@ -7,14 +7,16 @@ window.jarvisRemote = (() => {
   const urlEl = document.getElementById("pair-url");
   let url = "", shown = false;
 
-  function open() { if (url) { panel.hidden = false; } }
-  function close() { panel.hidden = true; }
+  function open() { if (url) panel.classList.add("on"); }
+  function close() { panel.classList.remove("on"); }
 
   if (btn) btn.addEventListener("click", open);
   const cb = document.getElementById("pair-close");
   if (cb) cb.addEventListener("click", close);
   if (panel) panel.addEventListener("click", (e) => { if (e.target === panel) close(); });
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) { e.stopImmediatePropagation(); close(); } }, true);
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && panel.classList.contains("on")) { e.stopImmediatePropagation(); close(); }
+  }, true);
 
   return {
     onState(s) {
@@ -29,7 +31,7 @@ window.jarvisRemote = (() => {
         if (s.remote_qr) qr.src = s.remote_qr;
         if (!shown && !localStorage.getItem("jarvis-pair-seen")) {
           shown = true;
-          setTimeout(() => { panel.hidden = false; }, 900);
+          setTimeout(() => { panel.classList.add("on"); }, 900);
           try { localStorage.setItem("jarvis-pair-seen", "1"); } catch (e) {}
         }
       }

@@ -251,8 +251,9 @@
     cursor: pointer; transition: opacity .2s, background .2s; }
   #phone-btn:hover { opacity: 1; background: var(--neon-14); }
   body.camera #phone-btn { display: none; }
-  #pair { position: fixed; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center;
+  #pair { position: fixed; inset: 0; z-index: 21; display: none; align-items: center; justify-content: center;
     background: rgba(2,7,12,0.93); backdrop-filter: blur(3px); }
+  #pair.on { display: flex; }
   #pair .pbox { width: min(360px, 92vw); border: 1px solid var(--neon-dim); background: var(--glass);
     padding: 26px 28px; text-align: center; box-shadow: 0 0 40px rgba(70,214,255,0.18); }
   #pair .ptag { font-family: "Segoe UI", Consolas, monospace; font-size: 11px; letter-spacing: .24em;
@@ -323,7 +324,7 @@
   <div id="close" title="Fechar">&times;</div>
   <div id="phone-btn" title="Parear o celular" hidden>📱</div>
 
-  <div id="pair" hidden><div class="pbox">
+  <div id="pair"><div class="pbox">
     <div class="ptag">Controle pelo celular</div>
     <img id="pair-qr" alt="QR de pareamento" />
     <div class="purl" id="pair-url"></div>
