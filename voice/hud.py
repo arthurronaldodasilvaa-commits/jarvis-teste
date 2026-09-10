@@ -53,19 +53,61 @@ def _media_snapshot() -> dict | None:
 _nvml = {"ok": None}
 
 
-def _gpu_pct() -> float | None:
+def _gpu() -> tuple[float | None, float | None]:
+    """(uso %, temperatura °C) da GPU 0, via NVML."""
     if _nvml["ok"] is False:
-        return None
+        return None, None
     try:
         import pynvml
         if _nvml["ok"] is None:
             pynvml.nvmlInit()
             _nvml["ok"] = True
             _nvml["h"] = pynvml.nvmlDeviceGetHandleByIndex(0)
-        return float(pynvml.nvmlDeviceGetUtilizationRates(_nvml["h"]).gpu)
+        h = _nvml["h"]
+        uso = float(pynvml.nvmlDeviceGetUtilizationRates(h).gpu)
+        try:
+            temp = float(pynvml.nvmlDeviceGetTemperature(h, pynvml.NVML_TEMPERATURE_GPU))
+        except Exception:  # noqa: BLE001
+            temp = None
+        return uso, temp
     except Exception:  # noqa: BLE001
         _nvml["ok"] = False
+        return None, None
+
+
+_cpu_temp = {"ok": None, "src": None}
+
+
+def _cpu_temperature() -> float | None:
+    """Temperatura da CPU. Tenta psutil, depois WMI (MSAcpi). Nem sempre dá no
+    Windows sem admin — se não der, devolve None e para de tentar."""
+    if _cpu_temp["ok"] is False:
         return None
+    try:
+        import psutil
+        if hasattr(psutil, "sensors_temperatures"):
+            temps = psutil.sensors_temperatures() or {}
+            for key in ("coretemp", "k10temp", "acpitz", "cpu_thermal"):
+                if temps.get(key):
+                    _cpu_temp["ok"] = True
+                    return round(sum(x.current for x in temps[key]) / len(temps[key]), 1)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import subprocess
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature "
+             "-ErrorAction SilentlyContinue | Select-Object -First 1 -Expand CurrentTemperature)"],
+            capture_output=True, text=True, timeout=6, creationflags=0x08000000)
+        v = (r.stdout or "").strip()
+        if v.isdigit():
+            _cpu_temp["ok"] = True
+            return round(int(v) / 10 - 273.15, 1)
+    except Exception:  # noqa: BLE001
+        pass
+    _cpu_temp["ok"] = False
+    return None
 
 
 def _sys_snapshot() -> dict:
@@ -76,9 +118,14 @@ def _sys_snapshot() -> dict:
         out["ram"] = round(psutil.virtual_memory().percent)
     except Exception:  # noqa: BLE001
         pass
-    g = _gpu_pct()
-    if g is not None:
-        out["gpu"] = round(g)
+    uso, temp = _gpu()
+    if uso is not None:
+        out["gpu"] = round(uso)
+    if temp is not None:
+        out["gpu_t"] = round(temp)
+    ct = _cpu_temperature()
+    if ct is not None:
+        out["cpu_t"] = round(ct)
     return out
 
 

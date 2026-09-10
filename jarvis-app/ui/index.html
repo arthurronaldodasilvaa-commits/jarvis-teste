@@ -173,7 +173,9 @@
                  background: linear-gradient(0deg, var(--neon), #bff0ff);
                  box-shadow: 0 0 10px var(--neon); transition: height .5s ease; }
   .gauge .lbl { writing-mode: vertical-rl; text-orientation: mixed; }
-  .gauge .num { font-size: 9px; opacity: 0.65; width: 22px; }
+  .gauge .num { font-size: 9px; opacity: 0.65; width: 26px; display: flex; flex-direction: column; line-height: 1.3; }
+  .gauge .num em { font-style: normal; opacity: 0.75; }
+  .gauge .num em.hot { color: #ffb24d; opacity: 1; }
 
   #np { left: 26px; bottom: 104px; width: 260px; opacity: 0; transition: opacity .4s;
         border-left: 2px solid var(--neon-dim); padding-left: 12px; }
@@ -259,9 +261,9 @@
       <div id="tasks"></div>
     </div>
     <div id="gauges" class="panel">
-      <div class="gauge"><span class="lbl">CPU</span><div class="track"><i class="fill" id="g-cpu"></i></div><span class="num" id="n-cpu">0</span></div>
-      <div class="gauge"><span class="lbl">RAM</span><div class="track"><i class="fill" id="g-ram"></i></div><span class="num" id="n-ram">0</span></div>
-      <div class="gauge"><span class="lbl">GPU</span><div class="track"><i class="fill" id="g-gpu"></i></div><span class="num" id="n-gpu">0</span></div>
+      <div class="gauge"><span class="lbl">CPU</span><div class="track"><i class="fill" id="g-cpu"></i></div><span class="num"><b id="n-cpu">0</b><em id="t-cpu"></em></span></div>
+      <div class="gauge"><span class="lbl">RAM</span><div class="track"><i class="fill" id="g-ram"></i></div><span class="num"><b id="n-ram">0</b></span></div>
+      <div class="gauge"><span class="lbl">GPU</span><div class="track"><i class="fill" id="g-gpu"></i></div><span class="num"><b id="n-gpu">0</b><em id="t-gpu"></em></span></div>
     </div>
     <div id="np" class="panel">
       <div class="t"><span class="ico">♪</span><span id="np-t">—</span></div>

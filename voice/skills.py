@@ -1374,6 +1374,27 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             linhas.append(f"{dia}: {txt[:80]}")
         return Result(speak="Seus memos, senhor. " + " ... ".join(linhas))
 
+    # --- temperatura CPU/GPU ---
+    if re.search(r"\btemperatura\b.*\b(cpu|gpu|placa|processador|pc|computador|maquina)\b|"
+                 r"\b(cpu|gpu|placa|processador)\b.*\btemperatura\b|\bquente\b.*\b(cpu|gpu|pc)\b|"
+                 r"\bo pc (ta|esta) quente\b", t):
+        try:
+            import hud
+            s = hud._sys_snapshot()
+            partes = []
+            if s.get("gpu_t") is not None:
+                partes.append(f"GPU a {s['gpu_t']} graus ({s.get('gpu', 0)}% de uso)")
+            if s.get("cpu_t") is not None:
+                partes.append(f"CPU a {s['cpu_t']} graus")
+            elif not partes:
+                return Result(speak="Não consigo ler as temperaturas nessa máquina, senhor.")
+            if s.get("cpu_t") is None and partes:
+                partes.append(f"a da CPU o Windows não deixa ver sem administrador, senhor")
+            return Result(speak=", ".join(partes) + ".")
+        except Exception as exc:  # noqa: BLE001
+            log(f"temp: {exc}")
+            return Result(speak="Não consegui as temperaturas, senhor.")
+
     # --- o que está pesado (top processos) ---
     if re.search(r"\bo que (ta|esta|está)\s+(pesado|pesando|consumindo|comendo|travando)|"
                  r"\bque programa\s+(ta|esta|está)\s+(usando|comendo|consumindo)|"

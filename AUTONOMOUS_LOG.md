@@ -10,15 +10,17 @@ destrutivo, e ao acabar: revisar/otimizar/polir código + design + mais ideias.
 Parar só quando ele mandar. Permissão total, pode instalar qualquer coisa.
 
 Progresso (atualizo aqui conforme fecho cada onda):
-- [x] Onda A — hologramas interativos (sliders + ajuste por voz) — commit 63
-- [ ] Onda B — Jarvis lê os materiais (RAG-lite)
-- [ ] Onda C — integrações web sem chave
-- [ ] Onda D — poder no Windows
+- [x] Onda A — hologramas interativos (sliders + voz) — commit 63
+- [x] Onda B — Jarvis lê os materiais (RAG-lite, BM25, pypdf) — commit 67
+- [x] Onda C — APIs sem chave (facts.py: B3, CEP, feriado, ar, sol/lua, história) — 64
+- [x] Onda D — Windows (tarefas, top procs, pomodoro, apresentação, ler em voz, memo) — 65-66
 - [ ] Onda E — modelos de estudo + modo aula
 - [ ] Onda F — OCR + anatomia (downloads)
 - [ ] Onda G — temp CPU/GPU no HUD + pendências
 - [ ] Onda H — otimização / revisão / polimento
 - [ ] Onda I — ideias novas
+
+Reconhecimento facial: já feito antes (rodada anterior). face-api.js local.
 
 ---
 

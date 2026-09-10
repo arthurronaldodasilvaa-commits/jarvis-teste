@@ -28,6 +28,13 @@
     const n = $("n-" + key);
     if (n) n.textContent = Math.round(v);
   }
+  function setTemp(key, c) {
+    const el = $("t-" + key);
+    if (!el || !el.classList) return;
+    if (c == null || !isFinite(c)) { el.textContent = ""; return; }
+    el.textContent = Math.round(c) + "°";
+    el.classList.toggle("hot", c >= 80);
+  }
 
   // ---------- música ----------
   let lastTrackKey = "";
@@ -154,6 +161,8 @@
       setGauge("cpu", +sys.cpu || 0);
       setGauge("ram", +sys.ram || 0);
       setGauge("gpu", +sys.gpu || 0);
+      setTemp("cpu", sys.cpu_t);
+      setTemp("gpu", sys.gpu_t);
       if (typeof s.weather === "string") $("wx").textContent = s.weather;
       renderStudy(s.study);
       renderTimer(s.timer);
