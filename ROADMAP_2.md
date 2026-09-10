@@ -92,8 +92,10 @@ O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 - [x] **H1. Revisão de código** — pyflakes 100% limpo em todo `voice/*.py` +
       `app.py`; código morto removido (`nome`, `tgt_zone`, imports, f-strings).
       skills.py fica monolítico de propósito (ordem do dispatch é a lógica).
-- [x] **H2. Performance do daemon** — ver `docs/PERF.md`. Whisper `small` agora
-      é lazy (H7). `norm()` com cache. dispatch sem regex recompilado.
+- [~] **H2. Performance do daemon** — ver `docs/PERF.md`. Feito: Whisper `small`
+      lazy (H7), `norm()` cacheado, `_atomic_write`, event loop do asyncio
+      fechado. Pendente (risco vs. ganho, precisa de teste ao vivo): Piper em
+      processo vivo, Whisper na GPU.
 - [x] **H3. Performance do app** — loop da câmera escalonado: hands a cada frame
       só quando há mão; senão 2 em 3 frames. face 1,4s, ocr sob demanda.
       `hologram.js` poll 250ms mantido. Menos alocação no tick.
@@ -109,6 +111,11 @@ O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 
 ## Onda I — Ideias novas (preencher e aplicar conforme sobrar tempo)
 
+- [ ] **Roteador LLM mais conservador** — o `Brain.route()` (qwen 2b) mapeia
+      ruído/transcrição-lixo pra comandos disruptivos (`google`, `musica`,
+      `abrir`). Foi o que gerou as buscas por "gato" no incidente. Ideia: só
+      rodar o roteador pra fala que pareça dirigida (≥ 2 palavras, não-filler)
+      e/ou exigir confiança extra pros cmds que abrem coisa externa.
 - [ ] Modo "co-piloto de código" leve — lê um arquivo, explica, sugere (2b limitado).
 - [ ] "Diário de bordo" — o Jarvis registra o que você fez no dia (comandos,
       tempo de estudo) e faz um resumo à noite.
