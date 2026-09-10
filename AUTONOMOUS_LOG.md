@@ -176,6 +176,33 @@ Testado: daemon sobe limpo com os 3 módulos; 23 comandos variados por dispatch,
 JarvisSetup.exe + COMANDOS.md + LEIA-ME.txt + payload{voice frozen, jarvis-app,
 models tiny+small, ollama}. Perfil padrão robson, provider ollama, voz Piper.
 
+## Rodada 3 (09/09, 20h–21h30) — endgame holográfico: modelos + gestos
+
+Instalador testado numa pasta isolada (`E:\_jarvis_install_test`, apagada):
+cópia de 3219 arquivos OK, config repatchada (whisper→absoluto, perfil→robson),
+launcher VBS OK, **daemon E app instalados bootaram** de um caminho novo. 3
+atalhos mortos (`F:\Jarvis`, de um teste anterior) apagados com autorização.
+
+**13 modelos de estudo novos** (`ui/models.js`): onda, pêndulo, circuito em
+série, campo elétrico, soma de vetores, reta tangente/derivada (com expr),
+integral/Riemann (com expr), superfície z=f(x,y), geometria VSEPR
+(6 formas), CO₂, amônia. Verificados renderizando no navegador.
+`skills.py`: `_MODELS` + extração de expressão + VSEPR nomeada.
+BÔNUS: `STOP_WORDS` agora casa palavra inteira (`\bpara\b`) — "paraboloide"
+não é mais engolido.
+
+**3 gestos novos** (`ui/holograms.js`) — todos aprovados pelo Arthur:
+- ✊✊ / ✋✋ com forma selecionada: gira como bola (trackball 2 mãos)
+- ✋ modificadora sobre forma animada: congela e navega no tempo pela mão
+- **menu de marcação** de 1 mão: palma parada ~0,5 s abre; empurra a mesma
+  palma numa direção e segura ~1,1 s (LIMPAR/TRAVAR/DUPLICAR/EXPLODIR).
+  1ª versão (radial + apontar com a outra mão) foi rejeitada — refeita.
+  Estética refeita: texto glow sem caixa, no estilo do HUD.
+
+**App rodando da FONTE** (`python app.py`) enquanto mexo nos hologramas —
+mudança aparece na hora. Rebuild do `JarvisApp.exe` só quando a leva fechar.
+50 commits na sessão.
+
 ## Encerramento (09/09, ~18h46)
 
 Arthur voltou e mandou parar ("cheguei, ao finalizar esta tarefa, pare e me
