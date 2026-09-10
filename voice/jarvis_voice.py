@@ -133,7 +133,6 @@ _ROUTER_TEMPLATES = {
     "modo_medida": "modo medida",
     "modo_normal": "modo normal",
     "limpar_desenho": "limpa o desenho e as medidas",
-    "modo_enem": "modo enem",
     "modo_redacao": "modo redação",
     "modo_prova": "modo prova",
     "modo_estudo": "modo estudo",
@@ -168,7 +167,7 @@ cmd possíveis:
  hora_mundo (arg=cidade)   clipboard_ler   minimizar   dias_ate (arg=data/feriado)
  modo_desenho (desenhar no ar na câmera)   modo_medida (medir distância na câmera)
  modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
- modo_enem / modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
+ modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
  proxima_questao (pedir uma questão no modo estudo)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
@@ -202,7 +201,6 @@ Exemplos:
 "pode sair do modo medida" -> {"cmd":"modo_normal"}
 "apaga o que eu desenhei" -> {"cmd":"limpar_desenho"}
 "tira essas medidas da tela" -> {"cmd":"limpar_desenho"}
-"bora estudar pro enem" -> {"cmd":"modo_enem"}
 "quero treinar redação" -> {"cmd":"modo_redacao"}
 "vamos fazer um simulado" -> {"cmd":"modo_prova"}
 "me faz outra pergunta" -> {"cmd":"proxima_questao"}

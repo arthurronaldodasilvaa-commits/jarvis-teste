@@ -59,21 +59,20 @@ def elapsed_min() -> float:
 
 # --------------------------------------------------------------------------
 _ALIASES = {
-    "enem": "enem", "e nem": "enem", "e-nem": "enem",
     "redacao": "redacao", "redação": "redacao", "escrita": "redacao",
     "prova": "prova", "simulado": "prova", "teste": "prova",
     "estudo": "estudo", "estudos": "estudo", "foco": "estudo", "aula": "estudo",
-    "vestibular": "enem",
+    "vestibular": "estudo",
 }
 
 
 def match_enter(t: str) -> str | None:
     """t normalizado. Devolve o nome do modo se a fala for 'modo <x>', senão None."""
-    m = re.search(r"\bmod[eo]\s+(?:de\s+)?(enem|e nem|e-nem|redacao|redação|escrita|"
+    m = re.search(r"\bmod[eo]\s+(?:de\s+)?(redacao|redação|escrita|"
                   r"prova|simulado|teste|estudo|estudos|foco|aula|vestibular)\b", t)
     if not m:
-        # "bora estudar pro enem", "vamos treinar redação"
-        m2 = re.search(r"\b(estudar|treinar|revisar|praticar)\b.*\b(enem|redacao|redação|"
+        # "bora estudar pra prova", "vamos treinar redação"
+        m2 = re.search(r"\b(estudar|treinar|revisar|praticar)\b.*\b(redacao|redação|"
                        r"prova|vestibular|matematica|fisica|quimica|historia)\b", t)
         if m2:
             return _ALIASES.get(m2.group(2), "estudo")
@@ -82,7 +81,7 @@ def match_enter(t: str) -> str | None:
 
 
 def match_exit(t: str) -> bool:
-    return bool(re.search(r"\b(sa[ií]r?\s+d[oe]\s+(modo\s+)?(estudo|enem|prova|redacao|redação|aula)|"
+    return bool(re.search(r"\b(sa[ií]r?\s+d[oe]\s+(modo\s+)?(estudo|prova|redacao|redação|aula)|"
                           r"encerra\w*\s+(a\s+)?(sess[ãa]o|aula|prova|estudo)|"
                           r"acab\w*\s+(a\s+)?(prova|aula|sess[ãa]o|estudo)|"
                           r"terminei\s+de\s+estudar|modo\s+normal|volta\w*\s+ao\s+normal|"

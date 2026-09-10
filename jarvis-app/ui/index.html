@@ -123,8 +123,9 @@
   body:not(.camera) #cam-help { display: none; }
   body.camera #scene, body.camera #fx, body.camera #brand, body.camera #hint { display: none; }
   body.camera #hud { display: none; }
-  /* na câmera os cantos têm colchetes decorativos — desce o X pra não brigar com eles */
-  body.camera #close { top: 84px; right: 26px; opacity: 0.7; }
+  /* na câmera os cantos têm colchetes decorativos — afasta o status e o X deles */
+  body.camera #close  { top: 84px; right: 26px; opacity: 0.7; }
+  body.camera #status { left: 92px; bottom: 30px; }
 
   /* ---------- HUD do cérebro ---------- */
   #hud { position: fixed; inset: 0; z-index: 3; pointer-events: none;

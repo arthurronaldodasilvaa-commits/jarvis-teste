@@ -201,6 +201,21 @@ _MODELS = [
     (r"geometria\s+molecular|\bvsepr\b|repulsao\s+de\s+pares|"
      r"geometria\s+(linear|angular|trigonal|tetraedrica|piramidal|octaedrica)",
      "geometria_molecular", "Geometria molecular"),
+    # --- lote C: biologia / astronomia / estatística / transformações ---
+    (r"\bdna\b|dupla\s+helice|acido\s+desoxirribonucleico|codigo\s+genetico", "dna", "DNA"),
+    (r"sistema\s+solar|\bplanetas\b|orbitas?\s+dos?\s+planetas|modelo\s+heliocentrico",
+     "sistema_solar", "Sistema solar"),
+    (r"\bcoracao\b|camaras\s+do\s+coracao|sistema\s+circulatorio|atrios?\s+e\s+ventriculos?",
+     "coracao", "Coração"),
+    (r"grafico\s+de\s+setores|grafico\s+de\s+pizza|grafico\s+circular", "grafico_setores",
+     "Gráfico de setores"),
+    (r"grafico\s+de\s+barras|grafico\s+de\s+colunas|\bhistograma\b", "grafico_barras",
+     "Gráfico de barras"),
+    (r"transla[cç][ãa]o\s+(de|da|do)|transladar", "translacao", "Translação"),
+    (r"reflex[ãa]o\s+(de|da|do|no eixo)|espelhar\s+(a|o|uma|um)", "reflexao", "Reflexão"),
+    (r"homotetia|amplia[cç][ãa]o\s+proporcional", "homotetia", "Homotetia"),
+    (r"transforma[cç][õo]es\s+geometricas|geometria\s+de\s+transforma", "transformacoes",
+     "Transformações geométricas"),
 ]
 
 # geometrias VSEPR nomeadas -> variação do modelo
@@ -216,6 +231,19 @@ _SOLIDS_FORMULA = {"esfera": "esfera", "cubo": "cubo", "cilindro": "cilindro",
 def _holo_models(t: str, raw: str = "") -> "Result | None":
     """Modelos de estudo + formas simples na câmera. t = texto normalizado."""
     has_verb = re.search(rf"\b(?:{_MK})\b", t) is not None
+
+    # gráfico estatístico: "gráfico de barras 4 7 3 9" / "gráfico de setores 30 50 20"
+    mg = re.search(r"grafico\s+(?:de\s+|em\s+)?(barras?|colunas?|setores?|pizza|circular|"
+                   r"histograma)\b(.*)", t)
+    if mg:
+        nums = [float(x) for x in re.findall(r"-?\d+(?:[.,]\d+)?", mg.group(2).replace(",", "."))]
+        kind = "setores" if re.search(r"setor|pizza|circular", mg.group(1)) else "barras"
+        holo = {"action": "add", "shape": f"grafico_{kind}", "n": int(time.time() * 1000)}
+        if nums:
+            holo["data"] = nums[:8]
+        write_control(holo=holo)
+        tipo = "de setores" if kind == "setores" else "de barras"
+        return Result(speak=f"Gráfico {tipo} na tela, senhor.")
 
     # plotter de função: "plota y = x ao quadrado" / "grafico de x^2 + 1"
     low = (raw or "").lower().strip()
@@ -266,7 +294,9 @@ def _holo_models(t: str, raw: str = "") -> "Result | None":
 
     # modelos nomeados
     _auto = ("tabela", "circulo", "molecula", "onda", "pendulo", "circuito", "campo",
-             "vetores", "derivada", "integral", "superficie", "geometria")
+             "vetores", "derivada", "integral", "superficie", "geometria",
+             "dna", "sistema_solar", "coracao", "grafico", "translacao", "reflexao",
+             "homotetia", "transforma")
     for pat, name, nome in _MODELS:
         if re.search(pat, t) and (has_verb or name.startswith(_auto)
                                   or re.search(r"\b(triangulo retangulo|corpo livre|plano inclinado)\b", t)):

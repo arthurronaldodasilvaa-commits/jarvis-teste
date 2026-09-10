@@ -572,6 +572,155 @@ window.jarvisModels = (() => {
     return g;
   }
 
+  // ================= C1 — DNA (dupla hélice, biologia) =================
+  function dna() {
+    const g = new THREE.Group();
+    const rungs = new THREE.Group(); g.add(rungs);
+    const s1 = [], s2 = [];
+    const N = 34, H = 4.2, R = 0.8;
+    for (let i = 0; i <= N; i++) {
+      const y = -H / 2 + i / N * H;
+      const a = i / N * TAU * 2.4;
+      const p1 = V(Math.cos(a) * R, y, Math.sin(a) * R);
+      const p2 = V(Math.cos(a + Math.PI) * R, y, Math.sin(a + Math.PI) * R);
+      s1.push(p1); s2.push(p2);
+      if (i % 2 === 0) rungs.add(stick(p1, p2, i % 4 ? 0x8ab6ff : 0xff9de0, 0.035));
+    }
+    g.add(line(s1, NEON, 0.95)); g.add(line(s2, GREEN, 0.95));
+    put(g, label("DNA — dupla hélice\nA–T   C–G", { font: 26, color: SOFT }), 0, -2.7, 0.6);
+    g.userData.type = "dna";
+    g.userData.update = (t) => { g.rotation.y = t * 0.6; };
+    return g;
+  }
+
+  // ================= C2 — sistema solar (física / astronomia) =================
+  function sistemaSolar() {
+    const g = new THREE.Group();
+    const sun = ball(0.42, AMBER); g.add(sun);
+    const defs = [["Merc", 0.9, 0.10, 2.4], ["Vênus", 1.3, 0.14, 1.7],
+      ["Terra", 1.8, 0.16, 1.3], ["Marte", 2.3, 0.13, 1.0],
+      ["Júpiter", 3.1, 0.30, 0.55]];
+    const planets = defs.map(([nm, r, sz]) => {
+      const orbit = [];
+      for (let i = 0; i <= 72; i++) orbit.push(V(Math.cos(i / 72 * TAU) * r, Math.sin(i / 72 * TAU) * r * 0.4));
+      g.add(line(orbit, 0x3a6a7e, 0.4));
+      const b = ball(sz, NEON); g.add(b);
+      put(g, label(nm, { font: 18, color: SOFT }), r, 0.25, 0.45);
+      return { b, r };
+    });
+    put(g, label("SISTEMA SOLAR", { font: 26, color: SOFT }), 0, 2.5, 0.6);
+    g.userData.type = "sistema_solar";
+    g.userData.update = (t) => {
+      defs.forEach((d, i) => {
+        const a = t * d[3] + i;
+        planets[i].b.position.set(Math.cos(a) * d[1], Math.sin(a) * d[1] * 0.4, 0);
+      });
+      sun.scale.setScalar(1 + Math.sin(t * 2) * 0.04);
+    };
+    return g;
+  }
+
+  // ================= C3 — transformações geométricas (matemática) =================
+  function transformacoes(opts) {
+    const kind = (opts && opts.kind) || "rotacao";
+    const g = new THREE.Group();
+    g.add(axes(3));
+    const base = [V(0.4, 0.3), V(2.0, 0.5), V(0.9, 1.9), V(0.4, 0.3)];
+    g.add(line(base, 0x6a7f8f, 0.7));
+    const moved = line(base.map((p) => p.clone()), NEON, 1);
+    g.add(moved);
+    const names = { translacao: "TRANSLAÇÃO", rotacao: "ROTAÇÃO 90°",
+      reflexao: "REFLEXÃO (eixo y)", homotetia: "HOMOTETIA (×1.6)" };
+    put(g, label(names[kind] || names.rotacao, { font: 26, color: AMBER }), 0, 3.4, 0.6);
+    g.userData.type = "transformacao_" + kind;
+    g.userData.update = (t) => {
+      const k = (Math.sin(t * 0.8) + 1) / 2;   // 0..1 ida e volta
+      const pts = base.map((p) => {
+        if (kind === "translacao") return p.clone().add(V(-1.4 * k, 1.1 * k));
+        if (kind === "reflexao") return V(p.x * (1 - 2 * k), p.y);
+        if (kind === "homotetia") return p.clone().multiplyScalar(1 + 0.6 * k);
+        const ang = k * Math.PI / 2;   // rotação
+        return V(p.x * Math.cos(ang) - p.y * Math.sin(ang), p.x * Math.sin(ang) + p.y * Math.cos(ang));
+      });
+      moved.geometry.setFromPoints(pts);
+    };
+    return g;
+  }
+
+  // ================= C4 — gráfico estatístico (barras / setores) =================
+  function grafico(opts) {
+    const raw = (opts && opts.data) || [4, 7, 3, 9, 5];
+    const vals = raw.map(Number).filter((n) => Number.isFinite(n) && n >= 0).slice(0, 8);
+    const pie = opts && /setor|pizza|circul/.test(String(opts.kind || ""));
+    const g = new THREE.Group();
+    if (!pie) {
+      g.add(line([V(-2.6, -1.6), V(2.6, -1.6)], 0x4bb6d6, 0.6));
+      g.add(line([V(-2.6, -1.6), V(-2.6, 1.8)], 0x4bb6d6, 0.6));
+      const mx = Math.max(...vals, 1), bw = 4.6 / (vals.length * 1.5);
+      vals.forEach((v, i) => {
+        const h = v / mx * 3.0, x = -2.2 + i * bw * 1.5;
+        const bar = new THREE.Mesh(new THREE.PlaneGeometry(bw, h),
+          new THREE.MeshBasicMaterial({ color: NEON, transparent: true, opacity: 0.22,
+            blending: THREE.AdditiveBlending, depthWrite: false }));
+        bar.position.set(x, -1.6 + h / 2, 0);
+        g.add(bar);
+        g.add(line([V(x - bw / 2, -1.6 + h), V(x + bw / 2, -1.6 + h)], NEON, 1));
+        put(g, label(String(v), { font: 22, color: SOFT }), x, -1.6 + h + 0.22, 0.5);
+      });
+      put(g, label("GRÁFICO DE BARRAS", { font: 24, color: SOFT }), 0, 2.2, 0.6);
+    } else {
+      const tot = vals.reduce((s, v) => s + v, 0) || 1;
+      let a0 = Math.PI / 2;
+      const cols = [NEON, GREEN, AMBER, 0xff9de0, 0x8ab6ff, RED, SOFT, 0xbff0ff];
+      vals.forEach((v, i) => {
+        const a1 = a0 - v / tot * TAU;
+        const seg = [V(0, 0)];
+        for (let a = a0; a >= a1 - 0.001; a -= 0.06) seg.push(V(Math.cos(a) * 1.7, Math.sin(a) * 1.7));
+        seg.push(V(0, 0));
+        g.add(line(seg, cols[i % cols.length], 0.9));
+        const am = (a0 + a1) / 2;
+        put(g, label(Math.round(v / tot * 100) + "%", { font: 20, color: cols[i % cols.length] }),
+          Math.cos(am) * 2.0, Math.sin(am) * 2.0, 0.5);
+        a0 = a1;
+      });
+      put(g, label("GRÁFICO DE SETORES", { font: 24, color: SOFT }), 0, 2.3, 0.6);
+    }
+    g.userData.type = "grafico_estatistico";
+    return g;
+  }
+
+  // ================= C5 — coração (biologia) =================
+  function coracao() {
+    const g = new THREE.Group();
+    // silhueta de coração (paramétrica)
+    const heart = [];
+    for (let i = 0; i <= 80; i++) {
+      const tt = i / 80 * TAU;
+      const x = 16 * Math.sin(tt) ** 3;
+      const y = 13 * Math.cos(tt) - 5 * Math.cos(2 * tt) - 2 * Math.cos(3 * tt) - Math.cos(4 * tt);
+      heart.push(V(x * 0.11, y * 0.11 + 0.2));
+    }
+    const outline = line(heart, RED, 0.9); g.add(outline);
+    // câmaras
+    const chambers = new THREE.Group(); g.add(chambers);
+    [[-0.55, 0.55, "AD"], [0.55, 0.55, "AE"], [-0.5, -0.35, "VD"], [0.5, -0.35, "VE"]].forEach(([x, y, nm]) => {
+      const c = ball(0.26, 0xff8a8a); c.position.set(x, y, 0); chambers.add(c);
+      put(g, label(nm, { font: 20, color: SOFT }), x, y, 0.5);
+    });
+    // vasos
+    g.add(stick(V(-0.2, 1.0), V(-0.2, 2.0), 0x8ab6ff, 0.08));   // veia cava
+    g.add(stick(V(0.25, 1.0), V(0.6, 2.0), RED, 0.08));         // aorta
+    put(g, label("aorta", { font: 18, color: RED }), 0.75, 1.9, 0.45);
+    put(g, label("CORAÇÃO — 4 câmaras", { font: 24, color: SOFT }), 0, -2.1, 0.6);
+    g.userData.type = "coracao";
+    g.userData.update = (t) => {
+      const b = 1 + Math.max(0, Math.sin(t * 4.5)) * 0.09;      // batida
+      chambers.scale.setScalar(b);
+      outline.material.opacity = 0.75 + Math.max(0, Math.sin(t * 4.5)) * 0.22;
+    };
+    return g;
+  }
+
   // ---------- registro ----------
   const B = {
     circulo_trigonometrico: circulo, circulo_trig: circulo, circunferencia_trig: circulo,
@@ -607,6 +756,19 @@ window.jarvisModels = (() => {
     geometria_tetraedrica: () => geometriaMolecular({ shape: "tetraedrica" }),
     geometria_piramidal: () => geometriaMolecular({ shape: "piramidal" }),
     geometria_octaedrica: () => geometriaMolecular({ shape: "octaedrica" }),
+
+    // --- lote C: biologia / astronomia / estatística / transformações ---
+    dna: dna, dupla_helice: dna, acido_desoxirribonucleico: dna,
+    sistema_solar: sistemaSolar, planetas: sistemaSolar, orbitas: sistemaSolar,
+    coracao: coracao, coração: coracao,
+    grafico_barras: grafico, grafico_de_barras: grafico, estatistica: grafico,
+    grafico_setores: (o) => grafico(Object.assign({ kind: "setores" }, o)),
+    grafico_pizza: (o) => grafico(Object.assign({ kind: "setores" }, o)),
+    transformacao: transformacoes, transformacoes: transformacoes,
+    translacao: () => transformacoes({ kind: "translacao" }),
+    rotacao_geometrica: () => transformacoes({ kind: "rotacao" }),
+    reflexao: () => transformacoes({ kind: "reflexao" }),
+    homotetia: () => transformacoes({ kind: "homotetia" }),
   };
   return {
     has: (name) => !!B[name],
