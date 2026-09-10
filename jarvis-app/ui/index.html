@@ -124,8 +124,8 @@
   }
 
   /* alterna entre cérebro e câmera */
-  body:not(.camera) #cam,
-  body:not(.camera) #cam-fx,
+  body:not(.camera):not(.brain2) #cam,
+  body:not(.camera):not(.brain2) #cam-fx,
   body:not(.camera) #cam-tint,
   body:not(.camera) .cam-bracket,
   body:not(.camera) #cam-label,
@@ -135,6 +135,80 @@
   /* na câmera os cantos têm colchetes decorativos — afasta o status e o X deles */
   body.camera #close  { top: 84px; right: 26px; opacity: 0.7; }
   body.camera #status { left: 92px; bottom: 30px; }
+
+  /* ---------- 3º modo: Segundo Cérebro (quadro + teia) ---------- */
+  #brain2 { position: fixed; inset: 0; z-index: 2; display: none;
+    background: color-mix(in srgb, var(--neon) 4%, #05080c); overflow: hidden; }
+  body.brain2 #brain2 { display: block; }
+  body.brain2 #scene, body.brain2 #fx, body.brain2 #brand, body.brain2 #hint,
+  body.brain2 #hud, body.brain2 #study-box { display: none; }
+  /* webcam vira uma janelinha no canto (só monitor; gestos lidos dos landmarks) */
+  body.brain2 #cam, body.brain2 #cam-fx {
+    inset: auto; right: 18px; bottom: 18px; width: 240px; height: 180px;
+    border: 1px solid var(--neon-dim); border-radius: 8px; opacity: 0.9;
+    box-shadow: 0 0 22px rgba(0,0,0,0.6); }
+  body.brain2 #cam-fx { background: transparent; }
+  #brain2-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 12; display: none; gap: 8px; align-items: center;
+    background: rgba(4,10,16,0.72); border: 1px solid var(--neon-dim);
+    border-radius: 999px; padding: 6px 8px; backdrop-filter: blur(3px);
+    font-family: "Segoe UI", Consolas, monospace; }
+  body.brain2 #brain2-bar { display: flex; }
+  #brain2-bar button { background: transparent; color: #9ecad8; border: 1px solid transparent;
+    border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  #brain2-bar button:hover { color: var(--neon); border-color: var(--neon-dim); }
+  #brain2-bar button.on { color: var(--neon); border-color: var(--neon); background: var(--neon-14); }
+  #brain2-bar .sep { width: 1px; height: 18px; background: var(--neon-dim); margin: 0 3px; }
+  #atlas, #board { position: absolute; inset: 0; }
+  #board { cursor: grab; }
+  body.sub-teia #board, body.sub-board #atlas { display: none; }
+  .b2-cell { transition: box-shadow .15s, border-color .15s; }
+  .b2-cell.sel { border-color: var(--neon) !important;
+    box-shadow: 0 0 0 1px var(--neon), 0 4px 28px rgba(0,0,0,0.5) !important; }
+  .b2-cell.editing { outline: none; cursor: text; }
+  .b2-cell .b2-k { font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    opacity: 0.7; margin-bottom: 6px; }
+  .b2-cell .b2-body h1, .b2-cell .b2-body h2, .b2-cell .b2-body h3 {
+    font-size: 13px; margin: 0 0 4px; color: var(--neon); }
+  .b2-cell .b2-body p, .b2-cell .b2-body li { margin: 3px 0; }
+  .b2-cell .b2-body code { background: var(--neon-14); padding: 0 4px; border-radius: 3px; }
+  .b2-cell .b2-body i { color: var(--neon); font-style: normal; }
+  .b2-cell .b2-body table { border-collapse: collapse; font-size: 11px; }
+  .b2-cell .b2-body td { border: 1px solid var(--neon-dim); padding: 2px 6px; }
+  .b2-port { position: absolute; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--neon-dim); opacity: 0; transition: opacity .15s; cursor: crosshair; }
+  .b2-cell:hover .b2-port { opacity: 0.9; }
+  .b2-port:hover { background: var(--neon); }
+  .b2-port-t { top: -6px; left: 50%; margin-left: -5px; }
+  .b2-port-b { bottom: -6px; left: 50%; margin-left: -5px; }
+  .b2-port-l { left: -6px; top: 50%; margin-top: -5px; }
+  .b2-port-r { right: -6px; top: 50%; margin-top: -5px; }
+  #brain2-search { position: fixed; top: 16px; left: 16px; z-index: 12; display: none;
+    width: 240px; padding: 8px 12px; font: inherit; font-size: 12px;
+    background: rgba(4,10,16,0.8); color: #cfeaf3; border: 1px solid var(--neon-dim);
+    border-radius: 6px; outline: none; font-family: "Segoe UI", Consolas, monospace; }
+  body.brain2 #brain2-search { display: block; }
+  #note-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 44vw);
+    z-index: 13; background: rgba(5,9,13,0.96); border-left: 1px solid var(--neon-dim);
+    padding: 26px 28px; overflow-y: auto; transform: translateX(102%);
+    transition: transform .22s ease; font-family: "Segoe UI", Consolas, monospace; }
+  #note-panel.on { transform: translateX(0); }
+  #note-panel h1, #note-panel h2, #note-panel h3 { color: var(--neon);
+    text-shadow: 0 0 8px var(--neon); margin: 0 0 10px; }
+  #note-panel h1 { font-size: 18px; } #note-panel h2 { font-size: 14px; margin-top: 18px; }
+  #note-panel p, #note-panel li { font-size: 13px; line-height: 1.6; color: #b7cdd8; }
+  #note-panel code { background: var(--neon-14); padding: 1px 5px; border-radius: 3px; }
+  #note-panel table { border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+  #note-panel td, #note-panel th { border: 1px solid var(--neon-dim); padding: 4px 9px; color: #b7cdd8; }
+  #note-panel .np-head { display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; }
+  #note-panel .np-tag { font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--neon); opacity: 0.8; }
+  #note-panel .np-btn { background: transparent; color: #9ecad8; border: 1px solid var(--neon-dim);
+    border-radius: 5px; padding: 5px 12px; font: inherit; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; cursor: pointer; }
+  #note-panel .np-btn:hover { color: var(--neon); border-color: var(--neon); }
 
   /* ---------- HUD do cérebro ---------- */
   #hud { position: fixed; inset: 0; z-index: 3; pointer-events: none;
@@ -342,6 +416,22 @@
     <div class="note">Salvar reinicia o Jarvis pra aplicar (leva alguns segundos).</div>
   </div></div>
 
+  <!-- 3º modo: Segundo Cérebro -->
+  <div id="brain2">
+    <div id="atlas"></div>
+    <div id="board"></div>
+  </div>
+  <input id="brain2-search" type="text" placeholder="buscar nota…  ( / )" spellcheck="false" />
+  <div id="brain2-bar">
+    <button id="b2-teia">Teia</button>
+    <button id="b2-board">Quadro</button>
+    <span class="sep"></span>
+    <button id="b2-add-ai">＋ IA</button>
+    <button id="b2-add-text">＋ Texto</button>
+    <button id="b2-add-img">＋ Imagem</button>
+  </div>
+  <div id="note-panel"></div>
+
   <script src="lib/three.min.js"></script>
   <script src="lib/mp_hands/hands.js"></script>
   <script src="lib/face-api/face-api.min.js"></script>
@@ -357,6 +447,8 @@
   <script src="camera.js"></script>
   <script src="hud.js"></script>
   <script src="remote.js"></script>
+  <script src="atlas.js"></script>
+  <script src="board.js"></script>
   <script src="settings.js"></script>
   <script src="hologram.js"></script>
 </body>

@@ -29,6 +29,8 @@ __pycache__/
 *.pyc
 state.json
 control.json
+jarvis-app/brain_graph.json
+voice/materials_index.json
 *.json.*.tmp
 *.log
 NOTAS.md

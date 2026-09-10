@@ -28,7 +28,8 @@ CONTROL_FILE = _SHARED / "control.json"        # app/atalho <-> daemon  (ligado/
 _app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE",
               "view": "brain", "camera_match": "Brio", "phase": "idle",
               "weather": "", "track": {}, "sys": {}, "notes": [], "study": None,
-              "tasks": [], "timer": {"end": 0}, "remote_url": "", "remote_qr": ""}
+              "tasks": [], "timer": {"end": 0}, "remote_url": "", "remote_qr": "",
+              "brain": {"graph_rev": 0}}
 _NOTES: list[dict] = []
 
 
@@ -110,7 +111,7 @@ def write_control(**changes) -> dict:
     import time as _t
 
     data = dict(_control_cache["data"])
-    for k in ("holo", "scan", "scan_hit"):   # eventos de uso único — não ficam grudados
+    for k in ("holo", "scan", "scan_hit", "brain_ev"):   # eventos de uso único — não ficam grudados
         data.pop(k, None)
     data.update({k: v for k, v in changes.items() if v is not None})
     try:

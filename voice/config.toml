@@ -126,6 +126,17 @@ media_gestures = true        # na câmera (sem hologramas): mão aberta varre = 
                              #   punho ~1s = play/pause, palma subindo/descendo = volume
 auto_return_seconds = 0      # 0 = nunca; >0 = volta pro cérebro se ninguém aparece por N s
 
+[brain]
+# "Segundo Cérebro" — o 3º modo do app (Jarvis / Câmera / Segundo Cérebro).
+# É um vault de estudo: pasta de arquivos .md + .canvas, 100% compatível com o
+# Obsidian (o senhor edita lá, o Jarvis visualiza, navega e responde).
+#   - "quadro": lousa infinita com células ligadas (arquivos .canvas)
+#   - "teia":   grafo de todas as notas e seus [[links]]
+vault_dir = ""                 # vazio = ~/Documents/Jarvis Vault (criado no 1º boot)
+default_view = "board"         # "board" (quadro) | "teia"
+write_type_frontmatter = true  # grava o tipo detectado (materia/topico/...) na nota
+poll_seconds = 5               # reindexação: checa mudança nos arquivos a cada N s
+
 [remote]
 # Controle pelo celular, na REDE LOCAL (mesmo Wi-Fi). O celular vira um
 # microfone + fone: aperta pra falar, o PC transcreve/executa/responde.

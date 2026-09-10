@@ -22,6 +22,7 @@ import socketserver
 import sys
 import threading
 from pathlib import Path
+from urllib.parse import quote as _url_quote
 
 # Libera câmera/mic no WebView2 sem prompt (app local pessoal). TEM que vir
 # antes do import webview.
@@ -174,12 +175,16 @@ class Api:
     def toggle_pause(self) -> dict:
         return self._write_control(paused=not _read_json(CONTROL_FILE, {}).get("paused", False))
 
+    _VIEWS = ("brain", "camera", "brain2")
+
     def set_view(self, view: str) -> dict:
-        return self._write_control(view="camera" if view == "camera" else "brain")
+        return self._write_control(view=view if view in self._VIEWS else "brain")
 
     def toggle_view(self) -> dict:
         cur = _read_json(CONTROL_FILE, {}).get("view", "brain")
-        return self._write_control(view="brain" if cur == "camera" else "camera")
+        nxt = self._VIEWS[(self._VIEWS.index(cur) + 1) % len(self._VIEWS)] \
+            if cur in self._VIEWS else "camera"
+        return self._write_control(view=nxt)
 
     _VK = {"next": 0xB0, "prev": 0xB1, "play": 0xB3, "stop": 0xB2,
            "vol_up": 0xAF, "vol_down": 0xAE, "mute": 0xAD,
@@ -253,12 +258,91 @@ class Api:
             return False
         return True
 
+    # ---- segundo cérebro (3º modo) ----
+    def _vault_dir(self) -> Path:
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        try:
+            data = tomllib.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            d = str(data.get("brain", {}).get("vault_dir", "")).strip()
+        except Exception:  # noqa: BLE001
+            d = ""
+        if d:
+            return Path(os.path.expandvars(os.path.expanduser(d)))
+        return Path.home() / "Documents" / "Jarvis Vault"
+
+    def brain_graph(self) -> dict:
+        return _read_json(STATE_FILE.parent / "brain_graph.json",
+                          {"notes": [], "rev": 0})
+
+    def board_list(self) -> list:
+        vd = self._vault_dir()
+        if not vd.is_dir():
+            return []
+        return sorted(str(p.relative_to(vd)).replace("\\", "/")
+                      for p in vd.rglob("*.canvas") if ".obsidian" not in p.parts)
+
+    def board_read(self, rel: str) -> dict:
+        vd = self._vault_dir()
+        p = (vd / rel).resolve()
+        if vd.resolve() not in p.parents or p.suffix != ".canvas" or not p.is_file():
+            return {"nodes": [], "edges": [], "_error": "não achei o quadro"}
+        data = _read_json(p, {"nodes": [], "edges": []})
+        data["_jarvis"] = _read_json(p.with_suffix(".jarvis.json"), {}).get("cells", {})
+        return data
+
+    def board_write(self, rel: str, data: dict) -> dict:
+        vd = self._vault_dir()
+        p = (vd / rel).resolve()
+        if vd.resolve() not in p.parents or p.suffix != ".canvas":
+            return {"ok": False, "msg": "caminho inválido"}
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            jarvis_cells = (data or {}).pop("_jarvis", None)
+            tmp = p.with_suffix(".canvas.tmp")
+            tmp.write_text(json.dumps(
+                {"nodes": data.get("nodes", []), "edges": data.get("edges", [])},
+                ensure_ascii=False, indent=1), encoding="utf-8")
+            os.replace(tmp, p)
+            if jarvis_cells is not None:
+                p.with_suffix(".jarvis.json").write_text(
+                    json.dumps({"cells": jarvis_cells}, ensure_ascii=False, indent=1),
+                    encoding="utf-8")
+        except OSError as exc:
+            return {"ok": False, "msg": str(exc)}
+        return {"ok": True}
+
+    def note_text(self, rel: str) -> str:
+        vd = self._vault_dir()
+        p = (vd / rel).resolve()
+        if vd.resolve() not in p.parents or p.suffix.lower() not in (".md", ".canvas"):
+            return ""
+        try:
+            return p.read_text(encoding="utf-8", errors="ignore")[:20000]
+        except OSError:
+            return ""
+
+    def board_open_obsidian(self, rel: str) -> dict:
+        vd = self._vault_dir()
+        try:
+            os.startfile(  # noqa: S606
+                f"obsidian://open?path={_url_quote(str((vd / rel).resolve()))}")
+            return {"ok": True}
+        except OSError as exc:
+            return {"ok": False, "msg": str(exc)}
+
+    def brain_ctx(self, ctx: dict) -> dict:
+        return self._write_control(brain_ctx=dict(ctx or {}))
+
     # ---- painel de configurações ----
     _CFG_KEYS = [
         ("profile", "active"), ("assistant", "address"), ("assistant", "user_name"),
         ("assistant", "wake_word"), ("assistant", "attention_reply"),
         ("tts", "engine"), ("tts", "sapi_voice"),
         ("audio", "input_device_match"), ("app", "camera_match"), ("app", "theme"),
+        ("brain", "vault_dir"),
         ("location", "city"), ("arrival", "enabled"), ("arrival", "phrase"),
         ("arrival", "briefing"), ("camera", "media_gestures"), ("camera", "auto_return_seconds"),
         ("danger", "allow_shutdown"), ("danger", "allow_typing"),

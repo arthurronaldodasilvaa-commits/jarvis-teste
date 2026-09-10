@@ -158,22 +158,59 @@
     status: "SISTEMA ONLINE",
     paused: false,
     pausedLevel: 0,      // suavizado 0..1
-    view: "brain",       // "brain" | "camera"
+    view: "brain",       // "brain" | "camera" | "brain2" (segundo cérebro)
+    brainSub: "board",   // dentro do brain2: "board" (quadro) | "teia"
     cameraMatch: "Brio",
     phase: "",           // "" | "PENSANDO" | "PESQUISANDO" | "ERRO"
   };
+
+  // rótulo do botão = PRÓXIMO modo do ciclo Jarvis → Câmera → Segundo Cérebro
+  const NEXT_LABEL = { brain: "Câmera", camera: "Segundo Cérebro", brain2: "Jarvis" };
 
   function applyView(v) {
     if (v === state.view) return;
     state.view = v;
     const cam = v === "camera";
+    const b2 = v === "brain2";
     document.body.classList.toggle("camera", cam);
-    renderer.domElement.style.display = cam ? "none" : "block";
+    document.body.classList.toggle("brain2", b2);
+    renderer.domElement.style.display = (cam || b2) ? "none" : "block";
     const lbl = document.getElementById("cam-btn-label");
-    if (lbl) lbl.textContent = cam ? "Cérebro" : "Câmera";
+    if (lbl) lbl.textContent = NEXT_LABEL[v] || "Câmera";
     if (window.jarvisHolo) window.jarvisHolo.setActive(cam);
-    if (cam) window.jarvisCam.start(state.cameraMatch);
+    if (cam || b2) window.jarvisCam.start(state.cameraMatch);
     else window.jarvisCam.stop();
+    if (window.jarvisCam.setViewport) window.jarvisCam.setViewport(b2 ? "corner" : "full");
+    applyBrainSub(b2 ? state.brainSub : null);
+  }
+
+  function applyBrainSub(sub) {
+    if (sub) state.brainSub = sub;
+    const on = state.view === "brain2";
+    document.body.classList.toggle("sub-teia", on && state.brainSub === "teia");
+    document.body.classList.toggle("sub-board", on && state.brainSub === "board");
+    if (window.jarvisAtlas) window.jarvisAtlas.setActive(on && state.brainSub === "teia");
+    if (window.jarvisBoard) window.jarvisBoard.setActive(on && state.brainSub === "board");
+  }
+
+  // controlador do 3º modo (usado pela barra #brain2-bar e por board.js/atlas.js)
+  window.jarvisBrainUI = {
+    setSub: (s) => applyBrainSub(s),
+    sub: () => state.brainSub,
+    active: () => state.view === "brain2",
+  };
+
+  // evento de voz do segundo cérebro (control.json -> brain_ev)
+  function onBrainEvent(ev) {
+    if (state.view !== "brain2") applyView("brain2");
+    if (ev.sub) { applyBrainSub(ev.sub); return; }
+    if (ev.action === "board" && window.jarvisBoard) {
+      window.jarvisBoard.onEvent(ev); return;
+    }
+    if (window.jarvisAtlas) {           // focus / neighbors / filter
+      applyBrainSub("teia");
+      window.jarvisAtlas.onEvent(ev);
+    }
   }
 
   window.jarvis = {
@@ -202,8 +239,9 @@
   const camBtn = document.getElementById("cam-btn");
   if (camBtn) camBtn.addEventListener("click", () => {
     const api = window.pywebview && window.pywebview.api;
+    const CYCLE = { brain: "camera", camera: "brain2", brain2: "brain" };
     if (api && api.toggle_view) api.toggle_view().then((c) => applyView((c && c.view) || "brain"));
-    else applyView(state.view === "camera" ? "brain" : "camera");
+    else applyView(CYCLE[state.view] || "brain");
   });
 
   // ---------- ponte com o Python (1 round-trip: state.json + control.json) ----------
@@ -224,7 +262,17 @@
       } else if (window.jarvisHolo && s.holo) window.jarvisHolo.onControl(s.holo);
       const p = !!s.paused;
       if (p !== state.paused) applyPaused(p);
-      if (s.view === "camera" || s.view === "brain") applyView(s.view);
+      if (s.view === "camera" || s.view === "brain" || s.view === "brain2") applyView(s.view);
+
+      // segundo cérebro: refetch do grafo quando o daemon reindexa; eventos de voz
+      if (s.brain && window.jarvisAtlas && s.brain.graph_rev !== state._graphRev) {
+        state._graphRev = s.brain.graph_rev;
+        window.jarvisAtlas.refresh();
+      }
+      if (s.brain_ev && s.brain_ev.n !== (state._brainEvN || 0)) {
+        state._brainEvN = s.brain_ev.n;
+        onBrainEvent(s.brain_ev);
+      }
 
       // HUD (relógio/clima/gauges/música/feed/fase)
       if (window.jarvisHud) window.jarvisHud.update(s);
@@ -277,6 +325,12 @@
       const n = window.jarvisHolo ? window.jarvisHolo.count() : 0;
       statusEl.textContent = "CÂMERA ATIVA" + (n ? " · " + n + " forma" + (n > 1 ? "s" : "") : "") + extra;
       if (window.jarvisHolo) window.jarvisHolo.tick(t, g);
+      return;
+    }
+    if (state.view === "brain2") {
+      const g = window.jarvisHands && window.jarvisHands.results();
+      if (state.brainSub === "teia" && window.jarvisAtlas) window.jarvisAtlas.tick(t, g);
+      else if (window.jarvisBoard) window.jarvisBoard.tick(t, g);
       return;
     }
 

@@ -1280,6 +1280,11 @@ def main() -> None:
                             remote_qr=remote.pairing_qr_datauri())
     except Exception as exc:  # noqa: BLE001
         log(f"controle remoto não subiu: {exc}")
+    try:
+        import vault
+        threading.Thread(target=vault.watch, args=(cfg, brain), daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        log(f"segundo cérebro não subiu: {exc}")
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))

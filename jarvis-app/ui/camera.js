@@ -10,10 +10,14 @@ window.jarvisCam = (() => {
 
   let stream = null, raf = 0;
   const opt = { skeleton: true };
+  let viewport = "full";   // "full" (câmera) | "corner" (segundo cérebro)
 
   function configure(o) {
     if (o && typeof o.hand_skeleton === "boolean") opt.skeleton = o.hand_skeleton;
   }
+  // no "corner" a janelinha é só um monitor — o board.js lê os gestos direto
+  // dos landmarks normalizados; aqui só evitamos o esqueleto gigante fullscreen.
+  function setViewport(mode) { viewport = mode === "corner" ? "corner" : "full"; }
   function dbg(m) {
     const a = window.pywebview && window.pywebview.api;
     if (a && a.log) a.log("cam: " + m);
@@ -144,7 +148,7 @@ window.jarvisCam = (() => {
     fxctx.clearRect(0, 0, fx.width, fx.height);
     try {
       if (window.jarvisHands) window.jarvisHands.feed(video);
-      if (opt.skeleton) drawHands();
+      if (opt.skeleton && viewport === "full") drawHands();
       if (window.jarvisFace) window.jarvisFace.tick(video);
       if (window.jarvisVision) {
         window.jarvisVision.tick(window.jarvisHands && window.jarvisHands.results(), video);
@@ -161,7 +165,7 @@ window.jarvisCam = (() => {
   }
 
   return {
-    start, stop, configure, coverMap,
+    start, stop, configure, coverMap, setViewport,
     active: () => !!stream,
     videoAspect: () => (video.videoWidth ? video.videoWidth / video.videoHeight : 16 / 9),
   };
