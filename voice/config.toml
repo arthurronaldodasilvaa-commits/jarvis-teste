@@ -125,6 +125,17 @@ media_gestures = true        # na câmera (sem hologramas): mão aberta varre = 
                              #   punho ~1s = play/pause, palma subindo/descendo = volume
 auto_return_seconds = 0      # 0 = nunca; >0 = volta pro cérebro se ninguém aparece por N s
 
+[safety]
+# Trava contra loops: ruído de TV, conversa ao telefone ou a própria música do
+# Jarvis podem ser transcritos como comando e disparar em sequência. Aqui a gente
+# corta isso.
+enabled = true
+dedup_seconds = 12     # comando IDÊNTICO repetido nesse intervalo é ignorado
+flood_window = 20      # janela (s) pra contar a enxurrada
+flood_count = 5        # nº de comandos na janela que dispara a PAUSA de segurança
+                       # (também dispara com 3 comandos quase iguais seguidos)
+                       # o senhor volta com Ctrl+Alt+J
+
 [danger]
 # Ações sensíveis. Todas pedem confirmação falada ("sim"/"confirma"/"pode").
 # Deixe 'false' para bloquear de vez.

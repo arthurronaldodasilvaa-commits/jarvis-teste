@@ -1256,7 +1256,8 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="Pra quando, senhor? Diga um tempo, tipo 'em 20 minutos' ou 'às 15 horas'.")
         ts, human = when
         msg = _reminder_msg(rest)
-        reminders.add(msg or "(sem descrição)", ts)
+        if not reminders.add(msg or "(sem descrição)", ts):
+            return Result(speak="Esse lembrete o senhor acabou de pedir — já está anotado.")
         # timer/cronômetro/pomodoro sem texto -> mostra a contagem no HUD
         if not msg and re.search(r"\b(timer|cronometr\w+|pomodoro|contagem)\b", t):
             write_app_state(timer={"end": ts, "label": "pomodoro" if "pomodoro" in t else "timer"})

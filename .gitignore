@@ -29,6 +29,7 @@ __pycache__/
 *.pyc
 state.json
 control.json
+*.json.*.tmp
 *.log
 NOTAS.md
 PEDIDOS.md

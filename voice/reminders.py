@@ -181,15 +181,23 @@ def _at(now: datetime, hh: int, mm: int, tomorrow: bool = False) -> float:
     return target.timestamp()
 
 
-def add(text: str, when_ts: float, rule: dict | None = None) -> None:
+def add(text: str, when_ts: float, rule: dict | None = None) -> bool:
     items = _load()
-    it = {"text": text.strip(), "at": when_ts, "made": time.time()}
+    now = time.time()
+    txt = text.strip()
+    # dedup: mesmo texto criado nos últimos 90 s = provável eco/loop de voz.
+    for it in items:
+        if it.get("text") == txt and not it.get("rule") and now - it.get("made", 0) < 90:
+            log(f"lembrete ignorado (duplicado em {now - it.get('made', 0):.0f}s): {txt!r}")
+            return False
+    it = {"text": txt, "at": when_ts, "made": now}
     if rule:
         it["rule"] = rule
     items.append(it)
     _save(items)
-    log(f"lembrete{'  (recorrente)' if rule else ''}: {text!r} para "
+    log(f"lembrete{'  (recorrente)' if rule else ''}: {txt!r} para "
         f"{datetime.fromtimestamp(when_ts):%d/%m %H:%M}")
+    return True
 
 
 def due(now_ts: float | None = None) -> list[dict]:

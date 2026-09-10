@@ -43,7 +43,9 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from common import log, norm, read_control, rotate_log, write_app_state, write_control
+from common import (
+    log, norm, read_control, rotate_log, sweep_tmp, write_app_state, write_control,
+)
 import skills
 
 try:
@@ -241,19 +243,32 @@ def _is_negate(n: str) -> bool:
                            or n in NEGATE)
 
 
+_SINGLETON_HANDLE = None   # guarda o handle do mutex viva pela vida do processo
+
+
 def ensure_single_instance() -> None:
     """Evita dois Jarvis ouvindo ao mesmo tempo (ex: autostart + clique manual).
+    DOIS daemons = cada comando é executado em dobro; foi um dos fatores do
+    incidente de loop. Aqui a checagem fica à prova de falha.
 
     Num relançamento (troca de perfil, reload de config) a instância velha leva
     ~1 s pra soltar o mutex depois que a nova sobe — então, se viemos de um
     relançamento (JARVIS_RELAUNCH=1), esperamos alguns segundos e tentamos de novo
     antes de desistir."""
-    tries = 12 if os.environ.get("JARVIS_RELAUNCH") == "1" else 1
+    global _SINGLETON_HANDLE
+    k32 = ctypes.windll.kernel32
+    k32.CreateMutexW.restype = ctypes.c_void_p
+    k32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+    tries = 15 if os.environ.get("JARVIS_RELAUNCH") == "1" else 1
     for i in range(tries):
-        ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\JarvisVozSingleton")
-        if ctypes.windll.kernel32.GetLastError() != 183:   # conseguiu o mutex
+        h = k32.CreateMutexW(None, 0, "Global\\JarvisVozSingleton")
+        err = k32.GetLastError()
+        if h and err != 183:            # 183 = ERROR_ALREADY_EXISTS
+            _SINGLETON_HANDLE = h       # NÃO deixa o GC fechar -> mutex vive
             os.environ.pop("JARVIS_RELAUNCH", None)
             return
+        if h:
+            k32.CloseHandle(h)          # não vaza o handle enquanto tentamos de novo
         if i < tries - 1:
             time.sleep(1.0)
     log("Jarvis Voz já está rodando — encerrando esta instância.")
@@ -901,11 +916,17 @@ def strip_wake_word(raw: str, n: str, wake: str) -> str | None:
     if not toks:
         return None
     first = toks[0]
-    hit = (first == wake or SequenceMatcher(None, first, wake).ratio() >= 0.6
-           or first.startswith(wake[:4]))
+    # gate um pouco mais rígido: ruído de TV/telefone gerava palavras ~0.6
+    # parecidas com "jarvis" e o Jarvis agia sozinho.
+    hit = (first == wake
+           or (len(first) >= 4 and SequenceMatcher(None, first, wake).ratio() >= 0.72)
+           or first.startswith(wake[:5]))
     if not hit:
         return None
-    return re.sub(rf"(?i)^\s*{wake[:4]}\w*[\s,.:;!?-]*", "", raw).strip()
+    out = re.sub(rf"(?i)^\s*{wake[:4]}\w*[\s,.:;!?-]*", "", raw).strip()
+    if norm(out) == n:                       # regex não pegou (ex: "jaris ...")
+        out = re.sub(r"^\s*\S+[\s,.:;!?-]*", "", raw).strip()   # tira a 1ª palavra
+    return out
 
 
 def _scan_loop(mouth: "Mouth") -> None:
@@ -1074,6 +1095,59 @@ def _record_memo(mic: "Mic", ears: "Ears", mouth: "Mouth") -> None:
     mouth.say(f"Anotei, senhor: {curto}")
 
 
+def _guard_command(payload_n: str, st: dict, mouth: "Mouth", cfg: dict) -> bool:
+    """Trava de segurança contra loops (ex: ruído de TV / a própria música do
+    Jarvis / eco no mic disparando o mesmo comando sem parar).
+
+    Devolve True se o comando deve ser BLOQUEADO.
+      1) dedup — comando idêntico repetido em poucos segundos = eco/alucinação.
+      2) enxurrada — comandos demais rápido demais = loop -> PAUSA a escuta e
+         avisa; o senhor volta com Ctrl+Alt+J.
+    """
+    sc = cfg.get("safety", {})
+    if not sc.get("enabled", True):
+        return False
+    now = time.monotonic()
+    rec: deque = st["recent"]
+    rec.append((now, payload_n))            # registra TODA tentativa (bloqueada ou não)
+
+    win = float(sc.get("flood_window", 20))
+    lim = int(sc.get("flood_count", 5))
+    in_win = [p for ts, p in rec if now - ts < win]
+    # comandos "quase iguais" na janela = loop (Whisper varia a transcrição:
+    # "gato"/"gatos", "tirar o bolo"/"tira o bolo" — daí a similaridade, não ==)
+    near = sum(1 for p in in_win if SequenceMatcher(None, p, payload_n).ratio() >= 0.75)
+    if len(in_win) >= lim or near >= 3:
+        log(f"** ENXURRADA: {len(in_win)} comandos (~{near} parecidos) em {win:.0f}s "
+            f"— PAUSA DE SEGURANÇA **")
+        rec.clear()
+        st["pending"] = None
+        st["await"] = None
+        try:
+            set_paused(True)
+        except Exception as exc:  # noqa: BLE001
+            log(f"  (falha ao pausar: {exc})")
+        try:
+            from common import push_note
+            push_note("comandos demais rápido demais — escuta pausada por segurança", "error")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            mouth.say("Senhor, recebi muitos comandos em sequência. Pausei a escuta "
+                      "por segurança. Aperte Control, Alt e Jota para voltar.")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+
+    # dedup — comando idêntico repetido em poucos segundos = eco/alucinação
+    dedup_s = float(sc.get("dedup_seconds", 12))
+    for ts, p in list(rec)[:-1]:
+        if p == payload_n and now - ts < dedup_s:
+            log(f"  (bloqueado: '{payload_n}' repetido {now - ts:.1f}s atrás)")
+            return True
+    return False
+
+
 def _hook_callbacks(cfg, mouth, brain):
     """(speak, dispatch) pra passar pro hooks.fire — 'then' roda uma skill de
     verdade, mas SEM re-disparar hooks (evita laço)."""
@@ -1093,6 +1167,7 @@ def main() -> None:
     ensure_single_instance()
     cfg = load_cfg()
     rotate_log(int(cfg.get("perf", {}).get("log_max_kb", 512)))
+    sweep_tmp()
     log("=" * 50)
     log("Jarvis Voz iniciando (escuta contínua + skills)")
 
@@ -1157,7 +1232,8 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001
             log(f"hook on_startup: {exc}")
 
-    st = {"last_arrival": 0.0, "pending": None, "await": None}   # pending=(q,do,dl); await=(fn,dl)
+    st = {"last_arrival": 0.0, "pending": None, "await": None,
+          "recent": deque(maxlen=16)}   # pending=(q,do,dl); await=(fn,dl); recent=[(mono, cmd_norm)]
 
     ring: deque[np.ndarray] = deque(maxlen=pre_n)
     while True:
@@ -1315,6 +1391,12 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
         mic.drain(); return
 
     log(f"  comando: {payload!r}")
+
+    # trava de segurança contra loops (eco / ruído / música do próprio Jarvis)
+    if _guard_command(norm(payload), st, mouth, cfg):
+        mic.drain()
+        return
+
     if hooks:
         hooks.fire("on_wake", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)
         hooks.fire("on_command", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)

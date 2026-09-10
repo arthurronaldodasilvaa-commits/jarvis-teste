@@ -54,6 +54,20 @@ def _atomic_write(path: Path, text: str) -> bool:
         return False
 
 
+def sweep_tmp() -> None:
+    """Remove .tmp órfãos de escritas atômicas interrompidas por kill forçado.
+    Chamado no arranque do daemon."""
+    for d in {APP_STATE_FILE.parent, CONTROL_FILE.parent}:
+        try:
+            for f in d.glob("*.json.*.tmp"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+        except OSError:
+            pass
+
+
 def write_app_state(**changes) -> None:
     """Atualiza o state.json do Jarvis App. Silencioso se o app nem existir."""
     import json
