@@ -16,9 +16,9 @@ hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio",
                   "anyio", "certifi", "psutil", "pynvml", "pypdf"]
 # módulos do Jarvis importados de forma tardia (dentro de funções)
 hiddenimports += ["hooks", "llm", "skills_extra", "study", "teach", "invent",
-                  "face", "facts", "materials", "tasks", "read_aloud",
-                  "reminders", "weather", "calc", "news", "media", "wiki",
-                  "translate", "maps", "spotify", "hud"]
+                  "face", "facts", "materials", "tasks", "read_aloud", "aula",
+                  "diary", "reminders", "weather", "calc", "news", "media", "wiki",
+                  "translate", "maps", "spotify", "hud", "skills"]
 
 import os as _os
 _piper = "../voice/piper"
