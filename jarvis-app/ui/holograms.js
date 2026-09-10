@@ -693,7 +693,5 @@ window.jarvisHolo = (() => {
 
   setTimeout(() => dbg("módulo carregado, renderer " + (renderer ? "ok" : "FALHOU")), 1500);
   return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn, _geo: makeGeo,
-    hasSelection: () => !!selected,
-    _dbg: () => ({ menuOn: st.menuOn, anchor: st.menuAnchor, palmStart: st.palmStart,
-      hover: st.menuHover, frac: st.menuFrac, cursor: st.menuCursor, grace: st.palmGrace }) };
+    hasSelection: () => !!selected };
 })();
