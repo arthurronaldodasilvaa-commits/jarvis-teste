@@ -137,9 +137,7 @@ _ROUTER_TEMPLATES = {
     "modo_prova": "modo prova",
     "modo_estudo": "modo estudo",
     "proxima_questao": "próxima questão",
-    "aprender": "aprende: {arg}",
     "esquecer_comando": "esquece o comando {arg}",
-    "inventar_holograma": "cria um holograma de {arg}",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -172,8 +170,7 @@ cmd possíveis:
  modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
  modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
  proxima_questao (pedir uma questão no modo estudo)
- aprender (arg=instrução do comando novo)   esquecer_comando (arg=nome)
- inventar_holograma (arg=tema — Jarvis gera um holograma esquemático novo)
+ esquecer_comando (arg=nome do comando aprendido pra apagar)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
@@ -209,9 +206,6 @@ Exemplos:
 "quero treinar redação" -> {"cmd":"modo_redacao"}
 "vamos fazer um simulado" -> {"cmd":"modo_prova"}
 "me faz outra pergunta" -> {"cmd":"proxima_questao"}
-"decora que quando eu falar bom dia você toca uma música" -> {"cmd":"aprender","arg":"quando eu falar bom dia você toca uma música"}
-"cria um holograma de uma célula vegetal" -> {"cmd":"inventar_holograma","arg":"uma célula vegetal"}
-"inventa um modelo do sistema respiratório" -> {"cmd":"inventar_holograma","arg":"o sistema respiratório"}
 "tá calor lá fora?" -> {"cmd":"clima"}
 "me atualiza das notícias" -> {"cmd":"noticias"}
 "me lembra de ligar pro dentista amanhã de manhã" -> {"cmd":"lembrete","arg":"ligar pro dentista amanhã de manhã"}
@@ -1199,7 +1193,11 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
     # Whisper às vezes alucina uma cauda ("... Jarvis. Jaris, cia um cubão...").
     # Um comando real é UMA frase curta — corta na 1ª pontuação forte se
     # aparecer "jarvis" de novo ou várias frases.
-    if norm(payload).count(" jarvis") >= 1 or payload.count(".") >= 2:
+    # EXCEÇÃO: "aprende ...", "cria um holograma ...", "me lembra ..." e afins
+    # são frases longas de propósito — não corta.
+    _long_ok = re.match(r"\s*(aprend|memoriz|decor|ensin|cri[ae]|invent|desenh|"
+                        r"me lembr|lembra|anota|digita|escrev|quando eu)", norm(payload))
+    if not _long_ok and (norm(payload).count(" jarvis") >= 1 or payload.count(".") >= 2):
         payload = re.split(r"[.!?]", payload, 1)[0].strip() or payload
 
     if not norm(payload):

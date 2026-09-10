@@ -19,13 +19,17 @@ import re
 from common import log
 
 _TRIGGER = re.compile(
-    r"\b(cri[ae]|invent[ae]|monta|desenh[ae]|faz|gera|imagina|bola)\s+"
-    r"(um|uma|o|a)?\s*(holograma|modelo|esquema|diagrama|desenho|representacao)\s+"
-    r"(de|da|do|dos|das|sobre|pra|para|d[eo]\s+um[a]?)\s+(.+)")
+    r"\b(cri[ae]|criar|invent[ae]|inventar|monta|montar|desenh[ae]|desenhar|faz|fazer|"
+    r"gera|gerar|imagina|imaginar|bola|projeta|projetar|ilustra|ilustrar|constr[oó]i)\s+"
+    r"(?:(?:um|uma|o|a|uns|umas)\s+)?"
+    r"(?:(?:holograma|modelo|esquema|diagrama|desenho|representacao|ilustracao|"
+    r"visualizacao|figura)\s+(?:de|da|do|dos|das|sobre|pra|para|d[eo]\s+um[a]?)?\s+)?"
+    r"(.+)")
 
 _ALT = re.compile(
-    r"\b(me\s+)?(mostra|ve|ver)\s+(um|uma)?\s*(holograma|modelo|esquema|diagrama)\s+"
-    r"(de|da|do|sobre)\s+(.+)")
+    r"\b(?:me\s+)?(?:mostra|ve|ver|quero\s+ver|poe|bota)\s+(?:um|uma)?\s*"
+    r"(?:holograma|modelo|esquema|diagrama|representacao)\s+"
+    r"(?:de|da|do|sobre)\s+(.+)")
 
 _SYS = """Você descreve um DESENHO 3D esquemático (holograma de estudo) como JSON de UMA linha.
 Formato: {"title":"<nome curto>","spin":true/false,"parts":[ ... ]}

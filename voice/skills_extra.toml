@@ -35,3 +35,9 @@
 # patterns = ["p[oõ]e (a )?playlist de estudo", "musica pra estudar"]
 # open = "https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ"
 # speak = "Playlist de estudo no ar, senhor."
+
+[[skill]]
+name = "bora treinar"
+patterns = ["hora de treinar", "bora treinar"]
+open = "https://open.spotify.com/intl-pt/track/1jKXjxMWlq4BhH6f9GtZbu?si=4bad56383f7b475f"
+speak = "Um bom treino senhor"

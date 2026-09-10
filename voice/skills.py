@@ -811,7 +811,11 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             ok = skills_extra.remove_learned(alvo)
             return Result(speak=(f"Esqueci o comando, senhor." if ok
                                  else "Não achei esse comando pra esquecer, senhor."))
-        if teach.match_enter(t) and len(t.split()) >= 5:
+        if teach.match_enter(t):
+            if len(t.split()) < 5:
+                return Result(speak="Pode falar o comando, senhor: \"aprende: quando "
+                                    "eu disser tal coisa, você faz tal coisa\".")
+            speak("Deixa eu montar esse comando, senhor.")
             spec = teach.parse(raw, brain)
             if not spec:
                 return Result(speak="Não consegui montar o comando, senhor. "
@@ -822,19 +826,6 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 skills_extra.add_learned(_sp)
                 return f"Pronto, senhor. O comando \"{_sp['name']}\" já está ativo."
             return Result(confirm=(teach.confirm_text(spec), _save))
-
-    # --- Jarvis inventa um holograma ("cria um holograma de um átomo de carbono") ---
-    if invent is not None and brain is not None:
-        _tema = invent.match(t)
-        if _tema:
-            speak(f"Deixa eu montar isso, senhor. Um instante.")
-            spec = invent.make_spec(_tema, brain)
-            if not spec:
-                return Result(speak=f"Não consegui montar um holograma de {_tema}, senhor.")
-            write_control(holo={"action": "add", "shape": "spec", "spec": spec,
-                                "n": int(time.time() * 1000)})
-            return Result(speak=f"{spec.get('title', _tema)} na tela, senhor. "
-                                f"Se ficou estranho, é que eu improvisei.")
 
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:
@@ -1027,6 +1018,20 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     r = _holo_models(t, raw)
     if r is not None:
         return r
+
+    # --- Jarvis INVENTA um holograma: só chega aqui se nenhum modelo pronto casou ---
+    if invent is not None and brain is not None:
+        _tema = invent.match(t)
+        if _tema:
+            speak("Deixa eu montar isso, senhor. Um instante.")
+            spec = invent.make_spec(_tema, brain)
+            if not spec:
+                return Result(speak=f"Não consegui montar {_tema}, senhor. Tente descrever "
+                                    "de outro jeito.")
+            write_control(holo={"action": "add", "shape": "spec", "spec": spec,
+                                "n": int(time.time() * 1000)})
+            return Result(speak=f"{spec.get('title', _tema)} na tela, senhor. "
+                                "Se ficou estranho, é que eu improvisei.")
 
     # --- cancelar desligamento/reinício ---
     if re.search(r"cancela\w*.*(deslig|reinic|reinici)", t) or re.fullmatch(r"cancela\w*", t):
