@@ -10,7 +10,10 @@
      👌 pinça (junto da seletora) -> escala pela distância entre as 2 pinças
      ✊ punho                     -> a forma pula pra mão e segue ela
      ✌️ paz                       -> gira a forma seguindo a mão
+     ✋ palma sobre forma animada  -> CONGELA e navega no tempo pela posição da mão
      🖐 varre rápido              -> apaga a forma selecionada
+   DUAS mãos ✊✊ (ou ✋✋) com algo selecionado -> gira como uma BOLA (trackball)
+   ✋ seletora PARADA ~0,7 s      -> menu radial (aponte num item, segure p/ escolher)
    ☝️ apontar (qualquer mão)      -> raio ponteiro; destaca a forma mirada
 */
 window.jarvisHolo = (() => {
@@ -243,11 +246,31 @@ window.jarvisHolo = (() => {
   const handCenter = (lm) => ({ x: (lm[0].x + lm[9].x) / 2, y: (lm[0].y + lm[9].y) / 2 });
   const finite = (n) => (Number.isFinite(n) ? n : 0);
 
+  // sprite de texto simples (pro menu radial)
+  function mkText(txt, color = "#dce8f2") {
+    const c = document.createElement("canvas");
+    let x = c.getContext("2d");
+    x.font = '600 34px "Segoe UI", Consolas, monospace';
+    const w = x.measureText(txt).width;
+    c.width = Math.ceil(w + 24); c.height = 52;
+    x = c.getContext("2d");
+    x.font = '600 34px "Segoe UI", Consolas, monospace';
+    x.fillStyle = "rgba(4,14,22,0.82)"; x.fillRect(0, 0, c.width, c.height);
+    x.strokeStyle = "rgba(124,228,255,0.5)"; x.lineWidth = 2; x.strokeRect(1, 1, c.width - 2, c.height - 2);
+    x.fillStyle = color; x.textBaseline = "middle"; x.shadowColor = color; x.shadowBlur = 10;
+    x.fillText(txt, 12, c.height / 2 + 2);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    s.scale.set(c.width / 150, c.height / 150, 1);
+    return s;
+  }
+
   // ---------- interação ----------
   const C_NEON = new THREE.Color(NEON), C_NEON2 = new THREE.Color(NEON2), C_AMBER = new THREE.Color(AMBER);
   const C_LOCK = new THREE.Color(0x7affc0);
   const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false,
-    poked: new Set(), pokeT: 0 };
+    poked: new Set(), pokeT: 0, trackPrev: null, palmT: 0, palmC: null,
+    menuOn: false, menuAt: [0, 0], menuHover: -1, menuDwell: 0, scrubT: null };
   let dbgDot = [0, 0], dbgOn = false;
   let selectorId = null;   // id da mão que é a "seletora" (fica grudado)
 
@@ -342,8 +365,26 @@ window.jarvisHolo = (() => {
       st.twistPrev = { roll, x: c.x, y: c.y };
     } else st.twistPrev = null;
 
+    // ---- 🖐+🖐 / ✊+✊ TRACKBALL: gira a forma com as DUAS mãos, como uma bola ----
+    const twoBall = selected && !selected.locked && !selected.math && modH
+      && ((sg.name === "punho" && mg.name === "punho")
+        || (sg.name === "palma" && mg.name === "palma"));
+    if (twoBall) {
+      const cA = handCenter(selH.landmarks), cB = handCenter(modH.landmarks);
+      const cur = { ang: Math.atan2(cB.y - cA.y, cB.x - cA.x),
+        mx: (cA.x + cB.x) / 2, my: (cA.y + cB.y) / 2 };
+      if (st.trackPrev) {
+        let da = cur.ang - st.trackPrev.ang;
+        if (da > Math.PI) da -= TAU; if (da < -Math.PI) da += TAU;
+        selected.obj.rotation.z -= finite(da);
+        selected.obj.rotation.y += finite(cur.mx - st.trackPrev.mx) * 6;
+        selected.obj.rotation.x += finite(cur.my - st.trackPrev.my) * 6;
+      }
+      st.trackPrev = cur;
+    } else st.trackPrev = null;
+
     // ---- MODIFICADORA (só com algo selecionado) ----
-    if (selected && !selected.locked && modH) {
+    if (selected && !selected.locked && modH && !twoBall) {
       if (mg.name === "punho" && modC) {
         const [mx, my] = toScreenPx(modC.x, modC.y);
         const w = pxToWorld(mx, my, selected._grabZ || 0);
@@ -364,6 +405,62 @@ window.jarvisHolo = (() => {
       if (mg.pinch < 0.9) st.resizeRef = 0;
       if (mg.name !== "paz") st.rotPrev = null;
     } else { st.resizeRef = 0; st.rotPrev = null; }
+
+    // ---- ✋ MODIFICADORA sobre forma animada: CONGELA e navega no tempo ----
+    st.scrubT = null;
+    if (!twoBall && selected && selected.upd && modH && mg.name === "palma" && modC) {
+      const u = Math.min(1, Math.max(0, modC.x));       // 0..1 pela posição da mão
+      st.scrubT = u * 12;                               // 12 s de linha do tempo
+      try { selected.upd(st.scrubT); } catch (_) { /* nada */ }
+    }
+
+    // ---- ✋ SELETORA parada ~0,7 s -> MENU RADIAL (aponta num item p/ escolher) ----
+    if (!twoBall && !st.scrubT && sg.name === "palma") {
+      const c = handCenter(selH.landmarks);
+      if (st.palmC && Math.hypot(c.x - st.palmC.x, c.y - st.palmC.y) < 0.045) {
+        if (!st.palmStart) st.palmStart = now;
+      } else { st.palmStart = 0; }
+      st.palmC = c;
+      if (st.palmStart && now - st.palmStart > 700) { st.menuOn = true; st.menuAt = toScreenPx(c.x, c.y); }
+    } else {
+      st.palmStart = 0; st.palmC = null;
+      if (sg.name !== "apontar" && mg.name !== "apontar") st.menuOn = false;
+    }
+
+    if (st.menuOn) {
+      const pt = hands.find((h) => h.gesture && h.gesture.name === "apontar");
+      let hover = -1;
+      if (pt) {
+        const [tx, ty] = toScreenPx(pt.landmarks[8].x, pt.landmarks[8].y);
+        const [cx, cy] = st.menuAt;
+        if (Math.hypot(tx - cx, ty - cy) > R * 0.3) {
+          const ang = Math.atan2(ty - cy, tx - cx);
+          let bd = 0.75;
+          MENU.forEach((m, i) => {
+            const wa = -Math.PI / 2 + i / MENU.length * TAU;
+            const da = Math.abs(((ang - wa + Math.PI + TAU) % TAU) - Math.PI);
+            if (da < bd) { bd = da; hover = i; }
+          });
+        }
+      }
+      let frac = 0;
+      if (hover >= 0 && hover === st.menuHover) {
+        if (!st.menuDwellStart) st.menuDwellStart = now;
+        frac = Math.min(1, (now - st.menuDwellStart) / 550);
+        if (frac >= 1) {
+          try { MENU[hover].fn(); } catch (_) { /* nada */ }
+          st.menuOn = false; st.menuDwellStart = 0; st.palmStart = 0;
+        }
+      } else { st.menuDwellStart = 0; }
+      st.menuHover = hover;
+      if (hover >= 0) {
+        const wa = -Math.PI / 2 + hover / MENU.length * TAU;
+        menuRing.position.set(Math.cos(wa) * MENU_R, Math.sin(wa) * MENU_R, 0.01);
+        menuRing.scale.setScalar(1.6 - frac);          // fecha em volta do item
+        menuRing.material.opacity = 0.35 + frac * 0.6;
+      } else { menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3; }
+    } else { st.menuHover = -1; menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3; }
+    layoutMenu(st.menuAt[0], st.menuAt[1]);
 
     // ---- modo MEDIR: pinça marca pontos ----
     if (st.measureMode) {
@@ -442,6 +539,34 @@ window.jarvisHolo = (() => {
     blending: THREE.AdditiveBlending }));
   pokeDot.scale.set(0.3, 0.3, 1);
   scene.add(pokeDot);
+
+  // ---------- menu radial (palma parada ~0,7 s) ----------
+  const MENU = [
+    { t: "Limpar", fn: () => clearAll() },
+    { t: "Trava/Solta", fn: () => lockSelected(null) },
+    { t: "Duplicar", fn: () => dupSelected() },
+    { t: "Explodir", fn: () => explodeSelected() },
+  ];
+  const menuGrp = new THREE.Group(); scene.add(menuGrp);
+  MENU.forEach((m) => { m.spr = mkText(m.t); m.baseScale = m.spr.scale.clone(); menuGrp.add(m.spr); });
+  const MENU_R = 1.05;
+  function layoutMenu(cx, cy) {
+    const w = pxToWorld(cx, cy, 0);
+    if (Number.isFinite(w.x)) menuGrp.position.set(w.x, w.y, 0);
+    MENU.forEach((m, i) => {
+      const a = -Math.PI / 2 + i / MENU.length * TAU;
+      m.spr.position.set(Math.cos(a) * MENU_R, Math.sin(a) * MENU_R, 0);
+      const hot = i === st.menuHover;
+      m.spr.material.opacity += ((st.menuOn ? (hot ? 1 : 0.6) : 0) - m.spr.material.opacity) * 0.35;
+      m.spr.scale.copy(m.baseScale).multiplyScalar(hot ? 1.2 : 0.9);
+    });
+  }
+  // anel de progresso do dwell (feedback visual) — cresce enquanto você segura a mira
+  const menuRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.26, 0.34, 36),
+    new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+  menuGrp.add(menuRing);
 
   // ---------- loop ----------
   let active = false;
