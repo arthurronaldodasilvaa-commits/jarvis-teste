@@ -1,0 +1,66 @@
+========================================
+  JARVIS  -  como instalar
+========================================
+
+>>> PASSO 0 - IMPORTANTE (senao nao funciona) <<<
+
+  Depois de BAIXAR o arquivo .zip, e ANTES de extrair:
+
+  1. Clique com o botao DIREITO no arquivo .zip
+  2. "Propriedades"
+  3. La embaixo, se aparecer "Desbloquear" (ou "Unblock"),
+     MARQUE a caixinha
+  4. "OK"
+
+  Isso tira a "marca de arquivo da internet" do Windows 11.
+  Sem esse passo, o Windows bloqueia o instalador.
+
+----------------------------------------
+
+PASSO 1 - Extrair
+  Botao direito no .zip -> "Extrair tudo" -> "Extrair".
+
+PASSO 2 - Instalar
+  Abra a pasta "Jarvis" que apareceu.
+  De dois cliques em   INSTALAR.bat
+  Vai abrir uma janela preta. Responde as perguntas
+  (perfil, baixar o modelo). Espera terminar.
+
+  Se aparecer um aviso azul do Windows dizendo que
+  "protegeu o seu PC", clique em "Mais informacoes" e
+  depois "Executar assim mesmo".
+
+PASSO 3 - Ollama (o "cerebro")
+  Se o Ollama ainda nao estiver instalado, o INSTALAR.bat
+  abre o instalador dele. Clica em "Install", espera,
+  fecha, e roda o INSTALAR.bat DE NOVO.
+  Depois ele baixa o modelo (qwen3.5:2b, ~2,7 GB, precisa
+  de internet so nessa hora).
+
+----------------------------------------
+
+DEPOIS DE INSTALADO:
+
+  - O Jarvis abre junto com o Windows.
+  - Atalho "Jarvis" na Area de Trabalho abre na hora.
+  - MANUAL COMPLETO: abra o arquivo  MANUAL.html
+    (dois cliques - abre no navegador). Ou por voz:
+    "Jarvis, como voce funciona?"
+
+COMANDOS BASICOS:
+
+  "Jarvis"                      -> ele responde e espera
+  "Jarvis, que horas sao"
+  "Jarvis, abre o navegador"
+  "Jarvis, toca uma musica do ..."
+  "Jarvis, como esta o tempo"
+  "Jarvis, modo cinema"        -> ele para de ouvir
+  Ctrl + Alt + J               -> ele volta a ouvir
+  "Jarvis, aprende meu rosto"  -> ele pergunta seu nome
+  "Jarvis, como voce funciona" -> abre o manual completo
+
+----------------------------------------
+
+SE NAO FUNCIONAR:
+  De dois cliques em  DIAGNOSTICO.bat  , tire um print da
+  janela preta inteira e manda pro Arthur.

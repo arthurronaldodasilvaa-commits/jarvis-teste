@@ -802,24 +802,44 @@ def focus_jarvis_app() -> None:
         log(f"focus_jarvis_app: {exc}")
 
 
+def _app_command(cfg: dict) -> list[str] | None:
+    """Como abrir o cérebro holográfico:
+      - exe_path aponta pra um .exe existente  -> roda ele (build congelado);
+      - senão, roda  <python> jarvis-app/app.py  (pacote 'source' — Python
+        assinado, passa pelo Smart App Control)."""
+    ap = cfg.get("app", {})
+    exe = ap.get("exe_path", "")
+    if exe and exe.lower().endswith(".exe") and Path(exe).is_file():
+        return [exe]
+    for cand in (Path(exe) if exe.lower().endswith(".py") else None,
+                 HERE.parent / "jarvis-app" / "app.py",
+                 HERE / "jarvis-app" / "app.py"):
+        if cand and cand.is_file():
+            pyw = Path(sys.executable)
+            if pyw.name.lower() == "python.exe":
+                pyw = pyw.with_name("pythonw.exe")
+            return [str(pyw if pyw.is_file() else sys.executable), str(cand)]
+    return None
+
+
 def open_jarvis_app(cfg: dict, *, focus_after: float = 0.0) -> None:
-    """Abre o Jarvis App (cérebro holográfico). O .exe tem trava de instância única."""
+    """Abre o Jarvis App (cérebro holográfico). Tem trava de instância única."""
     ap = cfg.get("app", {})
     if not ap.get("enabled", False):
         return
-    exe = ap.get("exe_path", "")
+    cmd = _app_command(cfg)
+    if not cmd:
+        log(f"Jarvis App: não achei nem o .exe nem o app.py (exe_path={ap.get('exe_path','')!r})")
+        return
     try:
-        if exe and Path(exe).is_file():
-            try:
-                ctypes.windll.user32.AllowSetForegroundWindow(-1)
-            except Exception:  # noqa: BLE001
-                pass
-            subprocess.Popen([exe], creationflags=0x00000008,  # DETACHED_PROCESS
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-        else:
-            log(f"Jarvis App: exe_path inválido ({exe!r})")
-            return
+        try:
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)
+        except Exception:  # noqa: BLE001
+            pass
+        subprocess.Popen(cmd, creationflags=0x00000008,  # DETACHED_PROCESS
+                         cwd=str(Path(cmd[-1]).parent),
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
     except Exception as exc:  # noqa: BLE001
         log(f"falha ao abrir o Jarvis App: {exc}")
         return

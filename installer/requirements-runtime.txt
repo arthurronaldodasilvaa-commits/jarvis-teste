@@ -1,0 +1,42 @@
+# Dependencias de runtime do Jarvis — versoes travadas iguais as testadas.
+# Monta libs/ do pacote "source" (roda com Python assinado da python.org,
+# sem .exe congelado — passa pelo Smart App Control do Windows 11).
+
+# --- STT ---
+faster-whisper==1.2.1
+ctranslate2==4.7.1
+av==16.1.0
+onnxruntime==1.24.2
+tokenizers==0.23.2
+huggingface-hub==1.29.0
+hf-xet==1.6.0
+
+# --- audio ---
+numpy==2.2.6
+sounddevice==0.5.6
+cffi==2.0.0
+pycparser==3.0
+
+# --- HTTP (clima, noticias, wiki, fatos) ---
+httpx==0.28.1
+httpcore==1.0.9
+h11==0.16.0
+anyio==4.12.1
+sniffio==1.3.1
+certifi==2026.1.4
+idna==3.11
+
+# --- sistema / HUD ---
+psutil==7.2.2
+nvidia-ml-py==13.610.43
+pypdf==6.18.0
+winsdk==1.0.0b10
+
+# --- app (cerebro holografico) ---
+pywebview==6.2.1
+pythonnet==3.1.0
+clr-loader==0.3.1
+bottle==0.13.4
+proxy-tools==0.1.0
+pywin32-ctypes==0.2.3
+typing-extensions==4.16.0

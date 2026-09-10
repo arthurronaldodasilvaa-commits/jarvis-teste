@@ -35,12 +35,18 @@ NOTAS.md
 PEDIDOS.md
 secrets.toml
 
-# instalador: manter os .spec escritos a mão, ignorar saídas
+# instalador: manter os .spec/.bat/.txt escritos a mão, ignorar saídas
 !installer/*.spec
 installer/pacote/
+installer/pacoteB/
+installer/packB/
+installer/packB_py/
+installer/packB_libs/
 installer/OllamaSetup.exe
 installer/JarvisSetup.spec
 
 # Piper TTS — binários grandes, vão no pacote mas não no git
 voice/piper/
 _tts_out.wav
+installer/OpenJarvishf-cache/
+OpenJarvishf-cache/
