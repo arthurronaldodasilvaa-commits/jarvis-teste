@@ -5,10 +5,12 @@
 from __future__ import annotations
 
 import ctypes
+import os
 import re
 import sys
 import time
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 
 # Congelado (PyInstaller): a pasta é a do .exe, não a de extração temporária.
@@ -30,16 +32,38 @@ _app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE",
 _NOTES: list[dict] = []
 
 
+def _atomic_write(path: Path, text: str) -> bool:
+    """Grava via arquivo temporário + os.replace (troca atômica no mesmo volume).
+    O app lê state.json 4x/s — sem isto, uma leitura pode pegar o arquivo pela
+    metade e falhar o parse (HUD pisca). À prova de disco cheio / lock / erro
+    de serialização: nunca levanta, só devolve False."""
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        return True
+    except Exception:                       # noqa: BLE001 — disco cheio, lock, etc.
+        try:
+            tmp.unlink()                     # não deixa lixo .tmp
+        except OSError:
+            pass
+        return False
+
+
 def write_app_state(**changes) -> None:
     """Atualiza o state.json do Jarvis App. Silencioso se o app nem existir."""
     import json
 
     _app_state.update({k: v for k, v in changes.items() if v is not None})
     try:
-        APP_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        APP_STATE_FILE.write_text(json.dumps(_app_state, ensure_ascii=False), encoding="utf-8")
-    except OSError:
-        pass
+        payload = json.dumps(_app_state, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return
+    _atomic_write(APP_STATE_FILE, payload)
 
 
 def push_note(msg: str, kind: str = "info") -> None:
@@ -76,10 +100,10 @@ def write_control(**changes) -> dict:
         data.pop(k, None)
     data.update({k: v for k, v in changes.items() if v is not None})
     try:
-        CONTROL_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CONTROL_FILE.write_text(json.dumps(data), encoding="utf-8")
-    except OSError:
-        pass
+        payload = json.dumps(data)
+    except (TypeError, ValueError):
+        return _control_cache["data"]
+    _atomic_write(CONTROL_FILE, payload)
     _control_cache["data"] = data
     _control_cache["at"] = _t.monotonic()
     return data
@@ -106,11 +130,17 @@ def log(msg: str) -> None:
         pass
 
 
-def norm(s: str) -> str:
-    """minúsculas, sem acento, sem pontuação, espaços colapsados."""
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
+@lru_cache(maxsize=2048)
+def _norm_cached(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     s = re.sub(r"[^a-z0-9 ]", " ", s.lower())
     return re.sub(r"\s+", " ", s).strip()
+
+
+def norm(s: str) -> str:
+    """minúsculas, sem acento, sem pontuação, espaços colapsados.
+    Cacheado — está no caminho quente (dispatch chama dezenas de vezes)."""
+    return _norm_cached(s or "")
 
 
 # --- teclado (Win32) --------------------------------------------------------

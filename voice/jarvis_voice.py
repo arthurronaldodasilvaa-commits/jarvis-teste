@@ -373,27 +373,51 @@ class Ears:
     def __init__(self, cfg: dict):
         from faster_whisper import WhisperModel
 
+        self._WhisperModel = WhisperModel
         w = cfg["wake"]
         self.lang = w["whisper_language"]
         self.initial_prompt = w.get("whisper_initial_prompt") or None
         self.beam = int(w.get("beam_size", 1))
-        dev = w.get("whisper_device", "cpu")
-        ct = "int8" if dev == "cpu" else "float16"
+        self._dev = w.get("whisper_device", "cpu")
+        self._ct = "int8" if self._dev == "cpu" else "float16"
 
-        wake_name = w.get("wake_model", w.get("whisper_model", "tiny"))
-        cmd_name = w.get("command_model", w.get("whisper_model", "small"))
+        self._wake_name = w.get("wake_model", w.get("whisper_model", "tiny"))
+        self._cmd_name = w.get("command_model", w.get("whisper_model", "small"))
+        self._cmd_lock = threading.Lock()
+        self._cmd = None
 
-        def _load(name):
-            log(f"carregando Whisper '{name}' ({dev}/{ct})...")
-            try:
-                return WhisperModel(name, device=dev, compute_type=ct)
-            except Exception as exc:  # noqa: BLE001
-                log(f"  falha ({exc}); cpu/int8")
-                return WhisperModel(name, device="cpu", compute_type="int8")
+        self.wake = self._load(self._wake_name)
+        # Modelo 'command' (small) carrega SOB DEMANDA — na 1ª vez que a 2ª
+        # passada é de fato necessária. Corta ~2-3 s do arranque. Se for o mesmo
+        # do wake, reaproveita na hora (custo zero).
+        if self._cmd_name == self._wake_name:
+            self._cmd = self.wake
+        log(f"Whisper: wake '{self._wake_name}' pronto; "
+            f"command '{self._cmd_name}' {'idem' if self._cmd else 'sob demanda'}.")
 
-        self.wake = _load(wake_name)
-        self.cmd = self.wake if cmd_name == wake_name else _load(cmd_name)
-        log("Whisper pronto (2 estágios).")
+    def _load(self, name):
+        log(f"carregando Whisper '{name}' ({self._dev}/{self._ct})...")
+        try:
+            return self._WhisperModel(name, device=self._dev, compute_type=self._ct)
+        except Exception as exc:  # noqa: BLE001
+            log(f"  falha ({exc}); cpu/int8")
+            return self._WhisperModel(name, device="cpu", compute_type="int8")
+
+    @property
+    def cmd(self):
+        if self._cmd is None:
+            with self._cmd_lock:
+                if self._cmd is None:
+                    self._cmd = self._load(self._cmd_name)
+        return self._cmd
+
+    def prewarm_cmd(self) -> None:
+        """Chamado numa thread após o boot: carrega o modelo grande sem travar
+        o arranque, pra 1ª fala já sair rápida."""
+        try:
+            _ = self.cmd
+        except Exception as exc:  # noqa: BLE001
+            log(f"prewarm do Whisper command falhou: {exc}")
 
     def hear_wake(self, audio: np.ndarray) -> str:
         """1ª passada — rápida. Mantém o initial_prompt (ajuda a captar 'jarvis')."""
@@ -1094,6 +1118,11 @@ def main() -> None:
     threading.Thread(target=hotkey_listener, daemon=True).start()
     threading.Thread(target=_reminder_loop, args=(mouth, cfg, brain), daemon=True).start()
     threading.Thread(target=_scan_loop, args=(mouth,), daemon=True).start()
+
+    def _prewarm_stt():
+        time.sleep(6)          # deixa o arranque terminar primeiro
+        ears.prewarm_cmd()
+    threading.Thread(target=_prewarm_stt, daemon=True).start()
     try:
         import tasks
         tasks._push_hud()

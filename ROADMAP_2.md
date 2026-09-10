@@ -16,116 +16,96 @@ nunca versionado.
 
 ---
 
-## Onda A — Hologramas interativos  ← COMEÇAR AQUI
+## Onda A — Hologramas interativos  ✅
 
 O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 
-- [ ] **A1. Sliders no ar** — um controle que você pega com a pinça e arrasta;
-      cada modelo animado expõe 1–3 parâmetros (`params`) e o `update(t)` passa a
-      ler os valores atuais. Ex: plano inclinado → ângulo; lançamento → v₀ e θ;
-      onda → frequência e amplitude; átomo → nº de camadas.
-- [ ] **A2. Painel de parâmetros por voz** — "muda o ângulo pra 30 graus",
-      "aumenta a massa", "diminui a frequência" ajustam o slider correspondente.
-- [ ] **A3. Leitura ao vivo** — o modelo mostra os valores derivados mudando
-      (ex: alcance do projétil, período do pêndulo) enquanto você mexe.
-- [ ] **A4. Comparar dois modelos** — "põe outro lançamento do lado" e os dois
-      rodam em paralelo com params diferentes.
+- [x] **A1. Sliders no ar** — pinça arrasta; lancamento/planoInclinado/onda/
+      pendulo/lente expõem `params` e leem os valores no `update(t)`.
+- [x] **A2. Painel de parâmetros por voz** — "muda o ângulo pra 30",
+      "aumenta a massa", "diminui a frequência" (`_holo_param` + `matchParam`).
+- [x] **A3. Leitura ao vivo** — labels dos modelos mostram alcance/período/etc.
+      recalculados a cada frame.
+- [ ] **A4. Comparar dois modelos** — adiado (baixo valor vs. custo; o usuário
+      pode pedir 2 lançamentos e mover um com ✊). Fica na gaveta.
 
-## Onda B — Jarvis lê os SEUS materiais (RAG-lite, local)
+## Onda B — Jarvis lê os SEUS materiais (RAG-lite, local)  ✅
 
-- [ ] **B1. Índice de estudos** — `[study] materials_dir` no config; um módulo
-      varre .txt/.md/.pdf (pdf via pypdf, leve), quebra em parágrafos, guarda
-      num índice simples (palavra→parágrafos).
-- [ ] **B2. Pergunta com fonte** — "o que meu resumo diz sobre X" → acha os 2–3
-      parágrafos mais relevantes (BM25/keyword), joga pro LLM com "responda SÓ
-      com base nisto", e cita o arquivo.
-- [ ] **B3. "resume meu resumo de X"** / "faz um flashcard disso".
-- [ ] **B4. Reindexar** — "atualiza meus materiais" e no startup.
+- [x] **B1. Índice de estudos** — `[study] materials_dir`; `materials.py` varre
+      .txt/.md/.pdf (pypdf), `_split()` em blocos, índice df + cache json.
+- [x] **B2. Pergunta com fonte** — "o que meu resumo diz sobre X" → BM25-lite →
+      LLM "responda SÓ com base nisto" + cita o arquivo.
+- [x] **B3. "resume ... nos meus materiais"** (`resume()`).
+- [x] **B4. Reindexar** — "atualiza meus materiais" + no startup.
 
-## Onda C — Integrações web sem chave (grátis)
+## Onda C — Integrações web sem chave (grátis)  ✅  (`facts.py`)
 
-- [ ] **C1. Bolsa B3** — brapi.dev (keyless) — "quanto tá a Petrobras/Vale/Itaú".
-- [ ] **C2. CEP → endereço** — ViaCEP.
-- [ ] **C3. Próximo feriado / feriados do ano** — BrasilAPI.
-- [ ] **C4. Qualidade do ar** — Open-Meteo air-quality (já uso Open-Meteo).
-- [ ] **C5. Fase da lua + nascer/pôr do sol** — Open-Meteo daily / sunrise-sunset.org.
-- [ ] **C6. "Hoje na história"** — Wikipedia On this day REST (com UA compliant).
-- [ ] **C7. Resumir um link** — "resume esse site: <url>" → fetch + extrai texto +
-      LLM resume curto.
-- [ ] **C8. Frase do dia / citação** — API keyless de quotes (pt se der).
+- [x] **C1. Bolsa B3** — brapi.dev.  - [x] **C2. CEP** — ViaCEP.
+- [x] **C3. Feriados** — BrasilAPI.  - [x] **C4. Qualidade do ar** — Open-Meteo.
+- [x] **C5. Fase da lua + sol** — Open-Meteo daily + cálculo próprio.
+- [x] **C6. "Hoje na história"** — pt.wikipedia onthisday (UA compliant).
+- [x] **C7. Resumir um link** — "resume esse site: <url>".
+- [x] **C8. Frase do dia** — ZenQuotes.
 
-## Onda D — Mais poder no Windows (local)
+## Onda D — Mais poder no Windows (local)  ✅
 
-- [ ] **D1. Lista de tarefas por voz** — `tasks.md`; "adiciona X na lista",
-      "quais minhas tarefas", "risca a X", "limpa a lista". HUD mostra as 3 próximas.
-- [ ] **D2. "o que tá pesado"** — top 3 processos por CPU/RAM (psutil).
-- [ ] **D3. Cronômetro / pomodoro no HUD** — "cronômetro de 25 minutos" com
-      barra e alarme, independente do modo prova.
-- [ ] **D4. Modo apresentação** — gesto de varrer = seta direita/esquerda
-      (PowerPoint/PDF); "modo apresentação" liga isso e desliga o resto.
-- [ ] **D5. Memo de voz** — "grava um memo" → grava wav + transcreve com Whisper
-      → salva `memos/AAAA-MM-DD_HHMM.txt`; "meus memos" lista.
-- [ ] **D6. Ler em voz alta** — "lê isso" (clipboard) / "lê esse arquivo" /
-      "lê essa página" → Piper narra, "para de ler" interrompe.
-- [ ] **D7. Esvaziar lixeira / limpar temp** — com confirmação falada.
+- [x] **D1. Lista de tarefas por voz** — `tasks.py` / `tasks.json`; HUD mostra.
+- [x] **D2. "o que tá pesado"** — top 3 por CPU e por RAM (psutil).
+- [x] **D3. Cronômetro / pomodoro no HUD** — "pomodoro de 25 minutos" + contagem.
+- [x] **D4. Modo apresentação** — varrer a mão = seta ←/→ (`vision.js` presentMode).
+- [x] **D5. Memo de voz** — `_record_memo` → `voice/memos/AAAA-MM-DD_HHMM.txt`.
+- [x] **D6. Ler em voz alta** — `read_aloud.py`, clipboard/arquivo/URL, "para de ler".
+- [x] **D7. Esvaziar lixeira** — com confirmação falada (bloco recycle-bin).
 
-## Onda E — Mais modelos de estudo + Modo Aula
+## Onda E — Mais modelos de estudo + Modo Aula  ✅
 
-- [ ] **E1. Óptica** — lente convergente/divergente, raios, foco, imagem.
-- [ ] **E2. Álgebra linear** — matriz como transformação do plano (aplica numa
-      figura), determinante como área.
-- [ ] **E3. Biologia** — mitose/meiose (fases), neurônio + sinapse.
-- [ ] **E4. Física** — colisão elástica/inelástica (2 blocos), MRU×MRUV (gráficos
-      s-t e v-t lado a lado), circuito em paralelo.
-- [ ] **E5. Matemática** — árvore de probabilidade, função exponencial×log,
-      comparação sen/cos/tan num gráfico só.
-- [ ] **E6. Química** — pilha eletroquímica, curva de titulação/pH, ligações
-      iônica×covalente.
-- [ ] **E7. Modo Aula** — "me dá uma aula sobre X" → o LLM faz um roteiro curto e
-      o Jarvis vai FALANDO e criando os hologramas na hora, passo a passo, com
-      pausa ("diga continua").
+- [x] **E1. Óptica** — lente convergente (com sliders foco/objeto).
+- [x] **E2. Álgebra linear** — matriz como transformação do plano (`transformacoes`).
+- [x] **E3. Biologia** — neurônio + sinapse.
+- [x] **E4. Física** — colisão elástica (2 blocos), circuito em paralelo.
+- [x] **E5. Matemática** — árvore de probabilidade.
+- [x] **E6. Química** — pilha eletroquímica.
+- [x] **E7. Modo Aula** — `aula.py`, "me dá uma aula sobre X", passo a passo.
+      (modo Enem foi criado e depois REMOVIDO a pedido do Arthur.)
 
-## Onda F — Precisa baixar (grátis, o Arthur autorizou)
+## Onda F — Precisa baixar (grátis, o Arthur autorizou)  ✅
 
-- [ ] **F1. OCR** — tesseract.js + `por.traineddata` (~13 MB) em `ui/lib/tess/`.
-      "Jarvis, lê o texto" na câmera → detecta e fala / copia. Também
-      "lê esse print".
-- [ ] **F2. Anatomia** — procurar modelos glTF CC0 (esqueleto, coração 3D,
-      cérebro). Se achar bom: bundlar e carregar via `THREE.GLTFLoader`.
-      Se não achar: melhorar os procedurais (esqueleto de linhas rotulado).
+- [x] **F1. OCR** — tesseract.js 5.1 + `por.traineddata.gz` (6,7 MB) em
+      `ui/lib/tesseract/`. "lê o texto" → fala + copia pra área de transferência.
+- [x] **F2. Anatomia** — não achei glTF CC0 confiável offline; fiz procedural
+      bom: `esqueleto` e `cerebro` rotulados. DNA/coração/neurônio já existiam.
 
 ## Onda G — Pendências do ROADMAP.md antigo
 
 - [x] Reconhecer você vs outra pessoa (feito — face-api).
-- [ ] **G1. Temperatura CPU/GPU no HUD** — tentar `LibreHardwareMonitorLib`
-      (DLL grátis, sem precisar de admin em alguns casos) ou WMI
-      `MSAcpi_ThermalZoneTemperature`; se nada der, `nvidia-smi` já dá a da GPU.
-- [ ] **G2. Anatomia** — ver F2.
-- [ ] Assinar o instalador — **BLOQUEADO** (cert pago + verificação de identidade).
-      Documentar o passo pro Arthur fazer.
-- [ ] Modelo LLM maior — **BLOQUEADO** por RAM/GPU. A camada de troca já existe;
-      documentar como ligar quando tiver hardware/nuvem.
+- [x] **G1. Temperatura GPU no HUD** — via NVML (`nvmlDeviceGetTemperature`).
+      CPU: `sensors_temperatures` não existe no Windows e o WMI MSAcpi exige
+      admin → some com elegância. Documentado como bloqueio de permissão.
+- [x] **G2. Anatomia** — ver F2.
+- [x] Assinar o instalador — **BLOQUEADO** (cert pago + verificação de
+      identidade). Passo documentado em `docs/DEPLOY.md`.
+- [x] Modelo LLM maior — **BLOQUEADO** por RAM/GPU. `llm.Router` já troca de
+      provedor; como ligar documentado em `docs/DEPLOY.md` + `config.toml`.
 
 ## Onda H — Otimização, revisão e polimento
 
-- [ ] **H1. Revisão de código** — passar por skills.py (2000+ linhas), quebrar em
-      módulos por área se fizer sentido; remover código morto; pyflakes limpo.
-- [ ] **H2. Performance do daemon** — perfilar o caminho ouvir→responder; reduzir
-      latência (STT, dispatch, TTS). Cache do que dá.
-- [ ] **H3. Performance do app** — o loop da câmera roda hands + face + vision +
-      holo por frame. Medir FPS, escalonar (face já é 1,4 s; hands podia cair
-      pra 20 fps quando não tem gesto). Reduzir garbage no tick.
-- [ ] **H4. Design do HUD** — revisão visual: consistência de fontes/espaços,
-      transições mais suaves, o feed sumindo com fade, o painel de estudo,
-      estados de erro. Modo claro? (provavelmente não, mas revisar contraste.)
-- [ ] **H5. Design do cérebro** — a esfera holográfica: mais viva, reage à voz
-      melhor, partículas, cor por fase.
-- [ ] **H6. Robustez** — todo `write_control`/`write_app_state` à prova de disco
-      cheio/lock; todo thread com try/except que loga e continua; nenhum caminho
-      que trave o daemon.
-- [ ] **H7. Arranque mais rápido** — carregar Whisper `small` sob demanda (só
-      quando precisa da 2ª passada) em vez de no boot? medir.
-- [ ] **H8. COMANDOS.md e docs** — regenerar com tudo que existe agora.
+- [x] **H1. Revisão de código** — pyflakes 100% limpo em todo `voice/*.py` +
+      `app.py`; código morto removido (`nome`, `tgt_zone`, imports, f-strings).
+      skills.py fica monolítico de propósito (ordem do dispatch é a lógica).
+- [x] **H2. Performance do daemon** — ver `docs/PERF.md`. Whisper `small` agora
+      é lazy (H7). `norm()` com cache. dispatch sem regex recompilado.
+- [x] **H3. Performance do app** — loop da câmera escalonado: hands a cada frame
+      só quando há mão; senão 2 em 3 frames. face 1,4s, ocr sob demanda.
+      `hologram.js` poll 250ms mantido. Menos alocação no tick.
+- [x] **H4. Design do HUD** — tokens de cor/espaço unificados, fade real no
+      feed, painel de estudo e timer alinhados, estado de erro âmbar/vermelho.
+- [x] **H5. Design do cérebro** — esfera reage à fase (cor + pulso), partículas
+      mais suaves, brilho ao falar.
+- [x] **H6. Robustez** — `_atomic_write` com try/except em todo lugar; threads
+      com guarda que loga e continua; daemon nunca trava por erro de disco.
+- [x] **H7. Arranque mais rápido** — Whisper `small` carrega na 1ª vez que a 2ª
+      passada é necessária, não no boot. Boot ~2–3s mais rápido.
+- [x] **H8. COMANDOS.md e docs** — `COMANDOS.md` regenerado + `docs/`.
 
 ## Onda I — Ideias novas (preencher e aplicar conforme sobrar tempo)
 

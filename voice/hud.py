@@ -44,7 +44,11 @@ def _media_snapshot() -> dict | None:
             return {"title": title, "artist": (info.artist or "").strip(),
                     "pos": round(pos, 1), "dur": round(dur, 1), "playing": playing}
 
-        return asyncio.new_event_loop().run_until_complete(go())
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(go())
+        finally:
+            loop.close()                    # sem isto vaza um loop a cada 2 s
     except Exception:  # noqa: BLE001
         return None
 
