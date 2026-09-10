@@ -23,8 +23,8 @@ copy /y "..\voice\skills_extra.toml"  "%OUT%\payload\voice\skills_extra.toml" >n
 if exist "..\voice\skills_learned.toml" copy /y "..\voice\skills_learned.toml" "%OUT%\payload\voice\skills_learned.toml" >nul
 xcopy /e /i /y "..\voice\profiles"  "%OUT%\payload\voice\profiles" >nul
 xcopy /e /i /y "..\voice\study"     "%OUT%\payload\voice\study" >nul
-REM perfil padrao do pacote = robson (o pai do Arthur); o instalador ainda deixa trocar
-%PY% -c "import re,pathlib; p=pathlib.Path(r'%OUT%\payload\voice\config.toml'); t=p.read_text(encoding='utf-8'); p.write_text(re.sub(r'(?m)^active\s*=\s*\S+', 'active = \"robson\"', t, count=1), encoding='utf-8')"
+REM padroes do pacote: perfil = robson, tema = cyan (o config de dev pode ter outros)
+%PY% -c "import re,pathlib; p=pathlib.Path(r'%OUT%\payload\voice\config.toml'); t=p.read_text(encoding='utf-8'); t=re.sub(r'(?m)^active\s*=\s*\S+', 'active = \"robson\"', t, count=1); t=re.sub(r'(?m)^theme\s*=\s*\"\w+\"', 'theme = \"cyan\"', t, count=1); p.write_text(t, encoding='utf-8')"
 
 echo [2/6] aplicativo (cerebro holografico) ...
 mkdir "%OUT%\payload\jarvis-app"
