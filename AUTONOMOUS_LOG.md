@@ -59,10 +59,20 @@ Progresso (atualizo aqui conforme fecho cada onda):
 - [~] Onda H — otimização / revisão / polimento (H1,H3-H8 feitos; H2 parcial)
 - [ ] Onda I — ideias novas
 
-Rodada 5 (10/09, madrugada): H8 COMANDOS.md · H6/H7 escrita atômica + Whisper
-lazy + norm cacheado · H3/H5 mãos com downshift + cérebro reage à fase ·
-H4 tokens de cor no HUD + feed com fade-out · **+ fix de segurança do
-incidente** (ver topo).
+Rodada 5 (10/09, madrugada) — commits ~74–95:
+- **Fix de segurança do incidente** (ver topo) — trava anti-loop, gate,
+  dedup, roteador conservador, mutex, escrita atômica, lembrete/tarefa
+  dedup, `test_audio.py safety`.
+- **Onda H**: H8 (COMANDOS.md regenerado), H6/H7 (escrita atômica + Whisper
+  `small` lazy + `norm` cacheado + `sweep_tmp`), H3 (MediaPipe downshift
+  quando ocioso), H5 (cérebro muda de cor por fase), H4 (tokens de cor no
+  HUD + status colorido + feed com fade-out real).
+- **Onda I**: temas de cor do holograma (`[app] theme`), diário de bordo
+  ("o que eu fiz hoje"), `_patch_toml_line` por seção, data no log.
+- **docs/**: DEPLOY.md, PERF.md.
+
+Daemon reiniciado 3× nesta rodada, todos boot limpo. Estado final: rodando,
+quieto, `reminders.json`/`tasks.json` limpos, tema cyan.
 
 Reconhecimento facial: já feito antes (rodada anterior). face-api.js local.
 
