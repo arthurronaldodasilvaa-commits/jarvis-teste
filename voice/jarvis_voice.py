@@ -1189,6 +1189,7 @@ def main() -> None:
     write_app_state(
         camera_match=cfg.get("app", {}).get("camera_match", "Brio"),
         hand_skeleton=bool(_cam.get("hand_skeleton", True)),
+        theme=str(cfg.get("app", {}).get("theme", "cyan")).strip().lower() or "cyan",
     )
     threading.Thread(target=hotkey_listener, daemon=True).start()
     threading.Thread(target=_reminder_loop, args=(mouth, cfg, brain), daemon=True).start()

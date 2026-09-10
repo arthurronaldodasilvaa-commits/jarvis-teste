@@ -16,6 +16,7 @@
     ["tts.sapi_voice", "Voz do Windows (se SAPI)", "select:_voices"],
     ["audio.input_device_match", "Microfone (trecho do nome)", "text"],
     ["app.camera_match", "Câmera (trecho do nome)", "text"],
+    ["app.theme", "Cor do holograma", "choice:cyan,ice,amber,green,violet"],
     ["location.city", "Cidade do clima", "text"],
     ["arrival.enabled", "Frase de chegada ligada", "bool"],
     ["arrival.phrase", "Frase de chegada", "text"],

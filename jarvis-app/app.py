@@ -243,7 +243,7 @@ class Api:
         ("profile", "active"), ("assistant", "address"), ("assistant", "user_name"),
         ("assistant", "wake_word"), ("assistant", "attention_reply"),
         ("tts", "engine"), ("tts", "sapi_voice"),
-        ("audio", "input_device_match"), ("app", "camera_match"),
+        ("audio", "input_device_match"), ("app", "camera_match"), ("app", "theme"),
         ("location", "city"), ("arrival", "enabled"), ("arrival", "phrase"),
         ("arrival", "briefing"), ("camera", "media_gestures"), ("camera", "auto_return_seconds"),
         ("danger", "allow_shutdown"), ("danger", "allow_typing"),

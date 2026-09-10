@@ -2,14 +2,24 @@
 (() => {
   "use strict";
 
-  const NEON = 0x46d6ff;
-  const NEON_SOFT = 0x9becff;
   const TAU = Math.PI * 2;
+
+  // ---- temas de cor do holograma ([app] theme no config) ----
+  //   neon = tom principal · soft = clareia ao falar · dim = borda apagada (CSS)
+  const THEMES = {
+    cyan:   { neon: 0x46d6ff, soft: 0x9becff, dim: "#1f6f92" },
+    ice:    { neon: 0x8fdcff, soft: 0xd8f3ff, dim: "#3a6b82" },
+    amber:  { neon: 0xffb64a, soft: 0xffe0a8, dim: "#7a5320" },
+    green:  { neon: 0x49f5b0, soft: 0xbafce4, dim: "#1f7a5c" },
+    violet: { neon: 0xb98bff, soft: 0xe4d4ff, dim: "#5a3f8a" },
+  };
+  let NEON = THEMES.cyan.neon;
+  let NEON_SOFT = THEMES.cyan.soft;
 
   // cor do núcleo por fase — o cérebro muda de humor conforme o que o Jarvis faz.
   // Cores BEM saturadas nos canais fora do tom: as cascas usam blending aditivo
   // e várias camadas empilhadas puxam tudo pro branco. Vermelho só "lê" como
-  // vermelho se verde/azul ficarem baixos.
+  // vermelho se verde/azul ficarem baixos. PHASE_COL[""] segue o tema.
   const PHASE_COL = {
     "": new THREE.Color(NEON),
     PENSANDO: new THREE.Color(0x6a3cff),      // violeta — raciocinando
@@ -17,9 +27,23 @@
     PESQUISANDO: new THREE.Color(0x16ff9c),   // verde-água — buscando
     ERRO: new THREE.Color(0xff1f2e),          // vermelho — deu ruim
   };
-  const COL_SPEAK = new THREE.Color(0x9becff); // clareia um tom ao falar
+  const COL_SPEAK = new THREE.Color(NEON_SOFT); // clareia um tom ao falar
   const curCol = new THREE.Color(NEON);        // cor atual, suavizada a cada frame
   const _tmpCol = new THREE.Color();
+  let _themeName = "cyan";
+
+  function applyTheme(name) {
+    const th = THEMES[name] || THEMES.cyan;
+    if (name === _themeName) return;
+    _themeName = name;
+    NEON = th.neon; NEON_SOFT = th.soft;
+    PHASE_COL[""].setHex(th.neon);
+    COL_SPEAK.setHex(th.soft);
+    const r = document.documentElement.style;
+    r.setProperty("--neon", "#" + th.neon.toString(16).padStart(6, "0"));
+    r.setProperty("--neon-dim", th.dim);
+    // o tick() re-tinta as cascas/anéis/glow a partir de curCol no próximo frame
+  }
 
   const host = document.getElementById("scene");
   const statusEl = document.getElementById("status");
@@ -192,6 +216,7 @@
       state.speaking = !!s.speaking;
       if (typeof s.amplitude === "number") state.amplitude = s.amplitude;
       if (s.status) state.status = s.status;
+      if (s.theme) applyTheme(String(s.theme).toLowerCase());
       if (s.camera_match) state.cameraMatch = s.camera_match;
       window.jarvisCam.configure(s);
       if (s.holo && s.holo.action === "settings" && s.holo.n > (state._setN || 0)) {
