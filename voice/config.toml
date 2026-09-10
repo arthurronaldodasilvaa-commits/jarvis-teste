@@ -126,6 +126,16 @@ media_gestures = true        # na câmera (sem hologramas): mão aberta varre = 
                              #   punho ~1s = play/pause, palma subindo/descendo = volume
 auto_return_seconds = 0      # 0 = nunca; >0 = volta pro cérebro se ninguém aparece por N s
 
+[remote]
+# Controle pelo celular, na REDE LOCAL (mesmo Wi-Fi). O celular vira um
+# microfone + fone: aperta pra falar, o PC transcreve/executa/responde.
+# Segurança: só a rede de casa, token obrigatório, comandos destrutivos
+# (desligar/reiniciar/bloquear) são recusados pelo celular.
+enabled = true         # true pra ligar; o QR de pareamento aparece no app
+port = 8765
+token = ""             # vazio = gera um e guarda em voice/remote_token.txt
+bind = "lan"           # "lan" = rede de casa | "localhost" = só este PC
+
 [safety]
 # Trava contra loops: ruído de TV, conversa ao telefone ou a própria música do
 # Jarvis podem ser transcritos como comando e disparar em sequência. Aqui a gente

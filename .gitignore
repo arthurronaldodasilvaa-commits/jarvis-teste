@@ -50,3 +50,8 @@ voice/piper/
 _tts_out.wav
 installer/OpenJarvishf-cache/
 OpenJarvishf-cache/
+voice/remote_cert.pem
+voice/remote_key.pem
+voice/remote_cert.ip
+voice/remote_token.txt
+voice/_remote_tts/

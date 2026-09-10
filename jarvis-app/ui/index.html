@@ -243,6 +243,29 @@
     color: var(--neon); font-size: 14px; opacity: 0.55; cursor: pointer; transition: opacity .2s, background .2s; }
   #gear:hover { opacity: 1; background: var(--neon-14); }
   body.camera #gear { display: none; }
+
+  /* ---------- pareamento do celular ---------- */
+  #phone-btn { position: fixed; top: 15px; right: 89px; z-index: 12; width: 28px; height: 28px;
+    line-height: 27px; text-align: center; border: 1px solid var(--neon-dim); border-radius: 50%;
+    background: rgba(2,8,14,0.72); backdrop-filter: blur(2px); font-size: 13px; opacity: 0.6;
+    cursor: pointer; transition: opacity .2s, background .2s; }
+  #phone-btn:hover { opacity: 1; background: var(--neon-14); }
+  body.camera #phone-btn { display: none; }
+  #pair { position: fixed; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center;
+    background: rgba(2,7,12,0.93); backdrop-filter: blur(3px); }
+  #pair .pbox { width: min(360px, 92vw); border: 1px solid var(--neon-dim); background: var(--glass);
+    padding: 26px 28px; text-align: center; box-shadow: 0 0 40px rgba(70,214,255,0.18); }
+  #pair .ptag { font-family: "Segoe UI", Consolas, monospace; font-size: 11px; letter-spacing: .24em;
+    text-transform: uppercase; color: var(--neon); text-shadow: 0 0 10px var(--neon); margin-bottom: 18px; }
+  #pair img { width: 200px; height: 200px; image-rendering: pixelated; background: #fff; padding: 10px; border-radius: 4px; }
+  #pair .purl { font-family: "Segoe UI", Consolas, monospace; font-size: 11px; color: #9ecad8; margin: 14px 0 4px;
+    word-break: break-all; }
+  #pair .pnote { font-size: 11px; color: #6f8a98; line-height: 1.55; margin-bottom: 20px; }
+  #pair .pnote b { color: #b7cdd8; }
+  #pair button { background: transparent; color: #9ecad8; border: 1px solid var(--neon-dim);
+    padding: 9px 22px; font: inherit; font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; cursor: pointer; }
+  #pair button:hover { color: var(--neon); border-color: var(--neon); }
 </style>
 </head>
 <body>
@@ -298,6 +321,15 @@
   </div>
   <div id="gear" title="Configurações">⚙</div>
   <div id="close" title="Fechar">&times;</div>
+  <div id="phone-btn" title="Parear o celular" hidden>📱</div>
+
+  <div id="pair" hidden><div class="pbox">
+    <div class="ptag">Controle pelo celular</div>
+    <img id="pair-qr" alt="QR de pareamento" />
+    <div class="purl" id="pair-url"></div>
+    <div class="pnote">Aponte a câmera do celular pro código.<br>Mesmo Wi-Fi. Na 1ª vez o navegador avisa do certificado — toque em <b>Avançar / Continuar</b>.</div>
+    <button class="ghost" id="pair-close">Fechar</button>
+  </div></div>
 
   <div id="settings"><div class="box">
     <h2>Configurações</h2>
@@ -323,6 +355,7 @@
   <script src="ocr.js"></script>
   <script src="camera.js"></script>
   <script src="hud.js"></script>
+  <script src="remote.js"></script>
   <script src="settings.js"></script>
   <script src="hologram.js"></script>
 </body>

@@ -231,6 +231,7 @@
       if (window.jarvisVision) window.jarvisVision.onControl(s);
       if (window.jarvisFace) window.jarvisFace.onControl(s);
       if (window.jarvisOcr) window.jarvisOcr.onControl(s);
+      if (window.jarvisRemote) window.jarvisRemote.onState(s);
       // cor do CÉREBRO: só as fases "interessantes" tingem — violeta (pensando/
       // LLM), verde (buscando na web), vermelho (erro). Enquanto o Jarvis FALA a
       // resposta, volta pro ciano (o pulso da voz assume). 'processing' (comando

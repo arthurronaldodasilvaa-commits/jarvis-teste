@@ -582,6 +582,42 @@ class Mouth:
             log(f"Piper falhou ({exc})")
             return False
 
+    def synth_file(self, text: str, out_path) -> bool:
+        """Gera o áudio da fala num arquivo, SEM tocar no PC. Usado pelo
+        controle remoto (celular) — o áudio vai pro fone do senhor, não pra
+        caixa de som daqui."""
+        text = re.sub(r"\s+", " ", str(text or "")).strip()
+        if not text:
+            return False
+        if self.piper:
+            exe, voice = self.piper
+            try:
+                r = subprocess.run(
+                    [exe, "--model", voice, "--length_scale", f"{self.length_scale:.2f}",
+                     "--output_file", str(out_path)],
+                    input=text.encode("utf-8"), timeout=45, creationflags=CNW,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                if r.returncode == 0 and os.path.isfile(out_path):
+                    return True
+            except Exception as exc:  # noqa: BLE001
+                log(f"synth_file/piper: {exc}")
+        # fallback SAPI -> arquivo
+        try:
+            ps = ("Add-Type -AssemblyName System.Speech;"
+                  "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
+                  + (f"try{{$s.SelectVoice('{self.voice}')}}catch{{}};" if self.voice else "")
+                  + f"$s.Rate={self.rate};"
+                  f"$s.SetOutputToWaveFile('{out_path}');"
+                  "$s.Speak([Console]::In.ReadToEnd());$s.Dispose()")
+            subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                           input=text, text=True, timeout=45, creationflags=CNW,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return os.path.isfile(out_path)
+        except Exception as exc:  # noqa: BLE001
+            log(f"synth_file/sapi: {exc}")
+            return False
+
     def close(self) -> None:
         try:
             if self._proc and self._proc.poll() is None:
@@ -1236,6 +1272,14 @@ def main() -> None:
         hud.start(cfg)
     except Exception as exc:  # noqa: BLE001
         log(f"HUD não iniciou: {exc}")
+    try:
+        import remote
+        remote.start(cfg, ears, mouth, brain, skills.dispatch)
+        if remote.pairing_url():
+            write_app_state(remote_url=remote.pairing_url(),
+                            remote_qr=remote.pairing_qr_datauri())
+    except Exception as exc:  # noqa: BLE001
+        log(f"controle remoto não subiu: {exc}")
 
     wake_word = norm(cfg["assistant"].get("wake_word", "jarvis"))
     pre_n = max(1, int(float(cfg["audio"].get("pre_roll_seconds", 0.5)) * SR / BLOCK))

@@ -35,12 +35,19 @@ echo [3/7] Codigo do assistente de voz ...
 mkdir "%OUT%\voice"
 copy /y "..\voice\*.py"    "%OUT%\voice\" >nul
 copy /y "..\voice\*.toml"  "%OUT%\voice\" >nul
+copy /y "..\voice\remote_page.html" "%OUT%\voice\" >nul
 xcopy /e /i /q /y "..\voice\study"    "%OUT%\voice\study" >nul
 xcopy /e /i /q /y "..\voice\profiles" "%OUT%\voice\profiles" >nul
 xcopy /e /i /q /y "..\voice\piper"    "%OUT%\voice\piper" >nul
 copy /y "..\manual\jarvis-manual.html" "%OUT%\voice\manual.html" >nul
 del /q "%OUT%\voice\test_audio.py" 2>nul
+del /q "%OUT%\voice\secrets.toml" 2>nul
+del /q "%OUT%\voice\remote_token.txt" 2>nul
+del /q "%OUT%\voice\remote_cert.pem" "%OUT%\voice\remote_key.pem" "%OUT%\voice\remote_cert.ip" 2>nul
 for /d /r "%OUT%\voice" %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d"
+REM padroes do pacote: perfil robson, tema cyan, controle-celular desligado
+REM (o Robson liga depois; precisa de openssl/Git na maquina dele).
+%PY% -X utf8 -c "import re,pathlib; p=pathlib.Path(r'%OUT%\voice\config.toml'); t=p.read_text(encoding='utf-8'); t=re.sub(r'(?m)^active\s*=\s*\S+', 'active = \"robson\"', t, count=1); t=re.sub(r'(?m)^theme\s*=\s*\"\w+\"', 'theme = \"cyan\"', t, count=1); t=re.sub(r'(?m)^(exe_path\s*=\s*).*', r'\1\"\"', t, count=1); t=re.sub(r'(?ms)(\[remote\].*?^enabled\s*=\s*)true', r'\1false', t, count=1); p.write_text(t, encoding='utf-8')"
 
 echo [4/7] Codigo do cerebro holografico ...
 mkdir "%OUT%\jarvis-app"

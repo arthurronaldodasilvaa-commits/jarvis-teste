@@ -18,12 +18,16 @@ hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio",
 hiddenimports += ["hooks", "llm", "skills_extra", "study", "teach", "invent",
                   "face", "facts", "materials", "tasks", "read_aloud", "aula",
                   "diary", "reminders", "weather", "calc", "news", "media", "wiki",
-                  "translate", "maps", "spotify", "hud", "skills"]
+                  "translate", "maps", "spotify", "hud", "skills", "remote"]
+hiddenimports += collect_submodules("qrcode")
 
 import os as _os
 _piper = "../voice/piper"
 if _os.path.isdir(_piper):
     datas += [(_piper, "piper")]
+# página do controle-pelo-celular (remote.py serve este HTML)
+if _os.path.isfile("../voice/remote_page.html"):
+    datas += [("../voice/remote_page.html", ".")]
 
 a = Analysis(
     ["../voice/jarvis_voice.py"],
