@@ -13,7 +13,9 @@
      ✋ palma sobre forma animada  -> CONGELA e navega no tempo pela posição da mão
      🖐 varre rápido              -> apaga a forma selecionada
    DUAS mãos ✊✊ (ou ✋✋) com algo selecionado -> gira como uma BOLA (trackball)
-   ✋ seletora PARADA ~0,7 s      -> menu radial (aponte num item, segure p/ escolher)
+   ✋ PARADA ~0,5 s -> abre o menu de marcação. Com a MESMA mão aberta,
+      EMPURRA numa direção e segura ~0,5 s:
+        cima = limpar tudo   direita = trava/solta   baixo = duplicar   esquerda = explodir
    ☝️ apontar (qualquer mão)      -> raio ponteiro; destaca a forma mirada
 */
 window.jarvisHolo = (() => {
@@ -270,7 +272,8 @@ window.jarvisHolo = (() => {
   const C_LOCK = new THREE.Color(0x7affc0);
   const st = { resizeRef: 0, rotPrev: null, allPrev: null, selPinchWas: false,
     poked: new Set(), pokeT: 0, trackPrev: null, palmT: 0, palmC: null,
-    menuOn: false, menuAt: [0, 0], menuHover: -1, menuDwell: 0, scrubT: null };
+    menuOn: false, menuAnchor: null, menuHover: -1, menuFrac: 0, menuCursor: null,
+    menuDwellStart: 0, palmStart: 0, palmGrace: 0, scrubT: null };
   let dbgDot = [0, 0], dbgOn = false;
   let selectorId = null;   // id da mão que é a "seletora" (fica grudado)
 
@@ -414,53 +417,43 @@ window.jarvisHolo = (() => {
       try { selected.upd(st.scrubT); } catch (_) { /* nada */ }
     }
 
-    // ---- ✋ SELETORA parada ~0,7 s -> MENU RADIAL (aponta num item p/ escolher) ----
-    if (!twoBall && !st.scrubT && sg.name === "palma") {
-      const c = handCenter(selH.landmarks);
-      if (st.palmC && Math.hypot(c.x - st.palmC.x, c.y - st.palmC.y) < 0.045) {
-        if (!st.palmStart) st.palmStart = now;
-      } else { st.palmStart = 0; }
-      st.palmC = c;
-      if (st.palmStart && now - st.palmStart > 700) { st.menuOn = true; st.menuAt = toScreenPx(c.x, c.y); }
-    } else {
-      st.palmStart = 0; st.palmC = null;
-      if (sg.name !== "apontar" && mg.name !== "apontar") st.menuOn = false;
-    }
-
-    if (st.menuOn) {
-      const pt = hands.find((h) => h.gesture && h.gesture.name === "apontar");
-      let hover = -1;
-      if (pt) {
-        const [tx, ty] = toScreenPx(pt.landmarks[8].x, pt.landmarks[8].y);
-        const [cx, cy] = st.menuAt;
-        if (Math.hypot(tx - cx, ty - cy) > R * 0.3) {
-          const ang = Math.atan2(ty - cy, tx - cx);
-          let bd = 0.75;
-          MENU.forEach((m, i) => {
-            const wa = -Math.PI / 2 + i / MENU.length * TAU;
-            const da = Math.abs(((ang - wa + Math.PI + TAU) % TAU) - Math.PI);
-            if (da < bd) { bd = da; hover = i; }
-          });
-        }
-      }
+    // ---- ✋ MENU DE MARCAÇÃO: 1 mão só. Mostra a palma ~0,5 s -> abre.
+    //      Depois EMPURRA a mesma palma numa direção e SEGURA ~0,5 s pra escolher.
+    //      cima = Limpar tudo · direita = Trava/Solta · baixo = Duplicar · esquerda = Explodir ----
+    const selPalm = !twoBall && !st.scrubT && sg.name === "palma";
+    const REACH = Math.max(45, innerHeight * 0.06);      // empurrão mínimo, relativo à tela
+    const palmC0 = selPalm ? toScreenPx(handCenter(selH.landmarks).x, handCenter(selH.landmarks).y) : null;
+    if (selPalm && !st.menuOn) {
+      if (!st.palmStart) { st.palmStart = now; st.palmOpenAt = palmC0; }
+      if (Math.hypot(palmC0[0] - st.palmOpenAt[0], palmC0[1] - st.palmOpenAt[1]) > REACH * 1.5) st.palmOpenAt = palmC0;
+      if (now - st.palmStart > 500) { st.menuOn = true; st.menuAnchor = st.palmOpenAt.slice(); }
+      st.palmGrace = 0; st.menuHover = -1; st.menuFrac = 0;
+    } else if (st.menuOn && selPalm) {
+      const dx = palmC0[0] - st.menuAnchor[0], dy = palmC0[1] - st.menuAnchor[1];
+      const reach = Math.hypot(dx, dy);
+      const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+      let hover = -1, best = 0.5;
+      if (reach > REACH) DIRS.forEach((d, i) => {
+        const dot = (dx * d[0] + dy * d[1]) / reach;
+        if (dot > best) { best = dot; hover = i; }
+      });
       let frac = 0;
-      if (hover >= 0 && hover === st.menuHover) {
-        if (!st.menuDwellStart) st.menuDwellStart = now;
-        frac = Math.min(1, (now - st.menuDwellStart) / 550);
-        if (frac >= 1) {
-          try { MENU[hover].fn(); } catch (_) { /* nada */ }
-          st.menuOn = false; st.menuDwellStart = 0; st.palmStart = 0;
-        }
-      } else { st.menuDwellStart = 0; }
-      st.menuHover = hover;
       if (hover >= 0) {
-        const wa = -Math.PI / 2 + hover / MENU.length * TAU;
-        menuRing.position.set(Math.cos(wa) * MENU_R, Math.sin(wa) * MENU_R, 0.01);
-        menuRing.scale.setScalar(1.6 - frac);          // fecha em volta do item
-        menuRing.material.opacity = 0.35 + frac * 0.6;
-      } else { menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3; }
-    } else { st.menuHover = -1; menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3; }
-    layoutMenu(st.menuAt[0], st.menuAt[1]);
+        if (hover !== st.menuHover) st.menuDwellStart = now;
+        frac = Math.min(1, (now - st.menuDwellStart) / 500);
+        if (frac >= 1) { try { MENU[hover].fn(); } catch (_) { /* nada */ } _closeMenu(); }
+      } else { st.menuDwellStart = 0; }
+      st.menuHover = hover; st.menuFrac = frac;
+      st.menuCursor = [Math.max(-140, Math.min(140, dx)), Math.max(-140, Math.min(140, dy))];
+      st.palmGrace = 0;
+    } else if (st.menuOn) {
+      // sem palma: dá uma graça de ~6 frames antes de fechar (jitter do tracker)
+      st.palmGrace = (st.palmGrace || 0) + 1;
+      if (st.palmGrace > 6) _closeMenu();
+    } else {
+      st.palmStart = 0; st.palmOpenAt = null;
+    }
+    _layoutMenu();
 
     // ---- modo MEDIR: pinça marca pontos ----
     if (st.measureMode) {
@@ -540,33 +533,60 @@ window.jarvisHolo = (() => {
   pokeDot.scale.set(0.3, 0.3, 1);
   scene.add(pokeDot);
 
-  // ---------- menu radial (palma parada ~0,7 s) ----------
+  // ---------- menu de marcação (1 mão: palma parada abre, empurra pra escolher) ----------
+  //  ordem = cima, direita, baixo, esquerda
   const MENU = [
-    { t: "Limpar", fn: () => clearAll() },
-    { t: "Trava/Solta", fn: () => lockSelected(null) },
-    { t: "Duplicar", fn: () => dupSelected() },
-    { t: "Explodir", fn: () => explodeSelected() },
+    { t: "↑ Limpar tudo", fn: () => clearAll() },
+    { t: "→ Trava / Solta", fn: () => lockSelected(null) },
+    { t: "↓ Duplicar", fn: () => dupSelected() },
+    { t: "← Explodir", fn: () => explodeSelected() },
   ];
+  const MENU_OFF = [[0, -95], [150, 0], [0, 95], [-150, 0]];   // px a partir do centro
   const menuGrp = new THREE.Group(); scene.add(menuGrp);
   MENU.forEach((m) => { m.spr = mkText(m.t); m.baseScale = m.spr.scale.clone(); menuGrp.add(m.spr); });
-  const MENU_R = 1.05;
-  function layoutMenu(cx, cy) {
-    const w = pxToWorld(cx, cy, 0);
-    if (Number.isFinite(w.x)) menuGrp.position.set(w.x, w.y, 0);
-    MENU.forEach((m, i) => {
-      const a = -Math.PI / 2 + i / MENU.length * TAU;
-      m.spr.position.set(Math.cos(a) * MENU_R, Math.sin(a) * MENU_R, 0);
-      const hot = i === st.menuHover;
-      m.spr.material.opacity += ((st.menuOn ? (hot ? 1 : 0.6) : 0) - m.spr.material.opacity) * 0.35;
-      m.spr.scale.copy(m.baseScale).multiplyScalar(hot ? 1.2 : 0.9);
-    });
-  }
-  // anel de progresso do dwell (feedback visual) — cresce enquanto você segura a mira
-  const menuRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.26, 0.34, 36),
+  const menuHint = mkText("empurre a mão →", "#63788c"); menuGrp.add(menuHint);
+  const menuCur = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16),
+    new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+  menuGrp.add(menuCur);
+  const menuRing = new THREE.Mesh(new THREE.RingGeometry(0.30, 0.40, 40),
     new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false }));
   menuGrp.add(menuRing);
+
+  function _closeMenu() {
+    st.menuOn = false; st.palmStart = 0; st.menuAnchor = null;
+    st.menuDwellStart = 0; st.menuHover = -1; st.menuFrac = 0; st.menuCursor = null;
+  }
+  function _pxOffToWorld(anchor, ox, oy) {
+    return pxToWorld(anchor[0] + ox, anchor[1] + oy, 0);
+  }
+  function _layoutMenu() {
+    const show = st.menuOn ? 1 : 0;
+    const anchor = st.menuAnchor;
+    MENU.forEach((m, i) => {
+      if (anchor && Number.isFinite(anchor[0])) {
+        const w = _pxOffToWorld(anchor, MENU_OFF[i][0], MENU_OFF[i][1]);
+        if (Number.isFinite(w.x)) m.spr.position.set(w.x, w.y, 0);
+      }
+      const hot = i === st.menuHover;
+      m.spr.material.opacity += ((show ? (hot ? 1 : 0.62) : 0) - m.spr.material.opacity) * 0.35;
+      m.spr.scale.copy(m.baseScale).multiplyScalar(hot ? 1.22 : 0.92);
+    });
+    if (anchor && Number.isFinite(anchor[0])) {
+      const wc = pxToWorld(anchor[0], anchor[1], 0);
+      if (Number.isFinite(wc.x)) { menuHint.position.set(wc.x, wc.y + 0.05, 0); menuCur.position.set(wc.x, wc.y, 0.02); menuRing.position.set(wc.x, wc.y, 0.01); }
+      if (st.menuCursor) {
+        const wp = _pxOffToWorld(anchor, st.menuCursor[0], st.menuCursor[1]);
+        if (Number.isFinite(wp.x)) menuCur.position.set(wp.x, wp.y, 0.02);
+      }
+    }
+    menuHint.material.opacity += ((show && st.menuHover < 0 ? 0.5 : 0) - menuHint.material.opacity) * 0.3;
+    menuCur.material.opacity += ((show ? 0.8 : 0) - menuCur.material.opacity) * 0.3;
+    const f = st.menuFrac || 0;
+    menuRing.material.opacity += ((show && st.menuHover >= 0 ? 0.3 + f * 0.65 : 0) - menuRing.material.opacity) * 0.4;
+    menuRing.scale.setScalar(1.5 - f * 0.9);
+  }
 
   // ---------- loop ----------
   let active = false;
@@ -648,5 +668,7 @@ window.jarvisHolo = (() => {
 
   setTimeout(() => dbg("módulo carregado, renderer " + (renderer ? "ok" : "FALHOU")), 1500);
   return { setActive, onControl, tick, count: () => shapes.length, clearAll, spawn, _geo: makeGeo,
-    hasSelection: () => !!selected };
+    hasSelection: () => !!selected,
+    _dbg: () => ({ menuOn: st.menuOn, anchor: st.menuAnchor, palmStart: st.palmStart,
+      hover: st.menuHover, frac: st.menuFrac, cursor: st.menuCursor, grace: st.palmGrace }) };
 })();
