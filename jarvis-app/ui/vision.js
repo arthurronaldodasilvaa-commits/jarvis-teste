@@ -17,12 +17,14 @@ window.jarvisVision = (() => {
   const now = () => performance.now();
   const COOL = 1100;
 
+  let presentMode = false;
   function media(action, times) {
     const a = api();
     if (a && a.media) a.media(action, times || 1);
     g.lastAct = now();
     flash({ next: "⏭ próxima", prev: "⏮ anterior", play: "⏯ play/pause",
-            vol_up: "🔊 +", vol_down: "🔉 −" }[action] || action);
+            vol_up: "🔊 +", vol_down: "🔉 −",
+            next_slide: "▶ próximo slide", prev_slide: "◀ slide anterior" }[action] || action);
   }
   let flashT = 0, flashMsg = "";
   function flash(msg) { flashMsg = msg; flashT = now(); }
@@ -43,10 +45,12 @@ window.jarvisVision = (() => {
       const dy = Math.abs(g.trail[g.trail.length - 1].y - g.trail[0].y);
       if (Math.abs(dx) > 0.33 && dy < 0.14 && now() - g.lastAct > COOL) {
         // vídeo espelhado: mão indo p/ a direita (dx>0) = "puxar" = próxima
-        media(dx > 0 ? "next" : "prev");
+        if (presentMode) media(dx > 0 ? "next_slide" : "prev_slide");
+        else media(dx > 0 ? "next" : "prev");
         g.trail.length = 0;
       }
     }
+    if (presentMode) return;   // no modo apresentação, só o swipe
 
     // --- punho fechado ~1s: play/pause ---
     if (name === "punho") {
@@ -136,6 +140,7 @@ window.jarvisVision = (() => {
       if (s && s.scan === "qr") startScan();
       if (s && typeof s.media_gestures === "boolean") mediaOn = s.media_gestures;
       if (s && typeof s.auto_return === "number") autoReturnS = s.auto_return;
+      if (s && typeof s.present === "boolean") { presentMode = s.present; if (s.present) mediaOn = true; }
     },
   };
 })();

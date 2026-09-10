@@ -167,7 +167,8 @@ class Api:
         return self._write_control(view="brain" if cur == "camera" else "camera")
 
     _VK = {"next": 0xB0, "prev": 0xB1, "play": 0xB3, "stop": 0xB2,
-           "vol_up": 0xAF, "vol_down": 0xAE, "mute": 0xAD}
+           "vol_up": 0xAF, "vol_down": 0xAE, "mute": 0xAD,
+           "next_slide": 0x27, "prev_slide": 0x25}   # seta direita / esquerda
 
     def media(self, action: str, times: int = 1) -> bool:
         """Tecla de mídia disparada por gesto na câmera."""

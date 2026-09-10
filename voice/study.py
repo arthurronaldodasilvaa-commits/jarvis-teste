@@ -68,14 +68,19 @@ _ALIASES = {
 
 def match_enter(t: str) -> str | None:
     """t normalizado. Devolve o nome do modo se a fala for 'modo <x>', senão None."""
+    # não confundir com "adiciona estudar X na lista" etc.
+    if re.search(r"\b(adiciona|anota|risca|marca|lista|tarefa|lembrete|na lista)\b", t):
+        return None
     m = re.search(r"\bmod[eo]\s+(?:de\s+)?(redacao|redação|escrita|"
                   r"prova|simulado|teste|estudo|estudos|foco|aula|vestibular)\b", t)
     if not m:
-        # "bora estudar pra prova", "vamos treinar redação"
-        m2 = re.search(r"\b(estudar|treinar|revisar|praticar)\b.*\b(redacao|redação|"
-                       r"prova|vestibular|matematica|fisica|quimica|historia)\b", t)
+        # "bora estudar pra prova", "vamos treinar redação", "quero estudar agora"
+        m2 = re.search(r"\b(vamos|bora|quero|vou|preciso)\s+(estudar|treinar|revisar|"
+                       r"praticar)\b(?:\s+(?:pra|para|pro|a|o))?\s*(redacao|redação|"
+                       r"prova|vestibular|matematica|fisica|quimica|historia|agora|"
+                       r"um pouco)?\b", t)
         if m2:
-            return _ALIASES.get(m2.group(2), "estudo")
+            return _ALIASES.get(m2.group(3) or "", "estudo")
         return None
     return _ALIASES.get(m.group(1), "estudo")
 

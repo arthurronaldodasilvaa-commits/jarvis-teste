@@ -944,6 +944,7 @@ def _reminder_loop(mouth: "Mouth", cfg: dict | None = None, brain=None) -> None:
                 else:
                     push_note("⏰ timer terminou", "reminder")
                     mouth.say("Senhor, seu timer terminou.")
+                    write_app_state(timer={"end": 0})
                 if hooks:
                     try:
                         hooks.fire("on_reminder_due", text=txt, cfg=cfg,
@@ -1027,6 +1028,11 @@ def main() -> None:
     threading.Thread(target=hotkey_listener, daemon=True).start()
     threading.Thread(target=_reminder_loop, args=(mouth, cfg, brain), daemon=True).start()
     threading.Thread(target=_scan_loop, args=(mouth,), daemon=True).start()
+    try:
+        import tasks
+        tasks._push_hud()
+    except Exception:  # noqa: BLE001
+        pass
     try:
         import face
         threading.Thread(target=face.watch,

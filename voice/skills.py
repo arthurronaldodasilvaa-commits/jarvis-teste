@@ -1030,6 +1030,16 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         return Result(speak="Escuta pausada, senhor. Aperte o botão no aplicativo ou "
                             "Control Alt J para me chamar de volta.")
 
+    # --- modo apresentação (varrer a mão = próximo/anterior slide) ---
+    if re.search(r"\b(sai\w*|sair|fecha\w*|encerra\w*|para\w*|termin\w*|acab\w*)\b.*"
+                 r"\b(apresenta[cç][aã]o|slides?|palestra)\b", t):
+        write_control(present=False)
+        return Result(speak="Modo apresentação encerrado, senhor.")
+    if re.search(r"\bmod[eo]\s+(apresenta[cç][aã]o|slides?|palestra)\b|"
+                 r"\bvou\s+apresentar\b|\bcomeca\w*\s+a\s+apresenta", t):
+        write_control(view="camera", present=True, media_gestures=True)
+        return Result(speak="Modo apresentação, senhor. Varra a mão pra trocar de slide.")
+
     # --- câmera do app (troca a tela: cérebro <-> webcam) ---
     if re.search(r"\b(ativa\w*|liga\w*|abr\w*|mostra\w*|inicia\w*)\s+(a\s+)?c[aâe]mera\b|"
                  r"\bmodo c[aâe]mera\b|\bvis[aã]o (da\s+)?c[aâe]mera\b|\bliga\w* a webcam\b", t):
@@ -1186,12 +1196,17 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             q = quando.strftime("%H:%M") if quando.date() == agora.date() else quando.strftime("%d/%m %H:%M")
             linhas.append(f"{r['text']} às {q}")
         return Result(speak="Senhor: " + "; ".join(linhas) + ".")
-    if re.search(r"\b(cancela|apaga|limpa|tira)\w*\s+(os |todos os |meus )?(lembretes?|timers?|alarmes?)\b", t):
+    if re.search(r"\b(cancela|apaga|limpa|tira|para)\w*\s+(o |os |todos os |meus )?"
+                 r"(lembretes?|timers?|alarmes?|cronometr\w+|pomodoro|contagem)\b", t):
+        write_app_state(timer={"end": 0})
+        if re.search(r"\b(cronometr\w*|pomodoro|timer|contagem)\b", t) and not re.search(r"lembrete", t):
+            # só o cronômetro visual; mantém lembretes com texto
+            return Result(speak="Cronômetro cancelado, senhor.")
         n = reminders.clear_all()
         return Result(speak=("Limpei os lembretes, senhor." if n else "Não tinha lembrete, senhor."))
     m = re.search(r"\b(me lembr\w+|lembr[ae]\s+(?:de\s+)?mim|me avis\w+|me acord\w+|me cham\w+|"
-                  r"p[oõ]e\s+(?:um\s+)?(?:lembrete|timer|alarme|despertador)|"
-                  r"timer\s+(?:de|pra|para)|cronometr\w+\s+(?:de|pra|para)|"
+                  r"p[oõ]e\s+(?:um\s+)?(?:lembrete|timer|alarme|despertador|pomodoro|cronometr\w+)|"
+                  r"timer\s+(?:de|pra|para)|cronometr\w+\s+(?:de|pra|para)|pomodoro\s+(?:de|pra|para)|"
                   r"alarme\s+(?:de|pra|para|das?)|despertador\s+(?:pra|para|das?))\b(.*)", t)
     if m:
         rest = m.group(2).strip()
@@ -1209,6 +1224,9 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         ts, human = when
         msg = _reminder_msg(rest)
         reminders.add(msg or "(sem descrição)", ts)
+        # timer/cronômetro/pomodoro sem texto -> mostra a contagem no HUD
+        if not msg and re.search(r"\b(timer|cronometr\w+|pomodoro|contagem)\b", t):
+            write_app_state(timer={"end": ts, "label": "pomodoro" if "pomodoro" in t else "timer"})
         prefixo = "Às" if (":" in human or "meio-dia" in human or "meia-noite" in human) else "Daqui a"
         if prefixo == "Às" and ":" in human:
             hh, mm = human.split(" de ")[0].split(":")
@@ -1309,6 +1327,77 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                  r"captura de tela|imagem da tela)\b|\bprint da tela\b|\bprintar\b", t):
         combo("WIN", "SNAPSHOT")
         return Result(speak="Print salvo em Imagens, na pasta Capturas de Tela, senhor.")
+
+    # --- lista de tarefas ---
+    try:
+        import tasks
+        mt = re.search(r"\b(adiciona|anota|p[oõ]e|bota|coloca|acrescenta)\s+(?:na\s+lista\s+|"
+                       r"nas\s+tarefas\s+|uma\s+tarefa\s+)?(.+?)(?:\s+na\s+lista|\s+nas\s+tarefas)?$", t)
+        if mt and re.search(r"\b(lista|tarefa|afazer|to-?do|pend[êe]ncia)\b", t):
+            return Result(speak=tasks.add(mt.group(2)))
+        if re.search(r"\b(minhas|quais|que|lista de)\s+(tarefas?|afazeres|pend[êe]ncias?)\b|"
+                     r"\bo que (eu )?(tenho|preciso) (pra|para) fazer\b|\bminha lista\b", t):
+            return Result(speak=tasks.listar())
+        mc = re.search(r"\b(risca|marca|conclui|termina|feito|completa|tira)\s+(?:a\s+|o\s+|"
+                       r"da\s+|de\s+)?(?:tarefa\s+)?(.+?)(?:\s+(?:como\s+)?(?:feita|feito|conclu[ií]d\w+|pront\w+))?$", t)
+        if mc and re.search(r"\btarefa|\blista|risca\b|conclui\b", t):
+            return Result(speak=tasks.concluir(mc.group(2)))
+        if re.search(r"\blimpa\s+(a\s+)?(lista|minhas tarefas)\b|\bapaga\s+(as\s+)?tarefas\b", t):
+            so_feitas = bool(re.search(r"\b(feitas|conclu[ií]d\w+|pronto|prontas)\b", t))
+            return Result(speak=tasks.limpar(so_feitas))
+    except Exception as exc:  # noqa: BLE001
+        log(f"tasks: {exc}")
+
+    # --- o que está pesado (top processos) ---
+    if re.search(r"\bo que (ta|esta|está)\s+(pesado|pesando|consumindo|comendo|travando)|"
+                 r"\bque programa\s+(ta|esta|está)\s+(usando|comendo|consumindo)|"
+                 r"\buso de (cpu|memoria|mem[óo]ria)\b|\bo que (ta|esta) usando (mais )?(cpu|mem)", t):
+        try:
+            import psutil
+            psutil.cpu_percent(interval=None)
+            time.sleep(0.4)
+            procs = []
+            for p in psutil.process_iter(["name", "cpu_percent", "memory_info"]):
+                try:
+                    procs.append((p.info["name"] or "?", p.info["cpu_percent"] or 0,
+                                  (p.info["memory_info"].rss if p.info["memory_info"] else 0) / 1024**2))
+                except Exception:  # noqa: BLE001
+                    pass
+            top_cpu = sorted(procs, key=lambda x: -x[1])[:3]
+            top_mem = sorted(procs, key=lambda x: -x[2])[:3]
+            return Result(speak="CPU, senhor: " + ", ".join(f"{n} {c:.0f}%" for n, c, _ in top_cpu) +
+                                ". Memória: " + ", ".join(f"{n} {m:.0f} mega" for n, _, m in top_mem) + ".")
+        except Exception as exc:  # noqa: BLE001
+            log(f"top procs: {exc}")
+            return Result(speak="Não consegui checar os processos, senhor.")
+
+    # --- ler em voz alta ---
+    try:
+        import read_aloud
+        if re.search(r"\bpar\w*\s+de\s+ler\b|\bpode\s+parar\s+de\s+ler\b|\bchega\s+de\s+ler\b|"
+                     r"\bfecha\s+a\s+leitura\b", t) or (read_aloud.reading() and re.search(r"^para$", t)):
+            read_aloud.stop()
+            return Result(speak="Parei a leitura, senhor.")
+        if re.search(r"\bl[eê]\w*\s+(isso|pra mim|o texto|essa|esse|a pagina|essa pagina|"
+                     r"o arquivo|esse arquivo|essa materia|em voz alta|pra mim isso)\b|"
+                     r"\bnarr\w+\s+(isso|o texto|essa pagina)\b|\bme l[eê]\b", t):
+            src = read_aloud.source_text(t)
+            if not src:
+                return Result(speak="Não achei texto pra ler, senhor. Copie algo ou diga "
+                                    "\"lê esse arquivo\" e o caminho.")
+            mo = getattr(speak, "__self__", None)
+            if mo is None:
+                return Result(speak="Não consigo narrar agora, senhor.")
+            return Result(speak=read_aloud.start(mo, src[0], src[1]))
+    except Exception as exc:  # noqa: BLE001
+        log(f"read_aloud: {exc}")
+
+    # --- esvaziar a lixeira ---
+    if re.search(r"\b(esvazia|limpa|despeja)\s+(a\s+)?lixeira\b", t):
+        def _lixeira():
+            _run("powershell", "-NoProfile", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue")
+            return "Lixeira esvaziada, senhor."
+        return Result(confirm=("Confirma esvaziar a lixeira, senhor? Não dá pra desfazer.", _lixeira))
 
     # --- área de transferência ---
     m = re.search(r"^(?:copia|poe|bota)\s+(?:pra|para|na|no)?\s*(?:area de transferencia|"

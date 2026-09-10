@@ -25,7 +25,8 @@ CONTROL_FILE = _SHARED / "control.json"        # app/atalho <-> daemon  (ligado/
 
 _app_state = {"speaking": False, "amplitude": 0.0, "status": "SISTEMA ONLINE",
               "view": "brain", "camera_match": "Brio", "phase": "idle",
-              "weather": "", "track": {}, "sys": {}, "notes": [], "study": None}
+              "weather": "", "track": {}, "sys": {}, "notes": [], "study": None,
+              "tasks": [], "timer": {"end": 0}}
 _NOTES: list[dict] = []
 
 

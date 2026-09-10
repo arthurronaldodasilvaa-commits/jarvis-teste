@@ -1,5 +1,29 @@
 # Registro do trabalho autônomo — 2026-09-09
 
+---
+
+## RODADA 4 (09/09, noite) — ROADMAP_2.md
+
+Arthur saiu de novo. Pediu: aplicar TUDO do `ROADMAP_2.md` (ondas A–I) +
+pendências do `ROADMAP.md`, autonomamente, commit por passo, sem teste
+destrutivo, e ao acabar: revisar/otimizar/polir código + design + mais ideias.
+Parar só quando ele mandar. Permissão total, pode instalar qualquer coisa.
+
+Progresso (atualizo aqui conforme fecho cada onda):
+- [x] Onda A — hologramas interativos (sliders + ajuste por voz) — commit 63
+- [ ] Onda B — Jarvis lê os materiais (RAG-lite)
+- [ ] Onda C — integrações web sem chave
+- [ ] Onda D — poder no Windows
+- [ ] Onda E — modelos de estudo + modo aula
+- [ ] Onda F — OCR + anatomia (downloads)
+- [ ] Onda G — temp CPU/GPU no HUD + pendências
+- [ ] Onda H — otimização / revisão / polimento
+- [ ] Onda I — ideias novas
+
+---
+
+## RODADAS 1–3 (histórico abaixo)
+
 Arthur saiu do escritório e pediu pra eu aplicar TODAS as ideias do
 `ROADMAP.md`, sozinho, em loop, até ele voltar e mandar parar.
 

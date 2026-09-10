@@ -80,6 +80,33 @@
     $("study-score").textContent = st.q ? `${st.hits}/${st.q} questões` : "";
   }
 
+  // ---------- cronômetro / pomodoro ----------
+  function renderTimer(tm) {
+    const el = $("timer");
+    if (!el || !el.classList) return;
+    const end = tm && tm.end ? tm.end * 1000 : 0;
+    const left = end - Date.now();
+    if (left <= 0) { el.classList.remove("on", "low"); el.textContent = ""; return; }
+    el.classList.add("on");
+    el.classList.toggle("low", left < 60000);
+    const s = Math.ceil(left / 1000);
+    el.textContent = `⏱ ${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  }
+
+  // ---------- lista de tarefas ----------
+  let taskKey = "";
+  function renderTasks(list) {
+    const host = $("tasks");
+    if (!host || !host.appendChild) return;
+    const t = Array.isArray(list) ? list.slice(0, 3) : [];
+    const key = t.join("|");
+    if (key === taskKey) return;
+    taskKey = key;
+    host.innerHTML = t.length
+      ? '<div class="th">tarefas</div>' + t.map((x) => `<div class="tk">${esc(x)}</div>`).join("")
+      : "";
+  }
+
   // ---------- feed de notificações ----------
   //  notas somem sozinhas depois de ~11s; o DOM só muda quando o conjunto muda
   const FEED_TTL = 11000;
@@ -129,6 +156,8 @@
       setGauge("gpu", +sys.gpu || 0);
       if (typeof s.weather === "string") $("wx").textContent = s.weather;
       renderStudy(s.study);
+      renderTimer(s.timer);
+      renderTasks(s.tasks);
       renderRem(s.reminders);
       renderTrack(s.track);
       renderFeed(s.notes);
