@@ -1348,6 +1348,23 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     except Exception as exc:  # noqa: BLE001
         log(f"tasks: {exc}")
 
+    # --- meus memos de voz ---
+    if re.search(r"\b(meus|quais|ultimos?|últimos?|le|lê)\s+memos?\b|\bmemos? de voz\b|"
+                 r"\bo que eu gravei\b", t):
+        d = HERE / "memos"
+        arqs = sorted(d.glob("*.txt"), reverse=True)[:5] if d.is_dir() else []
+        if not arqs:
+            return Result(speak="Não tem nenhum memo gravado, senhor.")
+        linhas = []
+        for a in arqs:
+            try:
+                txt = a.read_text(encoding="utf-8").strip().replace("\n", " ")
+            except OSError:
+                continue
+            dia = a.stem.replace("_", " às ")
+            linhas.append(f"{dia}: {txt[:80]}")
+        return Result(speak="Seus memos, senhor. " + " ... ".join(linhas))
+
     # --- o que está pesado (top processos) ---
     if re.search(r"\bo que (ta|esta|está)\s+(pesado|pesando|consumindo|comendo|travando)|"
                  r"\bque programa\s+(ta|esta|está)\s+(usando|comendo|consumindo)|"

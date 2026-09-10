@@ -984,6 +984,59 @@ def capture_utterance(mic: Mic, cfg: dict, pre_roll) -> np.ndarray | None:
 
 
 # --------------------------------------------------------------------------
+def _record_memo(mic: "Mic", ears: "Ears", mouth: "Mouth") -> None:
+    """Grava até ~60 s (ou até 3 s de silêncio) e salva a transcrição em memos/."""
+    mouth.say("Pode falar, senhor. Eu paro quando o senhor ficar em silêncio.")
+    mic.drain()
+    chunks: list[np.ndarray] = []
+    start = time.monotonic()
+    last_voice = start
+    thr = 0.012
+    while True:
+        try:
+            b = mic.read(timeout=1.5)
+        except queue.Empty:
+            if time.monotonic() - last_voice > 3.0:
+                break
+            continue
+        chunks.append(b)
+        if rms(b) > thr:
+            last_voice = time.monotonic()
+        if time.monotonic() - start > 60 or time.monotonic() - last_voice > 3.0:
+            break
+    if not chunks:
+        mouth.say("Não ouvi nada, senhor.")
+        return
+    audio = np.concatenate(chunks)
+    if len(audio) < SR * 0.8:
+        mouth.say("Ficou curto demais, senhor.")
+        return
+    write_app_state(phase="processing")
+    try:
+        texto = ears.hear_command(audio).strip()
+    except Exception as exc:  # noqa: BLE001
+        log(f"memo: transcrição falhou ({exc})")
+        texto = ""
+    write_app_state(phase="idle")
+    if not texto:
+        mouth.say("Não consegui entender o áudio, senhor.")
+        return
+    try:
+        d = HERE / "memos"
+        d.mkdir(exist_ok=True)
+        fname = d / f"{time.strftime('%Y-%m-%d_%H%M')}.txt"
+        fname.write_text(texto + "\n", encoding="utf-8")
+        from common import push_note
+        push_note(f"📝 memo: {texto[:50]}", "info")
+        log(f"memo salvo: {fname.name}")
+    except OSError as exc:
+        log(f"memo: não salvou ({exc})")
+        mouth.say("Transcrevi mas não consegui salvar, senhor.")
+        return
+    curto = texto if len(texto) <= 120 else texto[:120] + "…"
+    mouth.say(f"Anotei, senhor: {curto}")
+
+
 def _hook_callbacks(cfg, mouth, brain):
     """(speak, dispatch) pra passar pro hooks.fire — 'then' roda uma skill de
     verdade, mas SEM re-disparar hooks (evita laço)."""
@@ -1223,6 +1276,14 @@ def _handle_block(block, ring, mic, ears, mouth, brain, cfg, wake_word,
     if hooks:
         hooks.fire("on_wake", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)
         hooks.fire("on_command", text=payload, cfg=cfg, speak=hk_speak, dispatch=hk_disp)
+
+    # --- memo de voz: grava e transcreve (precisa do mic + Whisper aqui) ---
+    if re.search(r"\b(grava|anota|salva|registra)\s+(um\s+)?(memo|recado|lembrete de voz|"
+                 r"audio|nota de voz|bilhete)\b|\bmemo de voz\b", norm(payload)):
+        _record_memo(mic, ears, mouth)
+        st["last_arrival"] = st["last_arrival"]
+        return
+
     write_app_state(phase="processing")
     try:
         res = skills.dispatch(payload, cfg, mouth.say, brain)
