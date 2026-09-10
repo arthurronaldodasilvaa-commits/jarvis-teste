@@ -721,6 +721,87 @@ window.jarvisModels = (() => {
     return g;
   }
 
+  // ================= D — holograma gerado por spec (o Jarvis "inventa") =================
+  //  spec = { title, parts:[ {t, ...} ], spin }
+  //  t: ball|stick|arrow|line|curve|ring|box|plane|label|cone|torus
+  const COLS = { neon: NEON, soft: SOFT, amber: AMBER, green: GREEN, red: RED,
+    azul: 0x8ab6ff, blue: 0x8ab6ff, cyan: NEON, rosa: 0xff9de0, pink: 0xff9de0,
+    cinza: 0x9bb0c0, grey: 0x9bb0c0, gray: 0x9bb0c0, branco: 0xdfefff, white: 0xdfefff,
+    dim: 0x4bb6d6, "": SOFT };
+  const col = (c) => COLS[String(c || "").toLowerCase()] ?? (typeof c === "number" ? c : SOFT);
+  const vec = (a) => (Array.isArray(a) ? V(+a[0] || 0, +a[1] || 0, +a[2] || 0) : V(0, 0, 0));
+
+  function fromSpec(opts) {
+    const spec = (opts && (opts.spec || opts)) || {};
+    let parts = spec.parts || spec.elementos || [];
+    if (typeof parts === "string") { try { parts = JSON.parse(parts); } catch (_) { parts = []; } }
+    if (!Array.isArray(parts) || !parts.length) return null;
+    const g = new THREE.Group();
+    let hasAxes = false;
+    for (const p of parts.slice(0, 60)) {
+      try {
+        const t = String(p.t || p.tipo || p.type || "").toLowerCase();
+        const c = col(p.c || p.cor || p.color);
+        if (t === "ball" || t === "esfera" || t === "atomo" || t === "ponto") {
+          const b = ball(Math.min(1.2, +p.r || +p.raio || 0.2), c);
+          b.position.copy(vec(p.at || p.pos)); g.add(b);
+          if (p.label) put(g, label(String(p.label), { color: c, font: 24 }),
+            (p.at ? +p.at[0] : 0), (p.at ? +p.at[1] : 0) + (+p.r || 0.2) + 0.25, 0.55);
+        } else if (t === "stick" || t === "ligacao" || t === "bastao") {
+          g.add(stick(vec(p.from || p.de), vec(p.to || p.para), c, 0.05));
+        } else if (t === "arrow" || t === "seta" || t === "vetor") {
+          g.add(arrow(vec(p.from || p.de), vec(p.to || p.para), c, p.label));
+        } else if (t === "line" || t === "linha") {
+          const pts = (p.pts || p.pontos || []).map(vec);
+          if (pts.length > 1) g.add(line(pts, c, 0.9));
+        } else if (t === "curve" || t === "curva" || t === "grafico") {
+          const f = compile(p.expr || p.funcao || "x");
+          if (f) {
+            const pts = [];
+            for (let x = -3; x <= 3.001; x += 0.05) { const y = f(x); if (Number.isFinite(y) && Math.abs(y) < 3.4) pts.push(V(x, y)); }
+            if (pts.length > 1) g.add(line(pts, c, 0.95));
+          }
+        } else if (t === "ring" || t === "anel" || t === "orbita" || t === "circulo") {
+          const r = Math.min(3, +p.r || +p.raio || 1);
+          const pts = [];
+          for (let i = 0; i <= 72; i++) pts.push(V(Math.cos(i / 72 * TAU) * r, Math.sin(i / 72 * TAU) * r).add(vec(p.at)));
+          g.add(line(pts, c, 0.7));
+        } else if (t === "box" || t === "caixa" || t === "cubo") {
+          const s = Array.isArray(p.size || p.tamanho) ? (p.size || p.tamanho) : [1, 1, 1];
+          const geo = new THREE.BoxGeometry(+s[0] || 1, +s[1] || 1, +s[2] || 1);
+          const m = new THREE.LineSegments(new THREE.WireframeGeometry(geo),
+            new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending }));
+          m.position.copy(vec(p.at)); g.add(m);
+        } else if (t === "plane" || t === "plano" || t === "retangulo") {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(+p.w || 1.5, +p.h || 1),
+            new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+          m.position.copy(vec(p.at)); g.add(m);
+        } else if (t === "cone") {
+          const m = new THREE.Mesh(new THREE.ConeGeometry(+p.r || 0.5, +p.h || 1, 20),
+            new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.2 }));
+          m.position.copy(vec(p.at)); g.add(m);
+        } else if (t === "torus" || t === "anel3d") {
+          const m = new THREE.Mesh(new THREE.TorusGeometry(+p.r || 0.9, +p.tube || 0.2, 12, 40),
+            new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.25 }));
+          m.position.copy(vec(p.at)); g.add(m);
+        } else if (t === "axes" || t === "eixos") {
+          g.add(axes(+p.size || 3)); hasAxes = true;
+        } else if (t === "label" || t === "texto" || t === "rotulo") {
+          put(g, label(String(p.text || p.texto || ""), { color: c, font: +p.size || 26 }),
+            (p.at ? +p.at[0] : 0), (p.at ? +p.at[1] : 0), 0.6);
+        }
+      } catch (_) { /* pula a parte com erro */ }
+    }
+    if (!g.children.length) return null;
+    if (spec.title || spec.titulo) {
+      put(g, label(String(spec.title || spec.titulo).toUpperCase(),
+        { font: 28, color: SOFT }), 0, hasAxes ? 3.5 : 2.6, 0.6);
+    }
+    g.userData.type = "spec";
+    if (spec.spin || spec.girar) g.userData.update = (t) => { g.rotation.y = t * 0.45; };
+    return g;
+  }
+
   // ---------- registro ----------
   const B = {
     circulo_trigonometrico: circulo, circulo_trig: circulo, circunferencia_trig: circulo,
@@ -769,6 +850,9 @@ window.jarvisModels = (() => {
     rotacao_geometrica: () => transformacoes({ kind: "rotacao" }),
     reflexao: () => transformacoes({ kind: "reflexao" }),
     homotetia: () => transformacoes({ kind: "homotetia" }),
+
+    // --- lote D: holograma que o Jarvis inventa (a partir de um spec JSON) ---
+    spec: fromSpec, holograma_gerado: fromSpec, inventado: fromSpec,
   };
   return {
     has: (name) => !!B[name],

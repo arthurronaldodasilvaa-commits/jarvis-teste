@@ -48,6 +48,12 @@ except Exception as _exc:  # noqa: BLE001
     teach = None
     log(f"teach não disponível: {_exc}")
 
+try:
+    import invent
+except Exception as _exc:  # noqa: BLE001
+    invent = None
+    log(f"invent não disponível: {_exc}")
+
 PROFILES_DIR = HERE / "profiles"
 
 
@@ -816,6 +822,19 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 skills_extra.add_learned(_sp)
                 return f"Pronto, senhor. O comando \"{_sp['name']}\" já está ativo."
             return Result(confirm=(teach.confirm_text(spec), _save))
+
+    # --- Jarvis inventa um holograma ("cria um holograma de um átomo de carbono") ---
+    if invent is not None and brain is not None:
+        _tema = invent.match(t)
+        if _tema:
+            speak(f"Deixa eu montar isso, senhor. Um instante.")
+            spec = invent.make_spec(_tema, brain)
+            if not spec:
+                return Result(speak=f"Não consegui montar um holograma de {_tema}, senhor.")
+            write_control(holo={"action": "add", "shape": "spec", "spec": spec,
+                                "n": int(time.time() * 1000)})
+            return Result(speak=f"{spec.get('title', _tema)} na tela, senhor. "
+                                f"Se ficou estranho, é que eu improvisei.")
 
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:

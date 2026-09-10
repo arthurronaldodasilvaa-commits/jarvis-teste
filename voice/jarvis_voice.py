@@ -137,6 +137,9 @@ _ROUTER_TEMPLATES = {
     "modo_prova": "modo prova",
     "modo_estudo": "modo estudo",
     "proxima_questao": "próxima questão",
+    "aprender": "aprende: {arg}",
+    "esquecer_comando": "esquece o comando {arg}",
+    "inventar_holograma": "cria um holograma de {arg}",
 }
 
 _ROUTER_PROMPT = """Você classifica o pedido de uma pessoa a um assistente de voz.
@@ -169,6 +172,8 @@ cmd possíveis:
  modo_normal (sair do desenho/medida)   limpar_desenho (apagar traços e medidas da tela)
  modo_redacao / modo_prova / modo_estudo (sessão de estudo com professor)
  proxima_questao (pedir uma questão no modo estudo)
+ aprender (arg=instrução do comando novo)   esquecer_comando (arg=nome)
+ inventar_holograma (arg=tema — Jarvis gera um holograma esquemático novo)
 
 Regras: use o arg com as palavras da pessoa. Na dúvida, {"cmd":"conversa"}.
 
@@ -204,6 +209,9 @@ Exemplos:
 "quero treinar redação" -> {"cmd":"modo_redacao"}
 "vamos fazer um simulado" -> {"cmd":"modo_prova"}
 "me faz outra pergunta" -> {"cmd":"proxima_questao"}
+"decora que quando eu falar bom dia você toca uma música" -> {"cmd":"aprender","arg":"quando eu falar bom dia você toca uma música"}
+"cria um holograma de uma célula vegetal" -> {"cmd":"inventar_holograma","arg":"uma célula vegetal"}
+"inventa um modelo do sistema respiratório" -> {"cmd":"inventar_holograma","arg":"o sistema respiratório"}
 "tá calor lá fora?" -> {"cmd":"clima"}
 "me atualiza das notícias" -> {"cmd":"noticias"}
 "me lembra de ligar pro dentista amanhã de manhã" -> {"cmd":"lembrete","arg":"ligar pro dentista amanhã de manhã"}
