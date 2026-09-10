@@ -231,15 +231,18 @@
       if (window.jarvisVision) window.jarvisVision.onControl(s);
       if (window.jarvisFace) window.jarvisFace.onControl(s);
       if (window.jarvisOcr) window.jarvisOcr.onControl(s);
-      // cor do CÉREBRO: só as fases "interessantes" (LLM, busca, erro) tingem —
-      // e ficam tingidas ATÉ o Jarvis terminar de falar (a resposta inteira),
-      // não só um flash. 'processing' (comando rápido) não muda a cor.
+      // cor do CÉREBRO: só as fases "interessantes" tingem — violeta (pensando/
+      // LLM), verde (buscando na web), vermelho (erro). Enquanto o Jarvis FALA a
+      // resposta, volta pro ciano (o pulso da voz assume). 'processing' (comando
+      // rápido) e 'idle' não mudam a cor.
       const PH = { thinking: "PENSANDO", searching: "PESQUISANDO", error: "ERRO" };
-      state.phase = (!p && PH[s.phase]) ? PH[s.phase] : "";
-      // o TEXTO de status: classe de cor só quando não está falando/pausado
+      // erro fica vermelho até acabar de falar (feedback importante); pensar/buscar
+      // voltam pro ciano assim que ele começa a responder.
+      const showPhase = !p && PH[s.phase] && (s.phase === "error" || !state.speaking);
+      state.phase = showPhase ? PH[s.phase] : "";
       const cls = { thinking: "thinking", searching: "searching", error: "error" }[s.phase] || "";
       statusEl.classList.remove("thinking", "searching", "error");
-      if (cls && !p && !state.speaking) statusEl.classList.add(cls);
+      if (state.phase && cls) statusEl.classList.add(cls);
     }).catch(() => {});
   }
   setInterval(pollState, 250);

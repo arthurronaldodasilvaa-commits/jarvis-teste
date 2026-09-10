@@ -1319,9 +1319,9 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         log(f"materials: {exc}")
 
     # --- consultas via APIs sem chave (ações, CEP, feriado, ar, sol/lua, história…) ---
+    #     (o phase="searching" quem seta é o facts._get, só quando REALMENTE busca)
     try:
         import facts
-        write_app_state(phase="searching")
         fr = facts.handle(raw, cfg, brain)
         if fr is not None:
             return fr
@@ -1331,7 +1331,6 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     # --- Google Maps (rota / buscar lugar / restaurantes bem avaliados) ---
     fala = maps.handle(t)
     if fala is not None:
-        write_app_state(phase="searching")
         return Result(speak=fala)
 
     # --- volume ---
@@ -1715,8 +1714,7 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if re.match(r"^(quem (foi|e|era|s[aã]o)|o que (e|era|foi|significa)|"
                 r"me (fala|conta|explica) (sobre|o que|quem)|defini\w+ de|significado de)\b",
                 norm(raw)):
-        write_app_state(phase="searching")
-        fato = wiki.lookup(raw)
+        fato = wiki.lookup(raw)      # rápido; o "pensando/buscando" fica com o roteador/LLM
         if fato:
             return Result(speak=fato)
 

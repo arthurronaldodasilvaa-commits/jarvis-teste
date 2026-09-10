@@ -25,6 +25,9 @@ _UA = {"User-Agent": "JarvisVoice/1.0 (https://github.com/open-jarvis/OpenJarvis
 
 def _get(url, params=None, timeout=8, headers=None):
     import httpx
+
+    from common import write_app_state
+    write_app_state(phase="searching")          # só marca "buscando" quando REALMENTE busca
     r = httpx.get(url, params=params, timeout=timeout,
                   headers={**_UA, **(headers or {})}, follow_redirects=True)
     r.raise_for_status()
