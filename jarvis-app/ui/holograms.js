@@ -248,22 +248,25 @@ window.jarvisHolo = (() => {
   const handCenter = (lm) => ({ x: (lm[0].x + lm[9].x) / 2, y: (lm[0].y + lm[9].y) / 2 });
   const finite = (n) => (Number.isFinite(n) ? n : 0);
 
-  // sprite de texto simples (pro menu radial)
-  function mkText(txt, color = "#dce8f2") {
+  // sprite de texto do menu — leve, sem caixa, no estilo do HUD
+  function mkText(txt, color = "#bfe9ff") {
+    const FS = 30, dpr = Math.min(devicePixelRatio || 1, 2);
     const c = document.createElement("canvas");
     let x = c.getContext("2d");
-    x.font = '600 34px "Segoe UI", Consolas, monospace';
-    const w = x.measureText(txt).width;
-    c.width = Math.ceil(w + 24); c.height = 52;
-    x = c.getContext("2d");
-    x.font = '600 34px "Segoe UI", Consolas, monospace';
-    x.fillStyle = "rgba(4,14,22,0.82)"; x.fillRect(0, 0, c.width, c.height);
-    x.strokeStyle = "rgba(124,228,255,0.5)"; x.lineWidth = 2; x.strokeRect(1, 1, c.width - 2, c.height - 2);
-    x.fillStyle = color; x.textBaseline = "middle"; x.shadowColor = color; x.shadowBlur = 10;
-    x.fillText(txt, 12, c.height / 2 + 2);
-    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    s.scale.set(c.width / 150, c.height / 150, 1);
+    x.font = `600 ${FS}px "Segoe UI", Consolas, sans-serif`;
+    const label = String(txt).toUpperCase();
+    const tw = x.measureText(label).width;
+    c.width = Math.ceil((tw + 16) * dpr); c.height = Math.ceil((FS + 14) * dpr);
+    x = c.getContext("2d"); x.scale(dpr, dpr);
+    x.font = `600 ${FS}px "Segoe UI", Consolas, sans-serif`;
+    x.textBaseline = "middle"; x.textAlign = "center";
+    x.fillStyle = color; x.shadowColor = color; x.shadowBlur = 8;
+    x.fillText(label, c.width / dpr / 2, c.height / dpr / 2);
+    const tex = new THREE.CanvasTexture(c);
+    tex.minFilter = THREE.LinearFilter; tex.anisotropy = 4;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true,
+      depthWrite: false, blending: THREE.AdditiveBlending }));
+    s.scale.set(c.width / dpr / 260, c.height / dpr / 260, 1);
     return s;
   }
 
@@ -426,10 +429,15 @@ window.jarvisHolo = (() => {
     if (selPalm && !st.menuOn) {
       if (!st.palmStart) { st.palmStart = now; st.palmOpenAt = palmC0; }
       if (Math.hypot(palmC0[0] - st.palmOpenAt[0], palmC0[1] - st.palmOpenAt[1]) > REACH * 1.5) st.palmOpenAt = palmC0;
-      if (now - st.palmStart > 500) { st.menuOn = true; st.menuAnchor = st.palmOpenAt.slice(); }
+      if (now - st.palmStart > 500) {
+        st.menuOn = true;
+        st.menuOrigin = st.palmOpenAt.slice();          // onde a mão estava (mede o empurrão)
+        st.menuAnchor = [Math.max(260, Math.min(innerWidth - 260, st.palmOpenAt[0])),
+          Math.max(170, Math.min(innerHeight - 170, st.palmOpenAt[1]))];   // clampado (desenho)
+      }
       st.palmGrace = 0; st.menuHover = -1; st.menuFrac = 0;
     } else if (st.menuOn && selPalm) {
-      const dx = palmC0[0] - st.menuAnchor[0], dy = palmC0[1] - st.menuAnchor[1];
+      const dx = palmC0[0] - st.menuOrigin[0], dy = palmC0[1] - st.menuOrigin[1];
       const reach = Math.hypot(dx, dy);
       const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
       let hover = -1, best = 0.5;
@@ -440,11 +448,11 @@ window.jarvisHolo = (() => {
       let frac = 0;
       if (hover >= 0) {
         if (hover !== st.menuHover) st.menuDwellStart = now;
-        frac = Math.min(1, (now - st.menuDwellStart) / 500);
+        frac = Math.min(1, (now - st.menuDwellStart) / 1100);   // segura ~1,1 s pra confirmar
         if (frac >= 1) { try { MENU[hover].fn(); } catch (_) { /* nada */ } _closeMenu(); }
       } else { st.menuDwellStart = 0; }
       st.menuHover = hover; st.menuFrac = frac;
-      st.menuCursor = [Math.max(-140, Math.min(140, dx)), Math.max(-140, Math.min(140, dy))];
+      st.menuCursor = [Math.max(-230, Math.min(230, dx)), Math.max(-230, Math.min(230, dy))];
       st.palmGrace = 0;
     } else if (st.menuOn) {
       // sem palma: dá uma graça de ~6 frames antes de fechar (jitter do tracker)
@@ -536,56 +544,73 @@ window.jarvisHolo = (() => {
   // ---------- menu de marcação (1 mão: palma parada abre, empurra pra escolher) ----------
   //  ordem = cima, direita, baixo, esquerda
   const MENU = [
-    { t: "↑ Limpar tudo", fn: () => clearAll() },
-    { t: "→ Trava / Solta", fn: () => lockSelected(null) },
-    { t: "↓ Duplicar", fn: () => dupSelected() },
-    { t: "← Explodir", fn: () => explodeSelected() },
+    { t: "Limpar", fn: () => clearAll() },
+    { t: "Travar", fn: () => lockSelected(null) },
+    { t: "Duplicar", fn: () => dupSelected() },
+    { t: "Explodir", fn: () => explodeSelected() },
   ];
-  const MENU_OFF = [[0, -95], [150, 0], [0, 95], [-150, 0]];   // px a partir do centro
+  const MENU_OFF = [[0, -132], [214, 0], [0, 132], [-214, 0]];   // px a partir do centro
   const menuGrp = new THREE.Group(); scene.add(menuGrp);
   MENU.forEach((m) => { m.spr = mkText(m.t); m.baseScale = m.spr.scale.clone(); menuGrp.add(m.spr); });
-  const menuHint = mkText("empurre a mão →", "#63788c"); menuGrp.add(menuHint);
-  const menuCur = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16),
-    new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false }));
+  // aro fino no centro + 4 tiquinhos indicando as direções
+  const menuBase = new THREE.Group(); menuGrp.add(menuBase);
+  const ringMat = new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false });
+  const ringPts = [];
+  for (let i = 0; i <= 48; i++) ringPts.push(new THREE.Vector3(Math.cos(i / 48 * TAU) * 0.34, Math.sin(i / 48 * TAU) * 0.34, 0));
+  menuBase.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts), ringMat));
+  // cursor: um pequeno "+" que segue a mão
+  const curMat = new THREE.LineBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false });
+  const menuCur = new THREE.Group();
+  menuCur.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(-0.1, 0, 0), new THREE.Vector3(0.1, 0, 0)]), curMat));
+  menuCur.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(0, -0.1, 0), new THREE.Vector3(0, 0.1, 0)]), curMat));
   menuGrp.add(menuCur);
-  const menuRing = new THREE.Mesh(new THREE.RingGeometry(0.30, 0.40, 40),
+  // anel de progresso do dwell no item escolhido
+  const menuRing = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.19, 32),
     new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false }));
   menuGrp.add(menuRing);
 
   function _closeMenu() {
-    st.menuOn = false; st.palmStart = 0; st.menuAnchor = null;
-    st.menuDwellStart = 0; st.menuHover = -1; st.menuFrac = 0; st.menuCursor = null;
-  }
-  function _pxOffToWorld(anchor, ox, oy) {
-    return pxToWorld(anchor[0] + ox, anchor[1] + oy, 0);
+    st.menuOn = false; st.palmStart = 0; st.menuAnchor = null; st.menuOrigin = null;
+    st.palmOpenAt = null; st.menuDwellStart = 0; st.menuHover = -1;
+    st.menuFrac = 0; st.menuCursor = null;
   }
   function _layoutMenu() {
     const show = st.menuOn ? 1 : 0;
     const anchor = st.menuAnchor;
-    MENU.forEach((m, i) => {
-      if (anchor && Number.isFinite(anchor[0])) {
-        const w = _pxOffToWorld(anchor, MENU_OFF[i][0], MENU_OFF[i][1]);
-        if (Number.isFinite(w.x)) m.spr.position.set(w.x, w.y, 0);
-      }
-      const hot = i === st.menuHover;
-      m.spr.material.opacity += ((show ? (hot ? 1 : 0.62) : 0) - m.spr.material.opacity) * 0.35;
-      m.spr.scale.copy(m.baseScale).multiplyScalar(hot ? 1.22 : 0.92);
-    });
-    if (anchor && Number.isFinite(anchor[0])) {
-      const wc = pxToWorld(anchor[0], anchor[1], 0);
-      if (Number.isFinite(wc.x)) { menuHint.position.set(wc.x, wc.y + 0.05, 0); menuCur.position.set(wc.x, wc.y, 0.02); menuRing.position.set(wc.x, wc.y, 0.01); }
-      if (st.menuCursor) {
-        const wp = _pxOffToWorld(anchor, st.menuCursor[0], st.menuCursor[1]);
-        if (Number.isFinite(wp.x)) menuCur.position.set(wp.x, wp.y, 0.02);
-      }
+    if (!(anchor && Number.isFinite(anchor[0]))) {
+      MENU.forEach((m) => { m.spr.material.opacity += (0 - m.spr.material.opacity) * 0.3; });
+      ringMat.opacity += (0 - ringMat.opacity) * 0.3;
+      curMat.opacity += (0 - curMat.opacity) * 0.3;
+      menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3;
+      return;
     }
-    menuHint.material.opacity += ((show && st.menuHover < 0 ? 0.5 : 0) - menuHint.material.opacity) * 0.3;
-    menuCur.material.opacity += ((show ? 0.8 : 0) - menuCur.material.opacity) * 0.3;
+    const wc = pxToWorld(anchor[0], anchor[1], 0);
+    // escala em mundo por px, pra manter tudo do mesmo tamanho na tela
+    const wc2 = pxToWorld(anchor[0] + 100, anchor[1], 0);
+    const uPerPx = Number.isFinite(wc.x) && Number.isFinite(wc2.x) ? Math.abs(wc2.x - wc.x) / 100 : 0.01;
+    menuBase.position.set(wc.x, wc.y, 0);
+    MENU.forEach((m, i) => {
+      m.spr.position.set(wc.x + MENU_OFF[i][0] * uPerPx, wc.y - MENU_OFF[i][1] * uPerPx, 0.02);
+      const hot = i === st.menuHover;
+      m.spr.material.opacity += ((show ? (hot ? 1 : 0.5) : 0) - m.spr.material.opacity) * 0.3;
+      m.spr.scale.copy(m.baseScale).multiplyScalar(hot ? 1.15 : 1);
+    });
+    const cur = st.menuCursor || [0, 0];
+    menuCur.position.set(wc.x + cur[0] * uPerPx, wc.y - cur[1] * uPerPx, 0.03);
+    ringMat.opacity += ((show ? 0.4 : 0) - ringMat.opacity) * 0.3;
+    curMat.opacity += ((show ? 0.85 : 0) - curMat.opacity) * 0.3;
     const f = st.menuFrac || 0;
-    menuRing.material.opacity += ((show && st.menuHover >= 0 ? 0.3 + f * 0.65 : 0) - menuRing.material.opacity) * 0.4;
-    menuRing.scale.setScalar(1.5 - f * 0.9);
+    if (st.menuHover >= 0) {
+      menuRing.position.set(wc.x + MENU_OFF[st.menuHover][0] * uPerPx,
+        wc.y - MENU_OFF[st.menuHover][1] * uPerPx, 0.01);
+      menuRing.scale.setScalar(2.4 - f * 1.4);
+      menuRing.material.opacity = 0.25 + f * 0.7;
+    } else { menuRing.material.opacity += (0 - menuRing.material.opacity) * 0.3; }
   }
 
   // ---------- loop ----------
