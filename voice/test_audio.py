@@ -121,12 +121,13 @@ def safety():
     import collections
 
     import common
-    cfg = jv.load_cfg()
+    common.push_note = lambda *a, **k: None          # não mexe no HUD real
+    common.write_app_state = lambda **k: None
+    common.log = jv.log = lambda m: None             # não polui o jarvis_voice.log
     paused = [False]
     orig = jv.set_paused
     jv.set_paused = lambda p, **k: paused.__setitem__(0, p)
-    common.push_note = lambda *a, **k: None          # não mexe no HUD real
-    common.write_app_state = lambda **k: None
+    cfg = jv.load_cfg()
 
     class M:
         def say(self, t): print(f"   [fala] {t}")
