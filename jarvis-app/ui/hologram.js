@@ -330,8 +330,8 @@
     }
     if (state.view === "brain2") {
       const g = window.jarvisHands && window.jarvisHands.results();
+      if (window.jarvisBoard) window.jarvisBoard.tick(t, g);   // trata sub internamente
       if (state.brainSub === "teia" && window.jarvisAtlas) window.jarvisAtlas.tick(t, g);
-      else if (window.jarvisBoard) window.jarvisBoard.tick(t, g);
       return;
     }
 

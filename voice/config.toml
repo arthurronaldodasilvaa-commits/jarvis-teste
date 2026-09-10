@@ -122,7 +122,7 @@ theme = "cyan"               # cor do holograma: cyan | ice | amber | green | vi
 
 [camera]
 hand_skeleton = true         # desenha o esqueleto neon da mão sobre a câmera
-media_gestures = true        # na câmera (sem hologramas): mão aberta varre = próxima/anterior,
+media_gestures = false        # na câmera (sem hologramas): mão aberta varre = próxima/anterior,
                              #   punho ~1s = play/pause, palma subindo/descendo = volume
 auto_return_seconds = 0      # 0 = nunca; >0 = volta pro cérebro se ninguém aparece por N s
 

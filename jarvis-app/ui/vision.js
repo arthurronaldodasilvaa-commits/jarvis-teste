@@ -133,7 +133,11 @@ window.jarvisVision = (() => {
       const hands = (handsResult && handsResult.hands) || [];
       const holoBusy = window.jarvisHolo &&
         (window.jarvisHolo.count() > 0 || (window.jarvisHolo.hasSelection && window.jarvisHolo.hasSelection()));
-      if (mediaOn && !holoBusy) mediaGestures(hands);
+      // gestos de mídia SÓ na câmera em tela cheia — nunca no Segundo Cérebro
+      // (lá o gesto move células; punho/palma disparando play/pause = interferência)
+      const onCamera = document.body.classList.contains("camera");
+      if (mediaOn && onCamera && !holoBusy) mediaGestures(hands);
+      else { g.trail.length = 0; g.fistN = g.palmN = 0; }
       if (video) scanFrame(video);
       presence(hands, video);
     },

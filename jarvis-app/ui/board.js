@@ -17,6 +17,10 @@ window.jarvisBoard = (() => {
     cam: { x: 60, y: 60, z: 1 }, sel: null, els: new Map(), dirty: false, saveT: 0,
     connectFrom: null,
   };
+  // estado do controle por gesto (usado pela barra e pelo tick)
+  const cursor = document.getElementById("b2-cursor");
+  const G = { on: true, sx: 0, sy: 0, has: false, grab: null, pinchWas: false, panPrev: null };
+  try { G.on = localStorage.getItem("jarvis-b2-gesture") !== "0"; } catch (e) {}
   const uid = () => "n" + Math.random().toString(36).slice(2, 10);
   const md = () => window.jarvisMD || { render: (s) => s.replace(/[<>]/g, "") };
 
@@ -271,6 +275,8 @@ window.jarvisBoard = (() => {
   B("b2-add-text", () => addCell("text"));
   B("b2-add-ai", () => addCell("ai"));
   B("b2-add-img", () => addCell("img"));
+  B("b2-gesture", () => setGesture(!G.on));
+  setGesture(G.on);   // aplica o estado salvo no botão
   function syncBar() {
     const sub = window.jarvisBrainUI ? window.jarvisBrainUI.sub() : "board";
     const t = document.getElementById("b2-teia"), b = document.getElementById("b2-board");
@@ -296,47 +302,90 @@ window.jarvisBoard = (() => {
   }
 
   // ---------------- gesto (mão na janelinha da webcam) ----------------
-  let gGrab = null;
+  //   pinça (👌) = pega e move a célula mais perto
+  //   palma (🖐) = arrasta o quadro
+  // Cursor visível o tempo todo que houver mão. Toggle 🖐 na barra liga/desliga.
+  function setGesture(on) {
+    G.on = on;
+    try { localStorage.setItem("jarvis-b2-gesture", on ? "1" : "0"); } catch (e) {}
+    const b = document.getElementById("b2-gesture");
+    if (b) b.classList.toggle("on", on);
+    if (!on && cursor) { cursor.classList.remove("on", "grab"); }
+    if (!on) { G.grab = null; G.panPrev = null; }
+  }
+
   function gesture(g) {
-    if (!g || !g.hands || !g.hands.length) { gGrab = null; return; }
-    const h = g.hands[0];
-    const gg = h.gesture || {};
-    const nx = 1 - (h.landmarks[9] ? h.landmarks[9].x : 0.5);   // espelhado
-    const ny = h.landmarks[9] ? h.landmarks[9].y : 0.5;
-    const sx = nx * host.clientWidth, sy = ny * host.clientHeight;
-    const wx = S.cam.x + sx / S.cam.z, wy = S.cam.y + sy / S.cam.z;
-    if (gg.name === "punho") {
-      if (!gGrab) {
-        let best = null, bd = 1e9;
+    if (!cursor) return;
+    const hand = G.on && g && g.hands && g.hands[0];
+    if (!hand) {
+      cursor.classList.remove("on", "grab");
+      if (G.grab) { scheduleSave(); pushCtx(); }
+      G.grab = null; G.panPrev = null; G.has = false; return;
+    }
+    const gg = hand.gesture || {};
+    const lm = hand.landmarks;
+    const px = lm[9] ? lm[9].x : 0.5, py = lm[9] ? lm[9].y : 0.5;
+    // ponta = pinça se pinçando, senão centro da palma; espelhado
+    const tipx = gg.pinch >= 0.6 && gg.pinchAt ? gg.pinchAt.x : px;
+    const tipy = gg.pinch >= 0.6 && gg.pinchAt ? gg.pinchAt.y : py;
+    const tx = (1 - tipx) * innerWidth, ty = tipy * innerHeight;
+    // suaviza
+    if (!G.has) { G.sx = tx; G.sy = ty; G.has = true; }
+    G.sx += (tx - G.sx) * 0.35; G.sy += (ty - G.sy) * 0.35;
+    cursor.style.left = G.sx + "px"; cursor.style.top = G.sy + "px";
+    cursor.classList.add("on");
+
+    const wx = S.cam.x + G.sx / S.cam.z, wy = S.cam.y + G.sy / S.cam.z;
+    const pinching = gg.pinch >= 0.8;
+    cursor.classList.toggle("grab", pinching && !!G.grab);
+
+    if (pinching) {
+      G.panPrev = null;
+      if (!G.grab && !G.pinchWas) {            // pinça ACABOU de fechar → pega
+        let best = null, bd = 200;
         S.nodes.forEach((n) => {
           const cx = n.x + (n.width || 250) / 2, cy = n.y + (n.height || 120) / 2;
           const d = Math.hypot(cx - wx, cy - wy);
-          if (d < bd && d < 220) { bd = d; best = n; }
+          if (d < bd) { bd = d; best = n; }
         });
-        if (best) gGrab = { n: best, ox: best.x - wx, oy: best.y - wy };
-      } else {
-        gGrab.n.x = wx + gGrab.ox; gGrab.n.y = wy + gGrab.oy;
-        const el = S.els.get(gGrab.n.id);
-        if (el) { el.style.left = gGrab.n.x + "px"; el.style.top = gGrab.n.y + "px"; }
+        if (best) {
+          G.grab = { n: best, ox: best.x - wx, oy: best.y - wy };
+          S.sel = best.id;
+          [...S.els.values()].forEach((x) => x.classList.remove("sel"));
+          const el = S.els.get(best.id); if (el) el.classList.add("sel");
+        }
+      } else if (G.grab) {
+        G.grab.n.x = wx + G.grab.ox; G.grab.n.y = wy + G.grab.oy;
+        const el = S.els.get(G.grab.n.id);
+        if (el) { el.style.left = G.grab.n.x + "px"; el.style.top = G.grab.n.y + "px"; }
         drawEdges();
       }
     } else {
-      if (gGrab) scheduleSave();
-      gGrab = null;
-      if (gg.name === "palma" && gesture._prev) {
-        S.cam.x -= (sx - gesture._prev.x) / S.cam.z;
-        S.cam.y -= (sy - gesture._prev.y) / S.cam.z;
-        applyCam();
+      if (G.grab) { scheduleSave(); pushCtx(); G.grab = null; }
+      if (gg.name === "palma") {               // mão aberta = arrasta o quadro
+        if (G.panPrev) {
+          S.cam.x -= (G.sx - G.panPrev.x) / S.cam.z;
+          S.cam.y -= (G.sy - G.panPrev.y) / S.cam.z;
+          applyCam();
+        }
+        G.panPrev = { x: G.sx, y: G.sy };
+      } else {
+        G.panPrev = null;
       }
     }
-    gesture._prev = { x: sx, y: sy };
+    G.pinchWas = pinching;
   }
 
   // ---------------- API ----------------
   async function setActive(on) {
     S.active = on;
     syncBar();
-    if (!on) { flush(); return; }
+    if (!on) {
+      flush();
+      if (cursor) cursor.classList.remove("on", "grab");
+      G.grab = null; G.panPrev = null; G.has = false;
+      return;
+    }
     if (!S.rel) {
       const boards = await listBoards();
       if (boards.length) load(boards[0]);
@@ -352,7 +401,11 @@ window.jarvisBoard = (() => {
     if (S._fitFrames > 0 && S.nodes.length && host.clientWidth > 50) {
       fitView(); S._fitFrames--;
     }
-    if (S.brainSub === "board") gesture(g);
+    if (S.brainSub === "board") {
+      gesture(g);
+    } else if (cursor) {
+      cursor.classList.remove("on", "grab"); G.grab = null; G.panPrev = null; G.has = false;
+    }
     flush();
   }
 

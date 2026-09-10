@@ -142,12 +142,23 @@
   body.brain2 #brain2 { display: block; }
   body.brain2 #scene, body.brain2 #fx, body.brain2 #brand, body.brain2 #hint,
   body.brain2 #hud, body.brain2 #study-box { display: none; }
-  /* webcam vira uma janelinha no canto (só monitor; gestos lidos dos landmarks) */
-  body.brain2 #cam, body.brain2 #cam-fx {
-    inset: auto; right: 18px; bottom: 18px; width: 240px; height: 180px;
-    border: 1px solid var(--neon-dim); border-radius: 8px; opacity: 0.9;
-    box-shadow: 0 0 22px rgba(0,0,0,0.6); }
-  body.brain2 #cam-fx { background: transparent; }
+  /* webcam vira uma janelinha no canto (monitor + esqueleto da mão) */
+  body.brain2 #cam-fx, body.brain2 #cam-tint { display: none; }
+  body.brain2 #cam {
+    inset: auto; right: 18px; bottom: 18px; width: 232px; height: 174px;
+    z-index: 8; border: 1px solid var(--neon-dim); border-radius: 8px; opacity: 0.92;
+    filter: brightness(0.8) contrast(1.05); box-shadow: 0 0 22px rgba(0,0,0,0.6); }
+  #cam-mini { position: fixed; right: 18px; bottom: 18px; width: 232px; height: 174px;
+    z-index: 9; pointer-events: none; transform: scaleX(-1); border-radius: 8px;
+    display: none; }
+  body.brain2 #cam-mini { display: block; }
+  #b2-cursor { position: fixed; z-index: 10; width: 26px; height: 26px; margin: -13px;
+    border: 2px solid var(--neon); border-radius: 50%; pointer-events: none;
+    box-shadow: 0 0 12px var(--neon); opacity: 0; transition: opacity .2s;
+    display: none; }
+  body.brain2 #b2-cursor { display: block; }
+  #b2-cursor.on { opacity: 0.95; }
+  #b2-cursor.grab { background: var(--neon-14); border-width: 3px; }
   #brain2-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
     z-index: 12; display: none; gap: 8px; align-items: center;
     background: rgba(4,10,16,0.72); border: 1px solid var(--neon-dim);
@@ -160,6 +171,8 @@
   #brain2-bar button:hover { color: var(--neon); border-color: var(--neon-dim); }
   #brain2-bar button.on { color: var(--neon); border-color: var(--neon); background: var(--neon-14); }
   #brain2-bar .sep { width: 1px; height: 18px; background: var(--neon-dim); margin: 0 3px; }
+  #b2-gesture { font-size: 13px !important; padding: 6px 10px !important; }
+  #b2-gesture.on { color: var(--neon); border-color: var(--neon); background: var(--neon-14); }
   #atlas, #board { position: absolute; inset: 0; }
   #board { cursor: grab; }
   body.sub-teia #board, body.sub-board #atlas { display: none; }
@@ -420,7 +433,9 @@
   <div id="brain2">
     <div id="atlas"></div>
     <div id="board"></div>
+    <div id="b2-cursor"></div>
   </div>
+  <canvas id="cam-mini"></canvas>
   <input id="brain2-search" type="text" placeholder="buscar nota…  ( / )" spellcheck="false" />
   <div id="brain2-bar">
     <button id="b2-teia">Teia</button>
@@ -429,6 +444,8 @@
     <button id="b2-add-ai">＋ IA</button>
     <button id="b2-add-text">＋ Texto</button>
     <button id="b2-add-img">＋ Imagem</button>
+    <span class="sep"></span>
+    <button id="b2-gesture" title="Controle por gesto (mão na webcam)">🖐</button>
   </div>
   <div id="note-panel"></div>
 

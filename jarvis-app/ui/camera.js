@@ -7,16 +7,19 @@ window.jarvisCam = (() => {
   const fx = document.getElementById("cam-fx");
   const fxctx = fx.getContext("2d");
   const label = document.getElementById("cam-label");
+  const mini = document.getElementById("cam-mini");
+  const mctx = mini ? mini.getContext("2d") : null;
 
-  let stream = null, raf = 0;
+  let stream = null, raf = 0, camFailed = false;
   const opt = { skeleton: true };
   let viewport = "full";   // "full" (câmera) | "corner" (segundo cérebro)
 
   function configure(o) {
     if (o && typeof o.hand_skeleton === "boolean") opt.skeleton = o.hand_skeleton;
   }
-  // no "corner" a janelinha é só um monitor — o board.js lê os gestos direto
-  // dos landmarks normalizados; aqui só evitamos o esqueleto gigante fullscreen.
+  // "corner" = janelinha no canto (Segundo Cérebro). Só rastreia a mão + desenha
+  // um esqueleto pequeno; face/gestos-de-mídia ficam DESLIGADOS (o board.js é
+  // quem lê o gesto). "full" = câmera em tela cheia (com tudo).
   function setViewport(mode) { viewport = mode === "corner" ? "corner" : "full"; }
   function dbg(m) {
     const a = window.pywebview && window.pywebview.api;
@@ -52,9 +55,19 @@ window.jarvisCam = (() => {
       });
     } catch (err) {
       label.textContent = "Câmera indisponível";
+      camFailed = true;
+      if (mctx) {
+        mini.width = mini.clientWidth || 232; mini.height = mini.clientHeight || 174;
+        mctx.fillStyle = "rgba(6,12,18,0.9)"; mctx.fillRect(0, 0, mini.width, mini.height);
+        mctx.fillStyle = "#8fb3c2"; mctx.font = "11px Segoe UI, monospace";
+        mctx.textAlign = "center"; mctx.save(); mctx.scale(-1, 1);
+        mctx.fillText("câmera indisponível", -mini.width / 2, mini.height / 2);
+        mctx.restore();
+      }
       dbg("ERRO getUserMedia: " + err.name + " - " + err.message);
       return;
     }
+    camFailed = false;
     video.srcObject = stream;
     try { await video.play(); } catch (e) { dbg("play(): " + e.message); }
     label.textContent = (dev && dev.label ? dev.label.replace(/\s*\(.*?\)\s*/g, "").trim() : "Câmera");
@@ -72,6 +85,7 @@ window.jarvisCam = (() => {
     if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
     video.srcObject = null;
     fxctx.clearRect(0, 0, fx.width, fx.height);
+    if (mctx) mctx.clearRect(0, 0, mini.width, mini.height);
   }
 
   // ponto normalizado (0..1 do frame) -> pixel na tela (object-fit: cover)
@@ -142,13 +156,49 @@ window.jarvisCam = (() => {
     fxctx.globalCompositeOperation = "source-over";
   }
 
+  function drawMiniHands() {
+    if (!mctx) return;
+    const r = window.jarvisHands && window.jarvisHands.results();
+    if (mini.width !== mini.clientWidth) { mini.width = mini.clientWidth; mini.height = mini.clientHeight; }
+    mctx.clearRect(0, 0, mini.width, mini.height);
+    if (!r || !r.hands.length) return;
+    const conns = window.jarvisHands.CONNECTIONS();
+    const W = mini.width, H = mini.height;
+    mctx.globalCompositeOperation = "lighter";
+    for (const h of r.hands) {
+      const lm = h.landmarks;
+      const g = h.gesture || {};
+      const col = g.pinch >= 0.9 ? "255,200,120" : "120,220,255";
+      mctx.strokeStyle = "rgba(" + col + ",0.9)"; mctx.lineWidth = 2;
+      mctx.shadowColor = "rgba(" + col + ",0.8)"; mctx.shadowBlur = 5;
+      for (const [a, b] of conns) {
+        mctx.beginPath();
+        mctx.moveTo(lm[a].x * W, lm[a].y * H);
+        mctx.lineTo(lm[b].x * W, lm[b].y * H);
+        mctx.stroke();
+      }
+      for (let i = 0; i < lm.length; i++) {
+        mctx.beginPath();
+        mctx.fillStyle = "rgba(" + col + ",0.95)";
+        mctx.arc(lm[i].x * W, lm[i].y * H, i % 4 === 0 ? 3.5 : 2, 0, Math.PI * 2);
+        mctx.fill();
+      }
+    }
+    mctx.shadowBlur = 0;
+    mctx.globalCompositeOperation = "source-over";
+  }
+
   function loop() {
     raf = requestAnimationFrame(loop);
     if (!video.videoWidth) return;
-    fxctx.clearRect(0, 0, fx.width, fx.height);
     try {
       if (window.jarvisHands) window.jarvisHands.feed(video);
-      if (opt.skeleton && viewport === "full") drawHands();
+      if (viewport === "corner") {          // Segundo Cérebro: só a mão
+        drawMiniHands();
+        return;
+      }
+      fxctx.clearRect(0, 0, fx.width, fx.height);
+      if (opt.skeleton) drawHands();
       if (window.jarvisFace) window.jarvisFace.tick(video);
       if (window.jarvisVision) {
         window.jarvisVision.tick(window.jarvisHands && window.jarvisHands.results(), video);
@@ -167,6 +217,7 @@ window.jarvisCam = (() => {
   return {
     start, stop, configure, coverMap, setViewport,
     active: () => !!stream,
+    failed: () => camFailed,
     videoAspect: () => (video.videoWidth ? video.videoWidth / video.videoHeight : 16 / 9),
   };
 })();
