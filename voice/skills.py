@@ -1142,6 +1142,14 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
         write_control(view="camera", scan="qr")
         return Result(speak="Aponte o QR code pra câmera, senhor.")
 
+    # --- OCR: ler texto pela câmera ---
+    if re.search(r"\b(le\w*|reconhec\w*|escaneia\w*|captur\w*|copia\w*|transcrev\w*|"
+                 r"digitaliz\w*)\s+(o\s+|esse\s+|este\s+|essa\s+|a\s+)?"
+                 r"(texto|escrito|frase|paragrafo|palavra|pagina|folha|placa|etiqueta|documento)\b|"
+                 r"\bo que (esta|ta)\s+escrito\b|\bque diz (a|o|esse|aquela)\b", t):
+        write_control(view="camera", scan="ocr")
+        return Result(speak="Aponte o texto pra câmera, senhor. Vou ler.")
+
     r = _holo_models(t, raw)
     if r is not None:
         return r

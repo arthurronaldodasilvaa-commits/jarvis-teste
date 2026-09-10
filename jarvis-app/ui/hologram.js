@@ -189,6 +189,7 @@
       if (window.jarvisHud) window.jarvisHud.update(s);
       if (window.jarvisVision) window.jarvisVision.onControl(s);
       if (window.jarvisFace) window.jarvisFace.onControl(s);
+      if (window.jarvisOcr) window.jarvisOcr.onControl(s);
       const PH = { thinking: "PENSANDO", processing: "PROCESSANDO", searching: "PESQUISANDO", error: "ERRO" };
       state.phase = (!p && !state.speaking && PH[s.phase]) ? PH[s.phase] : "";
       const cls = { thinking: "thinking", processing: "thinking", searching: "searching", error: "error" }[s.phase] || "";

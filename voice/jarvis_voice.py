@@ -906,7 +906,20 @@ def _scan_loop(mouth: "Mouth") -> None:
                 if n > last_n:
                     last_n = n
                     txt = (d.get("text") or "").strip()
-                    if txt:
+                    kind = d.get("kind", "qr")
+                    if kind == "ocr":
+                        write_control(scan="")
+                        if not txt:
+                            mouth.say("Não consegui ler nenhum texto, senhor.")
+                        else:
+                            try:
+                                from common import set_clipboard
+                                set_clipboard(txt)
+                            except Exception:  # noqa: BLE001
+                                pass
+                            short = txt if len(txt) <= 220 else txt[:220] + "…"
+                            mouth.say(f"O texto diz, senhor: {short}. Copiei pra área de transferência.")
+                    elif txt:
                         if re.match(r"https?://", txt):
                             webbrowser.open(txt)
                             mouth.say("QR lido, senhor. Abri o link.")

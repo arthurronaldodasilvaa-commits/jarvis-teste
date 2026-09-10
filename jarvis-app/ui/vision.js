@@ -29,6 +29,7 @@ window.jarvisVision = (() => {
   let flashT = 0, flashMsg = "";
   function flash(msg) { flashMsg = msg; flashT = now(); }
   window.jarvisVision_flash = () => (now() - flashT < 900 ? flashMsg : "");
+  window.jarvisVision_setflash = (msg) => { flashMsg = msg; flashT = now() + 1600; };
 
   function mediaGestures(hands) {
     if (!hands || !hands.length) { g.trail.length = 0; g.fistN = g.palmN = 0; return; }
