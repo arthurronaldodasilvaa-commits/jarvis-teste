@@ -119,10 +119,14 @@ def safety():
     """Verifica a trava anti-loop de comandos (_guard_command). Não fala nada,
     não abre nada — só exercita a lógica."""
     import collections
+
+    import common
     cfg = jv.load_cfg()
     paused = [False]
     orig = jv.set_paused
     jv.set_paused = lambda p, **k: paused.__setitem__(0, p)
+    common.push_note = lambda *a, **k: None          # não mexe no HUD real
+    common.write_app_state = lambda **k: None
 
     class M:
         def say(self, t): print(f"   [fala] {t}")
