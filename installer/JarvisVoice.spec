@@ -13,7 +13,12 @@ for pkg in ("faster_whisper", "ctranslate2", "av", "onnxruntime", "tokenizers", 
 hiddenimports += collect_submodules("numpy")
 hiddenimports += collect_submodules("winsdk")
 hiddenimports += ["sounddevice", "_sounddevice", "httpx", "httpcore", "sniffio",
-                  "anyio", "certifi", "psutil", "pynvml"]
+                  "anyio", "certifi", "psutil", "pynvml", "pypdf"]
+# módulos do Jarvis importados de forma tardia (dentro de funções)
+hiddenimports += ["hooks", "llm", "skills_extra", "study", "teach", "invent",
+                  "face", "facts", "materials", "tasks", "read_aloud",
+                  "reminders", "weather", "calc", "news", "media", "wiki",
+                  "translate", "maps", "spotify", "hud"]
 
 import os as _os
 _piper = "../voice/piper"

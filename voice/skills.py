@@ -1265,6 +1265,15 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     if fala is not None:
         return Result(speak=fala)
 
+    # --- responder a partir dos materiais de estudo do Senhor (RAG-lite local) ---
+    try:
+        import materials
+        mr = materials.handle(raw, cfg, brain)
+        if mr is not None:
+            return mr
+    except Exception as exc:  # noqa: BLE001
+        log(f"materials: {exc}")
+
     # --- consultas via APIs sem chave (ações, CEP, feriado, ar, sol/lua, história…) ---
     try:
         import facts

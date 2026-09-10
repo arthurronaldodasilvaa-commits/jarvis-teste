@@ -148,3 +148,8 @@ calculadora = "run:calc:"
 notepad     = "run:notepad"
 explorador  = "run:explorer"
 configuracoes = "run:ms-settings:"
+
+[study]
+# Pasta com seus materiais (.txt, .md, .pdf). O Jarvis indexa e responde
+# "o que meu resumo diz sobre X" só com base neles. Vazio = desligado.
+materials_dir = ""
