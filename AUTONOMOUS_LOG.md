@@ -362,3 +362,39 @@ Estado na hora de encerrar:
 - Correção final: checkboxes da seção D e "notícias" no ROADMAP estavam
   `[ ]` mas o trabalho existe desde os commits 274ebba/351d280 — marquei certo.
 - Nada foi enviado pra fora da máquina.
+
+## Onda 1 — controle pelo celular (10/09, ~16h50)
+
+Arthur pediu ("Quer que eu comece por essa Onda 1? SIM / botão pra falar? SIM").
+Feito e commitado (`a063401`).
+
+O celular vira microfone + fone + telinha; o PC continua sendo o cérebro.
+- `voice/remote.py` — servidor HTTPS **só na rede local**, token obrigatório em
+  toda requisição, cert autoassinado (openssl do Git). `/listen` decodifica
+  webm/opus (PyAV) → Whisper já carregado → `skills.dispatch` → Piper devolve
+  o wav pro fone. Comandos destrutivos (desligar/reiniciar/bloquear) **recusados
+  pelo celular**. Anti-flood (6 req/20 s) + lock serializando a execução.
+- `voice/remote_page.html` — página push-to-talk (SEGURE PARA FALAR), estética
+  HUD, fallback de texto, polling de `/state`.
+- `Mouth.synth_file()` — gera o wav sem tocar na caixa de som do PC.
+- App: botão 📱 + painel de pareamento com **QR** (`ui/remote.js`); some no modo
+  câmera. QR gerado no daemon (`qrcode` → SVG data URI), passa no `state.json`
+  (`remote_url` / `remote_qr`). `JarvisApp.exe` recompilado pra incluir.
+- `config.toml [remote]` (enabled/port/token/bind). No pacote do Robson vai
+  **desligado** por padrão (precisa de openssl na máquina dele) + `build_package_src.bat`
+  agora tira `secrets.toml` e os arquivos de cert/token do pacote.
+
+Testado ponta a ponta via curl: `/health`, `/`, `/state`, `/say` (dispatch +
+wav), `/listen` (opus sintético → transcreve → responde), bloqueio de
+"desliga o computador", chave errada → 403. Falta o Arthur parear o celular
+de verdade (mesmo Wi-Fi, abrir o 📱, escanear, passar do aviso de certificado).
+
+Estado: daemon vivo (pythonw 20664) com o servidor remoto no ar
+(`https://192.168.15.3:8765`), `JarvisApp.exe` novo aberto (pid ~2656).
+
+### Ainda pendente pro Arthur (fora da Onda 1)
+- **Rodar `E:\OpenJarvis\LIMPAR_MINER.bat`** (2 cliques → "Sim" no UAC) — tira o
+  cryptominer que veio do "adobe pack.exe" pirata. Reiniciar, rodar de novo,
+  depois passar o Malwarebytes.
+- **Compactar `installer\pacoteB\Jarvis\` e subir no Drive** pro Robson (rodar
+  `build_package_src.bat` antes pra pegar o remote + a limpeza do secrets).
