@@ -73,7 +73,10 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def _patch_toml_line(text: str, key: str, val) -> str:
+def _patch_toml_line(text: str, key: str, val, section: str | None = None) -> str:
+    """Troca o valor de `key` no config.toml preservando o resto da linha.
+    Se `section` for dado, só mexe DENTRO daquela seção `[section]` — a mesma
+    chave (ex: `enabled`) aparece em várias seções."""
     import re
     if isinstance(val, bool):
         rep = "true" if val else "false"
@@ -81,11 +84,23 @@ def _patch_toml_line(text: str, key: str, val) -> str:
         rep = str(val)
     else:
         rep = '"' + str(val).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+    body, offset = text, 0
+    if section:
+        m = re.search(rf'^\[{re.escape(section)}\]\s*$', text, re.M)
+        if not m:
+            return text
+        start = m.end()
+        nxt = re.search(r'^\[', text[start:], re.M)
+        end = start + nxt.start() if nxt else len(text)
+        body, offset = text[start:end], start
+
     pat = re.compile(rf'^(\s*{re.escape(key)}\s*=\s*)(?:""".*?"""|".*?"|[^\s#]+)(\s*(?:#.*)?)$',
                      re.M | re.S)
-    if pat.search(text):
-        return pat.sub(lambda m: f"{m.group(1)}{rep}{m.group(2)}", text, count=1)
-    return text
+    if not pat.search(body):
+        return text
+    new_body = pat.sub(lambda m: f"{m.group(1)}{rep}{m.group(2)}", body, count=1)
+    return text[:offset] + new_body + text[offset + len(body):]
 
 
 def _sapi_voices() -> list:
@@ -272,8 +287,8 @@ class Api:
         except OSError:
             return {"ok": False, "msg": "config.toml não encontrado"}
         for dotted, val in (patch or {}).items():
-            key = dotted.split(".")[-1]
-            txt = _patch_toml_line(txt, key, val)
+            sec, _, key = dotted.rpartition(".")
+            txt = _patch_toml_line(txt, key, val, sec or None)
         try:
             CONFIG_FILE.write_text(txt, encoding="utf-8")
             RELOAD_FLAG.write_text(str(__import__("time").time()), encoding="utf-8")
