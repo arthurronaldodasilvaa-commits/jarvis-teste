@@ -114,6 +114,10 @@ O maior salto de "sensação de Iron Man". Renderizador + mãos já dão conta.
 - [x] **Roteador LLM mais conservador** — feito no fix do incidente: `route()`
       só roda pra ≥ 2 palavras e ≥ 6 chars. + trava de segurança (`_guard_command`)
       que pausa a escuta em loop de comandos. Ver `AUTONOMOUS_LOG.md` (topo).
+- [x] **Temas de cor do holograma** (`[app] theme`: cyan/ice/amber/green/violet)
+      — `hologram.js applyTheme()` + dropdown no painel. Commit `feat(Onda I)`.
+- [ ] **`_patch_toml_line` por seção** — hoje casa a chave só pelo nome; `enabled`
+      aparece em `[arrival]`/`[app]`/`[safety]`. Passar a seção junto.
 - [ ] Modo "co-piloto de código" leve — lê um arquivo, explica, sugere (2b limitado).
 - [ ] "Diário de bordo" — o Jarvis registra o que você fez no dia (comandos,
       tempo de estudo) e faz um resumo à noite.

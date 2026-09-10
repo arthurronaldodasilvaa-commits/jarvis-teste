@@ -28,8 +28,16 @@ trampolim + o interpretador real. Era 1 daemon só.)
 - `common.sweep_tmp()` no arranque limpa `.tmp` órfão de escrita atômica.
 - `reminders.json` limpo (41 → 0).
 
-Testado: replay do incidente é cortado no 3º comando; uso legítimo rápido
-(2–4 comandos distintos) passa normal. Daemon reiniciado 00:55, boot limpo.
+Testado (`python voice/test_audio.py safety`): replay do incidente é cortado
+no 3º comando; uso legítimo rápido (2–4 comandos distintos) passa normal.
+**Deploy:** daemon reiniciado 01:13 com o conjunto completo (guard + gate +
+mutex + escrita atômica + dedup de lembrete/tarefa + roteador só p/ fala
+dirigida + tema de cor). Boot limpo, quieto, `reminders.json`/`tasks.json`
+limpos. `AUTONOMOUS_LOG` + `COMANDOS.md` + `docs/` atualizados.
+
+Pendência anotada (não é do incidente): `app.py _patch_toml_line` casa a
+chave pelo nome sem a seção — `enabled` existe em `[arrival]`, `[app]` e
+`[safety]`. Hoje funciona por sorte (ordem no arquivo). Ver Onda I.
 
 ---
 
