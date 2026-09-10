@@ -22,8 +22,7 @@
   // vermelho se verde/azul ficarem baixos. PHASE_COL[""] segue o tema.
   const PHASE_COL = {
     "": new THREE.Color(NEON),
-    PENSANDO: new THREE.Color(0x6a3cff),      // violeta — raciocinando
-    PROCESSANDO: new THREE.Color(0x6a3cff),
+    PENSANDO: new THREE.Color(0x6a3cff),      // violeta — raciocinando (LLM)
     PESQUISANDO: new THREE.Color(0x16ff9c),   // verde-água — buscando
     ERRO: new THREE.Color(0xff1f2e),          // vermelho — deu ruim
   };
@@ -232,11 +231,15 @@
       if (window.jarvisVision) window.jarvisVision.onControl(s);
       if (window.jarvisFace) window.jarvisFace.onControl(s);
       if (window.jarvisOcr) window.jarvisOcr.onControl(s);
-      const PH = { thinking: "PENSANDO", processing: "PROCESSANDO", searching: "PESQUISANDO", error: "ERRO" };
-      state.phase = (!p && !state.speaking && PH[s.phase]) ? PH[s.phase] : "";
-      const cls = { thinking: "thinking", processing: "thinking", searching: "searching", error: "error" }[s.phase] || "";
+      // cor do CÉREBRO: só as fases "interessantes" (LLM, busca, erro) tingem —
+      // e ficam tingidas ATÉ o Jarvis terminar de falar (a resposta inteira),
+      // não só um flash. 'processing' (comando rápido) não muda a cor.
+      const PH = { thinking: "PENSANDO", searching: "PESQUISANDO", error: "ERRO" };
+      state.phase = (!p && PH[s.phase]) ? PH[s.phase] : "";
+      // o TEXTO de status: classe de cor só quando não está falando/pausado
+      const cls = { thinking: "thinking", searching: "searching", error: "error" }[s.phase] || "";
       statusEl.classList.remove("thinking", "searching", "error");
-      if (state.phase && cls) statusEl.classList.add(cls);
+      if (cls && !p && !state.speaking) statusEl.classList.add(cls);
     }).catch(() => {});
   }
   setInterval(pollState, 250);
@@ -294,8 +297,8 @@
     let target = PHASE_COL[state.phase] || PHASE_COL[""];
     if (pz > 0.5) target = PHASE_COL[""];
     _tmpCol.copy(target);
-    if (spk > 0.01) _tmpCol.lerp(COL_SPEAK, 0.14 * spk);   // clareia de leve; a fase manda
-    curCol.lerp(_tmpCol, 0.05);
+    if (spk > 0.01) _tmpCol.lerp(COL_SPEAK, 0.10 * spk);   // clareia bem de leve; a fase manda
+    curCol.lerp(_tmpCol, 0.10);                            // ~0,4 s pra assumir a cor da fase
 
     // escala do núcleo: idle respira de leve; falando pulsa devagar e mais forte
     const idleBreath = 1 + Math.sin(t * 1.4) * 0.015;
