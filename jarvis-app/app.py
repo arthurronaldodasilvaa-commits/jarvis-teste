@@ -191,6 +191,52 @@ class Api:
             pass
         self._write_control(scan="")
 
+    # ---- reconhecimento facial ----
+    def face_db(self) -> dict:
+        """Rostos aprendidos: {nome: [descritor de 128 números, ...]}."""
+        return _read_json(STATE_FILE.parent / "faces.json", {})
+
+    def face_save(self, name: str, descriptors: list) -> bool:
+        """Junta descritores novos ao rosto <name> (guarda no máx. 8)."""
+        name = str(name).strip().lower()[:30]
+        if not name or not isinstance(descriptors, list):
+            return False
+        db = self.face_db()
+        cur = db.get(name, [])
+        for d in descriptors:
+            if isinstance(d, list) and len(d) == 128:
+                cur.append([round(float(x), 5) for x in d])
+        db[name] = cur[-8:]
+        try:
+            (STATE_FILE.parent / "faces.json").write_text(
+                json.dumps(db), encoding="utf-8")
+        except OSError:
+            return False
+        self._write_control(face_enroll="")          # some com o pedido
+        return True
+
+    def face_seen(self, name: str) -> None:
+        """A câmera reconheceu (ou não) alguém — grava face.json pro daemon."""
+        import time as _t
+        try:
+            (STATE_FILE.parent / "face.json").write_text(
+                json.dumps({"name": str(name or ""), "n": int(_t.time() * 1000)}),
+                encoding="utf-8")
+        except OSError:
+            pass
+
+    def face_forget(self, name: str) -> bool:
+        db = self.face_db()
+        n = str(name).strip().lower()
+        if n not in db:
+            return False
+        db.pop(n, None)
+        try:
+            (STATE_FILE.parent / "faces.json").write_text(json.dumps(db), encoding="utf-8")
+        except OSError:
+            return False
+        return True
+
     # ---- painel de configurações ----
     _CFG_KEYS = [
         ("profile", "active"), ("assistant", "address"), ("assistant", "user_name"),

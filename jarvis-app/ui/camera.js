@@ -144,6 +144,7 @@ window.jarvisCam = (() => {
     try {
       if (window.jarvisHands) window.jarvisHands.feed(video);
       if (opt.skeleton) drawHands();
+      if (window.jarvisFace) window.jarvisFace.tick(video);
       if (window.jarvisVision) {
         window.jarvisVision.tick(window.jarvisHands && window.jarvisHands.results(), video);
         const fm = window.jarvisVision_flash && window.jarvisVision_flash();

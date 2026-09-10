@@ -1028,6 +1028,13 @@ def main() -> None:
     threading.Thread(target=_reminder_loop, args=(mouth, cfg, brain), daemon=True).start()
     threading.Thread(target=_scan_loop, args=(mouth,), daemon=True).start()
     try:
+        import face
+        threading.Thread(target=face.watch,
+                         args=(mouth, cfg, _active_profile(cfg), relaunch_self),
+                         daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        log(f"face watch não subiu: {exc}")
+    try:
         import hud
         hud.start(cfg)
     except Exception as exc:  # noqa: BLE001

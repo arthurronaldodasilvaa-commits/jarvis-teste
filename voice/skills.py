@@ -54,6 +54,12 @@ except Exception as _exc:  # noqa: BLE001
     invent = None
     log(f"invent não disponível: {_exc}")
 
+try:
+    import face as facemod
+except Exception as _exc:  # noqa: BLE001
+    facemod = None
+    log(f"face não disponível: {_exc}")
+
 PROFILES_DIR = HERE / "profiles"
 
 
@@ -800,7 +806,9 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
             return Result(speak="Às ordens, senhor.", stop=True)
 
     # --- Jarvis aprende / esquece comandos ("Jarvis, aprende ...") ---
-    if teach is not None and skills_extra is not None and brain is not None:
+    #     (não confundir com "aprende meu rosto" — isso é o reconhecimento facial)
+    if teach is not None and skills_extra is not None and brain is not None \
+            and not re.search(r"\b(meu|o meu)\s+rosto\b|\besse sou eu\b", t):
         if teach.match_list(t):
             nomes = skills_extra.learned_names()
             if not nomes:
@@ -826,6 +834,42 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
                 skills_extra.add_learned(_sp)
                 return f"Pronto, senhor. O comando \"{_sp['name']}\" já está ativo."
             return Result(confirm=(teach.confirm_text(spec), _save))
+
+    # --- reconhecimento facial: cadastrar / esquecer / consultar ---
+    if facemod is not None:
+        if facemod.match_enroll(t):
+            nome = str(cfg.get("profile", {}).get("active", "")).strip().lower() or "arthur"
+            write_control(view="camera",
+                          face_enroll=nome + "|" + str(int(time.time())))
+            return Result(speak=f"Olhe pra câmera um instante, senhor. "
+                                f"Estou memorizando o seu rosto.")
+        if facemod.match_forget(t):
+            from common import _SHARED
+            try:
+                import json as _j
+                f = _SHARED / "faces.json"
+                db = _j.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+                nome = str(cfg.get("profile", {}).get("active", "")).strip().lower() or "arthur"
+                if db.pop(nome, None) is not None:
+                    f.write_text(_j.dumps(db), encoding="utf-8")
+                    return Result(speak="Esqueci o seu rosto, senhor.")
+            except Exception:  # noqa: BLE001
+                pass
+            return Result(speak="Não tinha o seu rosto guardado, senhor.")
+        if facemod.match_query(t):
+            from common import _SHARED
+            try:
+                import json as _j
+                fj = _SHARED / "face.json"
+                cur = _j.loads(fj.read_text(encoding="utf-8")).get("name", "") if fj.is_file() else ""
+            except Exception:  # noqa: BLE001
+                cur = ""
+            if cur and cur not in ("", "desconhecido", "__enrolled__"):
+                return Result(speak=f"Reconheço o senhor, {cur.capitalize()}.")
+            if cur == "desconhecido":
+                return Result(speak="Vejo um rosto, mas não reconheço, senhor.")
+            return Result(speak="Não estou te vendo na câmera agora, senhor. "
+                                "Abra a câmera e diga \"aprende meu rosto\".")
 
     # --- modo estudo: entrar / sair / atalhos da sessão ---
     if study is not None:
