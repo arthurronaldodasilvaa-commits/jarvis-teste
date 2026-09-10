@@ -74,6 +74,22 @@ Rodada 5 (10/09, madrugada) — commits ~74–95:
 Daemon reiniciado 3× nesta rodada, todos boot limpo. Estado final: rodando,
 quieto, `reminders.json`/`tasks.json` limpos, tema cyan.
 
+**10/09 ~16h — faxina da pasta OpenJarvis (14 GB → 8,4 GB, -5,6 GB)**
+Apagado (só lixo regenerável, nada de fonte/venv/modelos/dados):
+`installer/{packB, build, pacote, dist}`, `jarvis-app/build`, `*.log` de
+build, todo `__pycache__`/`.pyc`, `uv-cache`, dirs vazios (`cargo rustup
+skills`), `_tts_out.wav`. Removidos 3 atalhos `Jarvis.lnk` acidentais
+(Área de Trabalho + Menu Iniciar + Inicializar) que o Arthur criou rodando
+`INSTALAR.bat` de dentro de `installer/pacoteB/Jarvis/`; o autostart do dev
+(`Jarvis Voz.lnk`) foi mantido. Pacote B resetado pro estado de envio.
+Mantido: `pacoteB/` (não subiu ainda), `OllamaSetup.exe`, `packB_libs/` +
+`packB_py/` (insumos pra reconstruir o Pacote B), `src/` (venv), caches de
+modelo. Regerar o Pacote A: `build_voice.bat` + `..\jarvis-app\build.bat`
++ `build_setup.bat` + `build_package.bat`.
+> Nota: 2 entradas suspeitas no Inicializar do Windows, fora do projeto —
+> `Audio system.lnk` → `C:\Netframework.4.5.2\...` e `system.lnk` →
+> `C:\Dumper\system.vbs`. Não são do Jarvis. Não mexi. Vale o Arthur olhar.
+
 **10/09 15:00 — o pai não conseguiu instalar: Smart App Control**
 O Windows 11 do Robson tem **Smart App Control** ligado — bloqueia TODO
 `.exe` não assinado, sem opção de "permitir". Os `JarvisVoice.exe` /
