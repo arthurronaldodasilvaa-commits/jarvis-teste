@@ -79,8 +79,9 @@ window.jarvisFace = (() => {
             enrolled = enrolled.filter((e) => e.name !== enrollName);
             enrolled.push({ name: enrollName, descriptors: enrollGrab.map((d) => new Float32Array(d)) });
           }
+          var savedName = enrollName;
           enrollName = ""; enrollGrab = [];
-          if (a && a.face_seen) a.face_seen("__enrolled__");
+          if (a && a.face_seen) a.face_seen("__enrolled__|" + savedName);
         }
       }
       return;

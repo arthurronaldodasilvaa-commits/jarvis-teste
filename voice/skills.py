@@ -913,11 +913,17 @@ def dispatch(raw: str, cfg: dict, speak, brain, _depth: int = 0) -> Result:
     # --- reconhecimento facial: cadastrar / esquecer / consultar ---
     if facemod is not None:
         if facemod.match_enroll(t):
-            nome = str(cfg.get("profile", {}).get("active", "")).strip().lower() or "arthur"
-            write_control(view="camera",
-                          face_enroll=nome + "|" + str(int(time.time())))
-            return Result(speak="Olhe pra câmera um instante, senhor. "
-                                "Estou memorizando o seu rosto.")
+            _default = str(cfg.get("profile", {}).get("active", "")).strip().lower() or "senhor"
+
+            def _enroll_with_name(resp: str, _dft=_default):
+                nome = facemod.clean_name(resp) or _dft
+                write_control(view="camera",
+                              face_enroll=nome + "|" + str(int(time.time())))
+                return (f"Certo, {nome.split()[0].capitalize()}. Olhe pra câmera um "
+                        "instante — estou memorizando o seu rosto.")
+
+            return Result(speak="Como o senhor quer que eu chame esse rosto? Diga só o nome.",
+                          await_reply=_enroll_with_name)
         if facemod.match_forget(t):
             from common import _SHARED
             try:

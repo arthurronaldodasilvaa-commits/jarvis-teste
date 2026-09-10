@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 
-from common import _SHARED, log, push_note
+from common import _SHARED, log, norm, push_note
 
 FILE = _SHARED / "face.json"
 
@@ -63,8 +63,11 @@ def watch(mouth, cfg: dict, active_profile: str, relaunch) -> None:
                 continue
             gone_since = time.time()
 
-            if name == "__enrolled__":
-                mouth.say(f"Pronto, {addr}. Aprendi o seu rosto.")
+            if name.startswith("__enrolled__"):
+                _nm = name.split("|", 1)[1].strip() if "|" in name else ""
+                quem = _nm.split()[0].capitalize() if _nm else addr
+                mouth.say(f"Pronto, {quem}. Aprendi o seu rosto. "
+                          "Agora eu reconheço o senhor pela câmera.")
                 continue
 
             if name == "desconhecido":
@@ -116,3 +119,20 @@ def match_forget(t: str) -> bool:
 def match_query(t: str) -> bool:
     return bool(re.search(r"\b(voce\s+me\s+reconhece|quem\s+(esta|ta)\s+(ai|na camera|te vendo)|"
                           r"sabe\s+quem\s+(eu\s+)?sou|me\s+reconhece)\b", t))
+
+
+_NAME_STOP = {"o", "a", "e", "meu", "nome", "eh", "e", "me", "chamo", "chama", "chame",
+              "de", "pode", "sou", "aqui", "senhor", "por", "favor", "que", "esse",
+              "rosto", "esta", "falando", "quem", "voce"}
+
+
+def clean_name(raw: str) -> str:
+    """Extrai um nome do que a pessoa falou: 'Arthur', 'meu nome é Arthur',
+    'pode me chamar de Arthur', 'aqui é o Arthur' -> 'arthur'."""
+    s = norm(raw)
+    s = re.sub(r".*\b(nome (eh|e)|chamar? de|me chamo|sou (o|a)?|aqui (eh|e)( o| a)?)\b", "", s).strip()
+    toks = [w for w in s.split() if w not in _NAME_STOP and len(w) >= 2]
+    toks = toks[:2]                        # nome + sobrenome no máximo
+    nome = " ".join(toks).strip()
+    nome = re.sub(r"[^a-z ]", "", nome).strip()
+    return nome[:30]
