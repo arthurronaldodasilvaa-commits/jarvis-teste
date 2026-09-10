@@ -74,6 +74,29 @@ Rodada 5 (10/09, madrugada) — commits ~74–95:
 Daemon reiniciado 3× nesta rodada, todos boot limpo. Estado final: rodando,
 quieto, `reminders.json`/`tasks.json` limpos, tema cyan.
 
+**10/09 15:00 — o pai não conseguiu instalar: Smart App Control**
+O Windows 11 do Robson tem **Smart App Control** ligado — bloqueia TODO
+`.exe` não assinado, sem opção de "permitir". Os `JarvisVoice.exe` /
+`JarvisApp.exe` congelados (PyInstaller) batem nisso: instalava, mas nada
+rodava, nada no Gerenciador de Tarefas.
+
+**Solução — "Pacote B" (roda do código):**
+- Python **embeddable oficial da python.org** (assinado pela PSF → o SAC
+  aceita). `installer/packB_py/` (extraído) + `installer/packB_libs/`
+  (`pip install --target` do `requirements-runtime.txt`).
+- `INSTALAR.bat` (o usuário **desbloqueia o .zip** antes de extrair → sem
+  marca-da-web → o `.bat` roda). Ajusta o config (modelos em caminho
+  absoluto, perfil), cria `iniciar_jarvis.vbs` **localmente** e os atalhos,
+  puxa o modelo do Ollama.
+- `build_package_src.bat` → `installer/pacoteB/Jarvis/` (2,5 GB):
+  `python\ libs\ voice\ jarvis-app\ models\ ollama\` + INSTALAR/DIAGNOSTICO/
+  LEIA-ME/MANUAL/COMANDOS.
+- `jarvis_voice._app_command()`: abre o app com `pythonw app.py` quando não
+  há `.exe`.
+- Testado ponta a ponta do pacote real: `INSTALAR.bat` → `iniciar_jarvis.vbs`
+  → daemon + app sobem com o embeddable, modelos do caminho local, renderer
+  ok. **Pronto pro Drive** (o "Pacote A" congelado fica pra quem não tem SAC).
+
 **10/09 13:00–13:45 — pacote final pro pai (Robson):**
 - `manual/jarvis-manual.html` — site único, offline, tema HUD holográfico:
   busca de comando, índice com scroll-spy, copiar comando, esfera em canvas
