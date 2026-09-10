@@ -2,15 +2,22 @@
 
 ## Resumo em 1 parágrafo
 
-Já existe uma pasta pronta em **`installer/pacote/Jarvis/`** (~1,1 GB — com
-voz neural Piper, HUD, modelos de estudo, clima, notícias, lembretes, tudo
-que foi feito em 09/09). Ela tem tudo: o Jarvis, o aplicativo, os modelos de
-voz e o instalador. Você só precisa **subir essa pasta no Google Drive**,
-**pegar o link** e **mandar pro seu pai**. Ele baixa, extrai e clica em
-`JarvisSetup.exe`. Perfil já vem em **robson** e voz em **piper**.
+Já existe uma pasta pronta em **`installer/pacote/Jarvis/`** (~2,6 GB — inclui
+o instalador do Ollama; sem ele são ~1,1 GB). Tem tudo: o Jarvis, o aplicativo
+holográfico, os modelos de voz, o instalador e o Ollama. Você só precisa
+**subir essa pasta no Google Drive**, **pegar o link** e **mandar pro seu
+pai**. Ele baixa, extrai e clica em `JarvisSetup.exe`. Perfil já vem em
+**robson** e voz em **piper**.
 
-> A pasta que você mandou pro seu pai ANTES não tem nenhuma das features
-> novas. Se quiser, sobe essa aqui por cima.
+> **Regerada em 10/09** com: trava de segurança contra loop de comandos
+> (depois do incidente), Whisper mais rápido no arranque, temas de cor do
+> holograma, cérebro que muda de cor por fase, HUD polido, modo estudo/aula,
+> OCR, reconhecimento facial, diário de bordo. A pasta que você mandou antes
+> não tem nada disso.
+>
+> Se 2,6 GB for muito pro Drive: apague `payload/ollama/OllamaSetup.exe`
+> antes de subir (fica ~1,1 GB) — o instalador manda o Robson baixar o
+> Ollama do site oficial nesse caso.
 
 ---
 

@@ -74,6 +74,17 @@ Rodada 5 (10/09, madrugada) — commits ~74–95:
 Daemon reiniciado 3× nesta rodada, todos boot limpo. Estado final: rodando,
 quieto, `reminders.json`/`tasks.json` limpos, tema cyan.
 
+**10/09 06:30 — Arthur voltou:** pediu pra reiniciar o Jarvis dele e regerar
+o pacote pro pai.
+- Reiniciei daemon (fonte) + JarvisApp (build novo). Achei um `JarvisVoice.exe`
+  congelado de um teste antigo segurando o mutex — matei. Ambos rodando limpo.
+- **`installer/pacote/Jarvis/` regenerado** (commit `build:`): os 3 `.exe`
+  recompilados do código atual. Corrigi o `JarvisVoice.spec` (faltavam
+  `diary`/`aula` nos hiddenimports — modo aula e diário não iam no congelado)
+  e o `build_package.bat` (não copiava `study/` — modo estudo quebrava no
+  congelado). Testado: `JarvisVoice.exe` congelado sobe com os 25 módulos,
+  Piper, LLM; `JarvisApp.exe` renderer ok. Pacote = 2,6 GB (com Ollama).
+
 Reconhecimento facial: já feito antes (rodada anterior). face-api.js local.
 
 ---
