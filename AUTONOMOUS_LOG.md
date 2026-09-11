@@ -445,3 +445,46 @@ da nota). Daemon: vault criado, 8 notas indexadas, comandos de voz
 
 Pendente (Onda J4, roadmap): células IA ao vivo, imagem/print, paridade de
 gesto do `holograms.js`, `watchdog`, repetição espaçada, quadro pelo celular.
+
+## Segundo Cérebro — barra, IA, bug da teia, mecânicas novas (10/09, ~23h)
+
+Arthur pediu polimento + reportou "bugado, botões de mão bugados interferindo
+com mídia, webcam não liga no canto, tudo confuso". Depois foi descansar e
+pediu pra continuar sozinho ("avançando, corrigindo mecânicas, criando novas")
+e apontou um bug específico: "células duplicadas vibrando" na teia.
+
+**Achados e correções:**
+- Barra inferior: `#brain2-bar` e `#controls` ficavam sobrepostas (as duas
+  centralizadas no rodapé) — impossível mutar ou voltar pro modo Jarvis.
+  Unificado numa barra só, ancorada embaixo à esquerda: `⟵ Jarvis · 🎙 · Teia/
+  Quadro · +células · 🖐`. `#controls`/`#status` somem no Segundo Cérebro.
+- Webcam não aparecia: `#cam` tinha z-index menor que o fundo do `#brain2`.
+- Gestos de mídia (punho=play/pause) disparavam em qualquer modo — agora só
+  na câmera em tela cheia; no Segundo Cérebro o `camera.js` só rastreia a mão.
+- "＋ IA" e "célula própria" por voz não geravam nada — agora `vault.py`
+  roda o LLM de verdade (`_ai_fill`) e preenche a célula (~8s, qwen3.5:2b/CPU).
+- **Bug da teia (duplicada + vibrando)**: `refresh()` podia disparar duas
+  vezes quase junto (graph_rev mudou + setActive ao mesmo tempo), cada
+  chamada lendo o mesmo `S.byId` vazio e criando nós próprios pro mesmo id.
+  Corrigido com trava de concorrência (testei: 8 chamadas simultâneas → só
+  3 idas reais à API, sem duplicar) + defesa contra id repetido na própria
+  fonte + física trocada de "empurra direto a posição" pra integração por
+  velocidade com atrito (não oscila mais).
+- Mecânicas novas: posição da teia sobrevive a fechar/abrir o app
+  (localStorage), busca casa por trecho/tags além do título, setas ←/→
+  percorrem as ligações da nota aberta.
+
+**Achado à parte (grave): o disco C: do Arthur estava em 0 bytes livres**,
+travando a abertura do `JarvisApp.exe` (WebView2 não consegue iniciar sem
+espaço). Causa: 57 pastas `_MEI*` órfãs em `%TEMP%` (2,35 GB) de builds do
+PyInstaller que eu forcei o fechamento (`Stop-Process -Force`) em vez de
+deixar sair sozinho — ele não limpa a extração quando é morto assim. Apaguei
+essas 57 pastas (seguro — são só extração temporária, regenerada a cada
+abertura). Foi de 0 → ~2 GB livres, o suficiente pro app voltar a abrir.
+**Ainda tem 25,51 GB na Lixeira** que eu NÃO esvaziei (é ação irreversível,
+só o Arthur pode decidir) — ele devia esvaziar quando puder, o disco ainda
+está crítico mesmo com a folga que abri.
+
+Todos os commits (`a8eee16`…`ad83394`) testados via navegador com mock do
+bridge (sem tela real disponível) + o `add_cell` de IA testado com o LLM de
+verdade no daemon. Publicado no GitHub.
