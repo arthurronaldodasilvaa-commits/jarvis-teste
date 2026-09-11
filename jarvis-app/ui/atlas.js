@@ -28,32 +28,46 @@ window.jarvisAtlas = (() => {
   };
 
   // ---------------- dados ----------------
+  // guarda contra chamadas concorrentes (2 refresh() ao mesmo tempo criavam
+  // dois conjuntos de nós pro mesmo id -> "células duplicadas vibrando")
+  let _refreshing = false, _refreshAgain = false;
   async function refresh() {
-    const api = window.pywebview && window.pywebview.api;
-    if (!api || !api.brain_graph) return;
-    let g;
-    try { g = await api.brain_graph(); } catch (e) { return; }
-    const notes = (g && g.notes) || [];
-    const keep = S.byId;
-    const nodes = [], byId = new Map();
-    const spread = 70 + 34 * Math.sqrt(notes.length);
-    notes.forEach((n, i) => {
-      const old = keep.get(n.id);
-      const a = (i / Math.max(1, notes.length)) * Math.PI * 2;
-      const nd = old || { x: Math.cos(a) * spread + (Math.random() - 0.5) * 40,
-                          y: Math.sin(a) * spread + (Math.random() - 0.5) * 40, vx: 0, vy: 0 };
-      Object.assign(nd, { id: n.id, title: n.title, type: n.type, rel: n.rel,
-                          tags: n.tags || [], excerpt: n.excerpt || "", links: n.links || [] });
-      nodes.push(nd); byId.set(n.id, nd);
-    });
-    const edges = [];
-    nodes.forEach((n) => n.links.forEach((l) => {
-      if (byId.has(l)) edges.push({ a: n, b: byId.get(l) });
-    }));
-    S.nodes = nodes; S.byId = byId; S.edges = edges; S.ready = true;
-    if (!S._everCentered) {
-      for (let i = 0; i < 260; i++) layout();   // pré-assenta a simulação
-      S._centerFrames = 30;
+    if (_refreshing) { _refreshAgain = true; return; }
+    _refreshing = true;
+    try {
+      const api = window.pywebview && window.pywebview.api;
+      if (!api || !api.brain_graph) return;
+      let g;
+      try { g = await api.brain_graph(); } catch (e) { return; }
+      const notes = (g && g.notes) || [];
+      const keep = S.byId;
+      const nodes = [], byId = new Map();
+      const spread = 70 + 34 * Math.sqrt(notes.length);
+      notes.forEach((n, i) => {
+        if (byId.has(n.id)) return;   // defesa: id repetido na fonte -> ignora a 2ª ocorrência
+        const old = keep.get(n.id);
+        const a = (i / Math.max(1, notes.length)) * Math.PI * 2;
+        const nd = old || { x: Math.cos(a) * spread + (Math.random() - 0.5) * 40,
+                            y: Math.sin(a) * spread + (Math.random() - 0.5) * 40, vx: 0, vy: 0 };
+        nd.vx = nd.vx || 0; nd.vy = nd.vy || 0;
+        Object.assign(nd, { id: n.id, title: n.title, type: n.type, rel: n.rel,
+                            tags: n.tags || [], excerpt: n.excerpt || "", links: n.links || [] });
+        nodes.push(nd); byId.set(n.id, nd);
+      });
+      const edges = [];
+      nodes.forEach((n) => n.links.forEach((l) => {
+        if (byId.has(l)) edges.push({ a: n, b: byId.get(l) });
+      }));
+      S.nodes = nodes; S.byId = byId; S.edges = edges; S.ready = true;
+      if (!S._everCentered) {
+        for (let i = 0; i < 220; i++) layout();   // pré-assenta a simulação
+        S._everCentered = true;
+        S._centerFrames = 30;
+        S._settled = false;
+      }
+    } finally {
+      _refreshing = false;
+      if (_refreshAgain) { _refreshAgain = false; refresh(); }
     }
   }
 
@@ -69,8 +83,16 @@ window.jarvisAtlas = (() => {
 
   // ---------------- layout força-dirigida (O(n²), vault é pequeno) ----------------
   // Fruchterman-Reingold: repulsão k²/d entre todos, atração d²/k nas arestas.
-  // Esfria sozinho: quando o movimento total fica baixo, para de simular.
-  const K = 190;         // distância ideal entre nós ligados
+  // Integração por VELOCIDADE com amortecimento (em vez de deslocamento direto
+  // pela força instantânea) — evita a instabilidade clássica de nós muito
+  // próximos "vibrarem" (empurra, ultrapassa, empurra de volta, ultrapassa...).
+  // Esfria sozinho: quando a velocidade total fica baixa, para de simular.
+  const K = 190;             // distância ideal entre nós ligados
+  // teto por par: só entra em ação quando dois nós ficam colados (duplicados,
+  // ou vários criados na mesma posição) — em distância normal nunca satura.
+  const MAX_F = 5000;
+  const DAMPING = 0.72;      // fricção — sem isso a simulação oscila indefinidamente
+  const MAX_SPEED = 16;      // px/frame — teto de verdade contra "vibração"
   function layout() {
     const N = S.nodes;
     N.forEach((n) => { n.fx = 0; n.fy = 0; });
@@ -80,7 +102,7 @@ window.jarvisAtlas = (() => {
         const b = N[j];
         let dx = a.x - b.x, dy = a.y - b.y;
         let d = Math.hypot(dx, dy) || 0.01;
-        const f = (K * K) / d;
+        const f = Math.min(MAX_F, (K * K) / d);
         dx /= d; dy /= d;
         a.fx += dx * f; a.fy += dy * f; b.fx -= dx * f; b.fy -= dy * f;
       }
@@ -89,20 +111,21 @@ window.jarvisAtlas = (() => {
     S.edges.forEach((e) => {
       let dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
       const d = Math.hypot(dx, dy) || 0.01;
-      const f = (d * d) / K;
+      const f = Math.min(MAX_F, (d * d) / K);
       dx /= d; dy /= d;
       e.a.fx += dx * f; e.a.fy += dy * f; e.b.fx -= dx * f; e.b.fy -= dy * f;
     });
-    let moved = 0;
+    let speed2Sum = 0;
     N.forEach((n) => {
-      if (n === S.drag || n.pinned) return;
-      const d = Math.hypot(n.fx, n.fy) || 0.01;
-      const step = Math.min(d, 60) * 0.16;      // limite de deslocamento (cooling fixo)
-      const mx = (n.fx / d) * step, my = (n.fy / d) * step;
-      n.x += mx; n.y += my;
-      moved += Math.abs(mx) + Math.abs(my);
+      if (n === S.drag || n.pinned) { n.vx = 0; n.vy = 0; return; }
+      n.vx = (n.vx + n.fx * 0.02) * DAMPING;
+      n.vy = (n.vy + n.fy * 0.02) * DAMPING;
+      const sp = Math.hypot(n.vx, n.vy);
+      if (sp > MAX_SPEED) { n.vx = (n.vx / sp) * MAX_SPEED; n.vy = (n.vy / sp) * MAX_SPEED; }
+      n.x += n.vx; n.y += n.vy;
+      speed2Sum += n.vx * n.vx + n.vy * n.vy;
     });
-    S._settled = moved < 0.4 * Math.max(1, N.length);
+    S._settled = speed2Sum < 0.03 * Math.max(1, N.length);
   }
 
   // ---------------- render ----------------
@@ -332,10 +355,9 @@ window.jarvisAtlas = (() => {
   function tick() {
     if (!S.active) return;
     if (cv.width !== Math.round(host.clientWidth * (devicePixelRatio || 1))) resize();
-    if (S._centerFrames > 0 && S.nodes.length && host.clientWidth > 50) {
-      layout(); fitView(); S._centerFrames--; S._everCentered = true; S._settled = false;
-    }
-    if (!S._settled || S.drag) layout();   // esfria quando assenta
+    const centering = S._centerFrames > 0 && S.nodes.length && host.clientWidth > 50;
+    if (!S._settled || S.drag || centering) layout();   // esfria quando assenta (1x/frame)
+    if (centering) { fitView(); S._centerFrames--; }
     draw();
   }
 
