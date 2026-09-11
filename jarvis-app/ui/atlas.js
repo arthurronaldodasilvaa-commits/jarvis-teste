@@ -27,6 +27,23 @@ window.jarvisAtlas = (() => {
     filter: "", highlight: null, ready: false,
   };
 
+  // ---------------- posição salva (sobrevive a fechar/abrir o app) ----------------
+  const POS_KEY = "jarvis-atlas-pos";
+  function loadSavedPos() {
+    try { return JSON.parse(localStorage.getItem(POS_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  let _posSaveT = 0;
+  function savePosSoon() {
+    const now = performance.now();
+    if (now - _posSaveT < 800) return;   // no máx. ~1x/800ms — arrastar não devia martelar o disco
+    _posSaveT = now;
+    try {
+      const out = {};
+      S.nodes.forEach((n) => { out[n.id] = { x: Math.round(n.x), y: Math.round(n.y), p: !!n.pinned }; });
+      localStorage.setItem(POS_KEY, JSON.stringify(out));
+    } catch (e) { /* localStorage cheio/indisponível — não trava a teia por isso */ }
+  }
+
   // ---------------- dados ----------------
   // guarda contra chamadas concorrentes (2 refresh() ao mesmo tempo criavam
   // dois conjuntos de nós pro mesmo id -> "células duplicadas vibrando")
@@ -41,14 +58,18 @@ window.jarvisAtlas = (() => {
       try { g = await api.brain_graph(); } catch (e) { return; }
       const notes = (g && g.notes) || [];
       const keep = S.byId;
+      const saved = S._everCentered ? null : loadSavedPos();   // só vale na 1ª carga
       const nodes = [], byId = new Map();
       const spread = 70 + 34 * Math.sqrt(notes.length);
       notes.forEach((n, i) => {
         if (byId.has(n.id)) return;   // defesa: id repetido na fonte -> ignora a 2ª ocorrência
         const old = keep.get(n.id);
+        const sv = !old && saved && saved[n.id];
         const a = (i / Math.max(1, notes.length)) * Math.PI * 2;
-        const nd = old || { x: Math.cos(a) * spread + (Math.random() - 0.5) * 40,
-                            y: Math.sin(a) * spread + (Math.random() - 0.5) * 40, vx: 0, vy: 0 };
+        const nd = old || (sv
+          ? { x: sv.x, y: sv.y, vx: 0, vy: 0, pinned: !!sv.p }
+          : { x: Math.cos(a) * spread + (Math.random() - 0.5) * 40,
+             y: Math.sin(a) * spread + (Math.random() - 0.5) * 40, vx: 0, vy: 0 });
         nd.vx = nd.vx || 0; nd.vy = nd.vy || 0;
         Object.assign(nd, { id: n.id, title: n.title, type: n.type, rel: n.rel,
                             tags: n.tags || [], excerpt: n.excerpt || "", links: n.links || [] });
@@ -156,7 +177,10 @@ window.jarvisAtlas = (() => {
     }
     const q = S.filter;
     const hl = S.highlight;   // Set de ids realçados (ou null)
-    const dim = (n) => (q && !n.title.toLowerCase().includes(q)) || (hl && !hl.has(n.id));
+    const matchesQ = (n) => !q || n.title.toLowerCase().includes(q)
+      || (n.excerpt || "").toLowerCase().includes(q)
+      || (n.tags || []).some((tg) => tg.toLowerCase().includes(q));
+    const dim = (n) => !matchesQ(n) || (hl && !hl.has(n.id));
 
     ctx.lineWidth = 1;
     S.edges.forEach((e) => {
@@ -234,7 +258,7 @@ window.jarvisAtlas = (() => {
       (isBoard ? '<button class="np-btn" id="np-board">abrir quadro</button>' : "") +
       `<button class="np-btn" id="np-obs">abrir no obsidian</button></div>` +
       `<h1>${n.title}</h1>` + bodyHtml +
-      (links.length ? "<h2>Ligações</h2><ul class=\"np-links\">" +
+      (links.length ? "<h2>Ligações <span class=\"np-hint\">← → percorre</span></h2><ul class=\"np-links\">" +
         links.map((l) => `<li data-id="${l}">${(S.byId.get(l) || {}).title || l}</li>`).join("") + "</ul>" : "");
     const api = window.pywebview && window.pywebview.api;
     const ob = document.getElementById("np-obs");
@@ -247,7 +271,7 @@ window.jarvisAtlas = (() => {
     };
     panel.querySelectorAll(".np-links li").forEach((li) => {
       li.style.cursor = "pointer";
-      li.onclick = () => { const t = S.byId.get(li.dataset.id); if (t) openNote(t), centerOn(t); };
+      li.onclick = () => { const t = S.byId.get(li.dataset.id); if (t) { resetNav(); openNote(t); centerOn(t); } };
     });
   }
   function centerOn(n) { S.cam.x = n.x + 210 / S.cam.z; S.cam.y = n.y; }
@@ -285,14 +309,15 @@ window.jarvisAtlas = (() => {
   cv.addEventListener("pointerup", (e) => {
     if (S.drag && last && Math.hypot(e.offsetX - last[0], e.offsetY - last[1]) < 4) {
       S.drag.pinned = false;   // clique = não fixa
-      openNote(S.drag);
+      resetNav(); openNote(S.drag);
     }
+    if (S.drag) savePosSoon();
     S.drag = null; panning = false; last = null; cv.style.cursor = "grab"; S._settled = false;
   });
   cv.addEventListener("dblclick", (e) => {
     const [wx, wy] = toWorld(e.offsetX, e.offsetY);
     const n = pick(wx, wy);
-    if (n) { n.pinned = false; S._settled = false; }   // solta o nó fixado
+    if (n) { n.pinned = false; S._settled = false; savePosSoon(); }   // solta o nó fixado
   });
   cv.addEventListener("wheel", (e) => {
     e.preventDefault();
@@ -313,10 +338,26 @@ window.jarvisAtlas = (() => {
 
   // busca
   if (search) search.addEventListener("input", () => { S.filter = search.value.trim().toLowerCase(); });
+  // navegação por teclado: setas ciclam pelas [[ligações]] da nota "âncora".
+  // Qualquer seleção manual (clique/voz) reseta a âncora pra nota atual.
+  let navAnchor = null, navIdx = -1;
+  function resetNav() { navAnchor = null; navIdx = -1; }
   addEventListener("keydown", (e) => {
     if (!S.active) return;
-    if (e.key === "/" && document.activeElement !== search) { e.preventDefault(); search.focus(); }
+    const typing = document.activeElement === search
+      || (document.activeElement && document.activeElement.tagName === "INPUT");
+    if (e.key === "/" && !typing) { e.preventDefault(); search.focus(); }
     else if (e.key === "Escape" && panel.classList.contains("on")) { e.stopImmediatePropagation(); closeNote(); }
+    else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && S.sel && !typing) {
+      e.preventDefault();
+      const anchor = navAnchor || S.sel;
+      const links = anchor.links.filter((l) => S.byId.has(l));
+      if (!links.length) return;
+      navIdx = (navIdx + (e.key === "ArrowRight" ? 1 : -1) + links.length) % links.length;
+      navAnchor = anchor;
+      const t = S.byId.get(links[navIdx]);
+      if (t) { openNote(t); centerOn(t); }
+    }
   }, true);
 
   // ---------------- eventos de voz ----------------
@@ -326,7 +367,7 @@ window.jarvisAtlas = (() => {
       const n = S.byId.get(ev.id);
       if (n) {
         S.cam.z = Math.max(S.cam.z, 1.1);
-        openNote(n);
+        resetNav(); openNote(n);
         S.cam.x = n.x + 210 / S.cam.z;   // painel cobre a direita
         S.cam.y = n.y; S.highlight = null;
       }
@@ -356,8 +397,10 @@ window.jarvisAtlas = (() => {
     if (!S.active) return;
     if (cv.width !== Math.round(host.clientWidth * (devicePixelRatio || 1))) resize();
     const centering = S._centerFrames > 0 && S.nodes.length && host.clientWidth > 50;
+    const wasSettled = S._settled;
     if (!S._settled || S.drag || centering) layout();   // esfria quando assenta (1x/frame)
     if (centering) { fitView(); S._centerFrames--; }
+    if (S._settled && !wasSettled && !S.drag) savePosSoon();   // acabou de assentar -> grava
     draw();
   }
 
