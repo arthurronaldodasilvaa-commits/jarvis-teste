@@ -144,11 +144,12 @@
   body.brain2 #hud, body.brain2 #study-box { display: none; }
   /* webcam vira uma janelinha no canto (monitor + esqueleto da mão) */
   body.brain2 #cam-fx, body.brain2 #cam-tint { display: none; }
+  body.brain2 #controls, body.brain2 #status, body.brain2 #hint { display: none; }
   body.brain2 #cam {
-    inset: auto; right: 18px; bottom: 18px; width: 232px; height: 174px;
+    inset: auto; right: 16px; bottom: 14px; width: 200px; height: 150px;
     z-index: 8; border: 1px solid var(--neon-dim); border-radius: 8px; opacity: 0.92;
     filter: brightness(0.8) contrast(1.05); box-shadow: 0 0 22px rgba(0,0,0,0.6); }
-  #cam-mini { position: fixed; right: 18px; bottom: 18px; width: 232px; height: 174px;
+  #cam-mini { position: fixed; right: 16px; bottom: 14px; width: 200px; height: 150px;
     z-index: 9; pointer-events: none; transform: scaleX(-1); border-radius: 8px;
     display: none; }
   body.brain2 #cam-mini { display: block; }
@@ -159,19 +160,24 @@
   body.brain2 #b2-cursor { display: block; }
   #b2-cursor.on { opacity: 0.95; }
   #b2-cursor.grab { background: var(--neon-14); border-width: 3px; }
-  #brain2-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
-    z-index: 12; display: none; gap: 8px; align-items: center;
-    background: rgba(4,10,16,0.72); border: 1px solid var(--neon-dim);
+  #brain2-bar { position: fixed; left: 14px; bottom: 14px;
+    z-index: 12; display: none; gap: 6px; align-items: center;
+    max-width: calc(100vw - 236px); overflow-x: auto; scrollbar-width: none;
+    background: rgba(4,10,16,0.82); border: 1px solid var(--neon-dim);
     border-radius: 999px; padding: 6px 8px; backdrop-filter: blur(3px);
     font-family: "Segoe UI", Consolas, monospace; }
+  #brain2-bar::-webkit-scrollbar { display: none; }
   body.brain2 #brain2-bar { display: flex; }
-  #brain2-bar button { background: transparent; color: #9ecad8; border: 1px solid transparent;
-    border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 11px;
-    letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  #brain2-bar button { flex: 0 0 auto; background: transparent; color: #9ecad8;
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; font: inherit;
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    white-space: nowrap; }
   #brain2-bar button:hover { color: var(--neon); border-color: var(--neon-dim); }
   #brain2-bar button.on { color: var(--neon); border-color: var(--neon); background: var(--neon-14); }
-  #brain2-bar .sep { width: 1px; height: 18px; background: var(--neon-dim); margin: 0 3px; }
-  #b2-gesture { font-size: 13px !important; padding: 6px 10px !important; }
+  #brain2-bar .sep { flex: 0 0 auto; width: 1px; height: 18px; background: var(--neon-dim); margin: 0 2px; }
+  #b2-exit { color: var(--neon) !important; }
+  #b2-mute, #b2-gesture { font-size: 13px !important; padding: 6px 9px !important; }
+  #b2-mute.muted { color: var(--amber); border-color: var(--amber); background: rgba(255,178,77,0.12); }
   #b2-gesture.on { color: var(--neon); border-color: var(--neon); background: var(--neon-14); }
   #atlas, #board { position: absolute; inset: 0; }
   #board { cursor: grab; }
@@ -438,11 +444,14 @@
   <canvas id="cam-mini"></canvas>
   <input id="brain2-search" type="text" placeholder="buscar nota…  ( / )" spellcheck="false" />
   <div id="brain2-bar">
+    <button id="b2-exit" title="Voltar pro modo Jarvis">⟵ Jarvis</button>
+    <button id="b2-mute" title="Pausar / voltar a escuta (Ctrl+Alt+J)">🎙</button>
+    <span class="sep"></span>
     <button id="b2-teia">Teia</button>
     <button id="b2-board">Quadro</button>
     <span class="sep"></span>
-    <button id="b2-add-ai">＋ IA</button>
     <button id="b2-add-text">＋ Texto</button>
+    <button id="b2-add-ai">＋ IA</button>
     <button id="b2-add-img">＋ Imagem</button>
     <span class="sep"></span>
     <button id="b2-gesture" title="Controle por gesto (mão na webcam)">🖐</button>

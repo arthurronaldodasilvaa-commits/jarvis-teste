@@ -52,6 +52,14 @@ window.jarvisBoard = (() => {
   function scheduleSave() {
     S.dirty = true; S.saveT = performance.now() + 700;
   }
+  async function saveNow() {
+    S.dirty = false;
+    const api = window.pywebview && window.pywebview.api;
+    if (api && api.board_write && S.rel) {
+      try { await api.board_write(S.rel, { nodes: S.nodes, edges: S.edges, _jarvis: S.jarvis }); }
+      catch (e) { S.dirty = true; }
+    }
+  }
   async function flush() {
     if (!S.dirty || !S.rel || performance.now() < S.saveT) return;
     S.dirty = false;
@@ -267,20 +275,65 @@ window.jarvisBoard = (() => {
 
   // ---------------- criar célula ----------------
   function addCell(kind, text) {
-    const cx = S.cam.x + host.clientWidth / (2 * S.cam.z) - 125;
-    const cy = S.cam.y + host.clientHeight / (2 * S.cam.z) - 60;
+    const cx = S.cam.x + host.clientWidth / (2 * S.cam.z) - 130;
+    const cy = S.cam.y + host.clientHeight / (2 * S.cam.z) - 70;
     const n = { id: uid(), type: "text", text: text || "", x: Math.round(cx), y: Math.round(cy),
-      width: 260, height: 120 };
+      width: kind === "ai" ? 300 : 260, height: kind === "ai" ? 160 : 120 };
     S.nodes.push(n);
-    if (kind === "ai") S.jarvis[n.id] = { kind: "ai-live", prompt: text || "" };
+    if (kind === "ai") {
+      S.jarvis[n.id] = { kind: "ai-live", prompt: text || "" };
+      n.text = "";
+    }
     if (kind === "img") { n.text = "🖼️ (imagem — em breve)"; }
     mkCell(n); scheduleSave();
     if (kind === "text") editCell(S.els.get(n.id), n);
+    if (kind === "ai") promptCell(S.els.get(n.id), n);
     return n;
+  }
+
+  // célula de IA: você digita o tema, ao sair o daemon preenche
+  function promptCell(el, n) {
+    const body = el.querySelector(".b2-body") || el;
+    body.innerHTML = "";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.placeholder = "tema… (o Jarvis preenche)";
+    inp.style.cssText = "width:100%;background:transparent;border:0;outline:0;color:#cfe6ef;" +
+      "font:inherit;font-size:12px";
+    body.appendChild(inp); inp.focus();
+    const go = async () => {
+      const p = inp.value.trim();
+      inp.removeEventListener("blur", go); inp.removeEventListener("keydown", onk);
+      if (!p) {
+        S.nodes = S.nodes.filter((x) => x !== n); delete S.jarvis[n.id];
+        el.remove(); S.els.delete(n.id); scheduleSave(); return;
+      }
+      (S.jarvis[n.id] = S.jarvis[n.id] || {}).prompt = p;
+      n.text = "";
+      body.innerHTML = "<span style='opacity:.6'>⏳ gerando “" + p.replace(/</g, "&lt;") + "”…</span>";
+      await saveNow();   // grava o quadro ANTES de pedir — o daemon precisa achar a célula
+      const a = window.pywebview && window.pywebview.api;
+      if (a && a.brain_generate) a.brain_generate(p, n.id, S.rel);
+    };
+    const onk = (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+                         else if (e.key === "Escape") { inp.value = ""; inp.blur(); } };
+    inp.addEventListener("blur", go);
+    inp.addEventListener("keydown", onk);
   }
 
   // barra inferior
   const B = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+  const api0 = () => (window.pywebview && window.pywebview.api) || null;
+  B("b2-exit", () => {
+    const a = api0();
+    if (a && a.set_view) a.set_view("brain");
+    if (window.jarvisBrainUI && window.jarvisBrainUI.exit) window.jarvisBrainUI.exit();
+  });
+  B("b2-mute", () => {
+    const a = api0();
+    if (a && a.toggle_pause) a.toggle_pause().then((c) => {
+      document.body.classList.toggle("paused", !!(c && c.paused)); syncBar();
+    });
+  });
   B("b2-teia", () => window.jarvisBrainUI && window.jarvisBrainUI.setSub("teia"));
   B("b2-board", () => window.jarvisBrainUI && window.jarvisBrainUI.setSub("board"));
   B("b2-add-text", () => addCell("text"));
@@ -290,6 +343,13 @@ window.jarvisBoard = (() => {
   setGesture(G.on);   // aplica o estado salvo no botão
   function syncBar() {
     const sub = window.jarvisBrainUI ? window.jarvisBrainUI.sub() : "board";
+    const mb = document.getElementById("b2-mute");
+    if (mb) {
+      const paused = document.body.classList.contains("paused");
+      mb.classList.toggle("muted", paused);
+      mb.textContent = paused ? "🔇" : "🎙";
+      mb.title = paused ? "Escuta pausada — clique pra voltar" : "Pausar a escuta (Ctrl+Alt+J)";
+    }
     const t = document.getElementById("b2-teia"), b = document.getElementById("b2-board");
     if (t) t.classList.toggle("on", sub === "teia");
     if (b) b.classList.toggle("on", sub === "board");
@@ -300,7 +360,7 @@ window.jarvisBoard = (() => {
     if (!ev) return;
     if (ev.op === "add_cell") addCell(ev.own ? "ai" : "text", ev.text || "");
     else if (ev.op === "open_board" && ev.rel) load(ev.rel);
-    else if (ev.op === "reload") { if (S.rel) load(S.rel, true); }
+    else if (ev.op === "reload") { if (S.rel) { S.dirty = false; load(S.rel, true); } }
     else if (ev.op === "obsidian") {
       const api = window.pywebview && window.pywebview.api;
       const rel = S.sel && S.nodes.find((n) => n.id === S.sel);

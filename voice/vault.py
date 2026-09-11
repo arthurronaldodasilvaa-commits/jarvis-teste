@@ -242,12 +242,25 @@ def watch(cfg: dict, brain) -> None:
         log(f"vault: {n} notas indexadas ({vault_dir(cfg)})")
     except Exception as exc:  # noqa: BLE001
         log(f"vault reindex inicial: {exc}")
+    seen_gen = 0
+    last_reindex = 0.0
     while True:
-        time.sleep(poll)
+        time.sleep(2)
+        # pedido de "gerar célula" vindo do app (control.json -> brain_gen) — checa sempre
         try:
-            reindex(cfg, brain)
+            g = read_control().get("brain_gen") or {}
+            if g.get("n") and g["n"] != seen_gen and g.get("cell") and g.get("prompt"):
+                seen_gen = g["n"]
+                generate_cell(cfg, brain, g.get("board", ""), g["cell"], g["prompt"])
         except Exception as exc:  # noqa: BLE001
-            log(f"vault watch: {exc}")
+            log(f"vault gen: {exc}")
+        # reindexação respeita [brain].poll_seconds (pode ser bem alto em PC fraco)
+        if time.monotonic() - last_reindex >= poll:
+            last_reindex = time.monotonic()
+            try:
+                reindex(cfg, brain)
+            except Exception as exc:  # noqa: BLE001
+                log(f"vault watch: {exc}")
 
 
 # ------------------------------------------------------------------------ lookup
@@ -326,7 +339,23 @@ def _next_pos(nodes: list[dict]) -> tuple[int, int]:
     return 0, int(maxy) + 40
 
 
-def add_cell(cfg: dict, text: str, own: bool = False) -> str:
+_AI_SYS = ("Você preenche uma FICHA de estudo curta sobre o tema pedido. "
+           "Português do Brasil. Comece com um título '# <tema>'. Depois 3 a 6 "
+           "tópicos com '- '. Sem introdução, sem 'claro senhor', direto ao ponto. "
+           "Máximo ~90 palavras.")
+
+
+def _ai_fill(brain, prompt: str) -> str:
+    try:
+        out = brain._post([{"role": "system", "content": _AI_SYS},
+                           {"role": "user", "content": prompt}], 220, 0.3).strip()
+        return out or f"# {prompt}\n\n- (sem resposta agora)"
+    except Exception as exc:  # noqa: BLE001
+        log(f"vault ai_fill: {exc}")
+        return f"# {prompt}\n\n- (falha ao gerar)"
+
+
+def add_cell(cfg: dict, text: str, own: bool = False, brain=None) -> str:
     p = _ctx_board(cfg)
     if not p:
         # nenhum quadro ainda — cria um
@@ -336,21 +365,51 @@ def add_cell(cfg: dict, text: str, own: bool = False) -> str:
     d = _load_canvas(p)
     x, y = _next_pos(d["nodes"])
     nid = _new_id()
-    d["nodes"].append({"id": nid, "type": "text", "text": (text or "").strip() or "…",
-                       "x": x, "y": y, "width": 260, "height": 120,
-                       "color": "4" if not own else "6"})
+    prompt = (text or "").strip()
+    body = prompt or "…"
+    if own and brain is not None and prompt:
+        body = _ai_fill(brain, prompt)
+    d["nodes"].append({"id": nid, "type": "text", "text": body,
+                       "x": x, "y": y, "width": 300 if own else 260,
+                       "height": 180 if own else 120, "color": "4" if not own else "6"})
     if own:
         jp = p.with_suffix(".jarvis.json")
         try:
             jd = json.loads(jp.read_text(encoding="utf-8")) if jp.is_file() else {}
         except (OSError, ValueError):
             jd = {}
-        jd.setdefault("cells", {})[nid] = {"kind": "ai-live", "prompt": text or ""}
+        jd.setdefault("cells", {})[nid] = {"kind": "ai-live", "prompt": prompt,
+                                           "updated": int(time.time())}
         _atomic_write(jp, json.dumps(jd, ensure_ascii=False, indent=1))
     _save_canvas(p, d)
     write_control(brain_ev={"action": "board", "op": "reload", "n": int(time.time() * 1000)})
-    kind = "própria" if own else "de anotação"
+    kind = "da IA" if own else "de anotação"
     return f"Célula {kind} adicionada ao quadro, senhor."
+
+
+def generate_cell(cfg: dict, brain, board_rel: str, cell_id: str, prompt: str) -> None:
+    """Preenche uma célula ai-live já existente (pedido vindo do app)."""
+    vd = vault_dir(cfg)
+    p = (vd / board_rel) if board_rel else _ctx_board(cfg)
+    if not p or not Path(p).is_file():
+        return
+    p = Path(p)
+    d = _load_canvas(p)
+    node = next((n for n in d["nodes"] if n.get("id") == cell_id), None)
+    if not node:
+        return
+    node["text"] = _ai_fill(brain, prompt)
+    node["height"] = max(node.get("height", 120), 180)
+    jp = p.with_suffix(".jarvis.json")
+    try:
+        jd = json.loads(jp.read_text(encoding="utf-8")) if jp.is_file() else {}
+    except (OSError, ValueError):
+        jd = {}
+    jd.setdefault("cells", {})[cell_id] = {"kind": "ai-live", "prompt": prompt,
+                                           "updated": int(time.time())}
+    _atomic_write(jp, json.dumps(jd, ensure_ascii=False, indent=1))
+    _save_canvas(p, d)
+    write_control(brain_ev={"action": "board", "op": "reload", "n": int(time.time() * 1000)})
 
 
 def connect_cells(cfg: dict, a_txt: str, b_txt: str) -> str:
@@ -478,10 +537,13 @@ def handle(raw: str, cfg: dict, speak, brain) -> str | None:
     m = re.search(r"\b(?:anota|anote)[:\s]+(.+)", t)
     if m:
         return add_cell(cfg, m.group(1))
-    m = re.search(r"\bcria\w*\s+(?:uma\s+)?c[eé]lula\s+(pr[oó]pria\s+|do\s+jarvis\s+)?"
+    m = re.search(r"\bcria\w*\s+(?:uma\s+)?c[eé]lula\s+(pr[oó]pria\s+|do\s+jarvis\s+|da\s+ia\s+)?"
                   r"(?:sobre\s+|com\s+|de\s+|:)?\s*(.+)", t)
     if m:
-        return add_cell(cfg, m.group(2), own=bool(m.group(1)))
+        own = bool(m.group(1))
+        if own:
+            speak("Deixa eu preencher essa, senhor.")
+        return add_cell(cfg, m.group(2), own=own, brain=brain if own else None)
     m = re.search(r"\b(?:liga|conecta)\s+(.+?)\s+(?:com|e|a|ao|na|no)\s+(.+)", t)
     if m:
         return connect_cells(cfg, m.group(1), m.group(2))

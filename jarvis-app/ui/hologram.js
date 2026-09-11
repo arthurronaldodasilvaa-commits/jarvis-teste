@@ -198,6 +198,7 @@
     setSub: (s) => applyBrainSub(s),
     sub: () => state.brainSub,
     active: () => state.view === "brain2",
+    exit: () => applyView("brain"),
   };
 
   // evento de voz do segundo cérebro (control.json -> brain_ev)

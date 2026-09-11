@@ -336,6 +336,15 @@ class Api:
     def brain_ctx(self, ctx: dict) -> dict:
         return self._write_control(brain_ctx=dict(ctx or {}))
 
+    def brain_generate(self, prompt: str, cell_id: str, board_rel: str) -> dict:
+        """Pede pro daemon preencher uma célula de IA (ele roda o LLM e recarrega o quadro)."""
+        p = str(prompt or "").strip()
+        if not p or not cell_id:
+            return {"ok": False}
+        return self._write_control(brain_gen={
+            "prompt": p[:400], "cell": str(cell_id), "board": str(board_rel or ""),
+            "n": int(__import__("time").time() * 1000)})
+
     # ---- painel de configurações ----
     _CFG_KEYS = [
         ("profile", "active"), ("assistant", "address"), ("assistant", "user_name"),
