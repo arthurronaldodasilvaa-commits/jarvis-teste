@@ -69,6 +69,7 @@ window.jarvisAtlas = (() => {
 
   // ---------------- layout força-dirigida (O(n²), vault é pequeno) ----------------
   // Fruchterman-Reingold: repulsão k²/d entre todos, atração d²/k nas arestas.
+  // Esfria sozinho: quando o movimento total fica baixo, para de simular.
   const K = 190;         // distância ideal entre nós ligados
   function layout() {
     const N = S.nodes;
@@ -92,13 +93,16 @@ window.jarvisAtlas = (() => {
       dx /= d; dy /= d;
       e.a.fx += dx * f; e.a.fy += dy * f; e.b.fx -= dx * f; e.b.fy -= dy * f;
     });
+    let moved = 0;
     N.forEach((n) => {
-      if (n === S.drag) return;
+      if (n === S.drag || n.pinned) return;
       const d = Math.hypot(n.fx, n.fy) || 0.01;
       const step = Math.min(d, 60) * 0.16;      // limite de deslocamento (cooling fixo)
-      n.x += (n.fx / d) * step;
-      n.y += (n.fy / d) * step;
+      const mx = (n.fx / d) * step, my = (n.fy / d) * step;
+      n.x += mx; n.y += my;
+      moved += Math.abs(mx) + Math.abs(my);
     });
+    S._settled = moved < 0.4 * Math.max(1, N.length);
   }
 
   // ---------------- render ----------------
@@ -119,6 +123,14 @@ window.jarvisAtlas = (() => {
     const r = devicePixelRatio || 1;
     ctx.setTransform(r, 0, 0, r, 0, 0);
     ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!S.nodes.length) {
+      const w = cv.width / r, h = cv.height / r;
+      ctx.fillStyle = "rgba(158,202,216,0.5)";
+      ctx.font = "13px 'Segoe UI', monospace"; ctx.textAlign = "center";
+      ctx.fillText(S.ready ? "vault vazio — crie notas .md em Documentos\\Jarvis Vault"
+                           : "carregando o segundo cérebro…", w / 2, h / 2);
+      return;
+    }
     const q = S.filter;
     const hl = S.highlight;   // Set de ids realçados (ou null)
     const dim = (n) => (q && !n.title.toLowerCase().includes(q)) || (hl && !hl.has(n.id));
@@ -192,16 +204,30 @@ window.jarvisAtlas = (() => {
   function renderPanel(n) {
     let bodyHtml = mdRender(n._full || n.excerpt || "_(sem prévia)_");
     bodyHtml = bodyHtml.replace(/^<h1>[^<]*<\/h1>/, "");   // a nota já traz "# Título"
+    const isBoard = n.type === "quadro" || /\.canvas$/i.test(n.rel || "");
+    const links = n.links.filter((l) => S.byId.has(l));
     panel.innerHTML =
       `<div class="np-head"><span class="np-tag">${ty(n.type).lbl}</span>` +
+      (isBoard ? '<button class="np-btn" id="np-board">abrir quadro</button>' : "") +
       `<button class="np-btn" id="np-obs">abrir no obsidian</button></div>` +
       `<h1>${n.title}</h1>` + bodyHtml +
-      (n.links.length ? "<h2>Ligações</h2><ul>" +
-        n.links.map((l) => `<li>${(S.byId.get(l) || {}).title || l}</li>`).join("") + "</ul>" : "");
+      (links.length ? "<h2>Ligações</h2><ul class=\"np-links\">" +
+        links.map((l) => `<li data-id="${l}">${(S.byId.get(l) || {}).title || l}</li>`).join("") + "</ul>" : "");
     const api = window.pywebview && window.pywebview.api;
     const ob = document.getElementById("np-obs");
     if (ob) ob.onclick = () => api && api.board_open_obsidian && api.board_open_obsidian(n.rel);
+    const bb = document.getElementById("np-board");
+    if (bb) bb.onclick = () => {
+      if (window.jarvisBoard) window.jarvisBoard.onEvent({ op: "open_board", rel: n.rel });
+      if (window.jarvisBrainUI) window.jarvisBrainUI.setSub("board");
+      closeNote();
+    };
+    panel.querySelectorAll(".np-links li").forEach((li) => {
+      li.style.cursor = "pointer";
+      li.onclick = () => { const t = S.byId.get(li.dataset.id); if (t) openNote(t), centerOn(t); };
+    });
   }
+  function centerOn(n) { S.cam.x = n.x + 210 / S.cam.z; S.cam.y = n.y; }
   async function openNote(n) {
     if (!n) return;
     S.sel = n;
@@ -226,7 +252,7 @@ window.jarvisAtlas = (() => {
   });
   cv.addEventListener("pointermove", (e) => {
     const [wx, wy] = toWorld(e.offsetX, e.offsetY);
-    if (S.drag) { S.drag.x = wx; S.drag.y = wy; S.drag.vx = S.drag.vy = 0; }
+    if (S.drag) { S.drag.x = wx; S.drag.y = wy; S.drag.fx = S.drag.fy = 0; S._settled = false; }
     else if (panning && last) {
       S.cam.x -= (e.offsetX - last[0]) / S.cam.z;
       S.cam.y -= (e.offsetY - last[1]) / S.cam.z;
@@ -234,8 +260,16 @@ window.jarvisAtlas = (() => {
     } else { S.hover = pick(wx, wy); cv.style.cursor = S.hover ? "pointer" : "grab"; }
   });
   cv.addEventListener("pointerup", (e) => {
-    if (S.drag && last && Math.hypot(e.offsetX - last[0], e.offsetY - last[1]) < 4) openNote(S.drag);
-    S.drag = null; panning = false; last = null; cv.style.cursor = "grab";
+    if (S.drag && last && Math.hypot(e.offsetX - last[0], e.offsetY - last[1]) < 4) {
+      S.drag.pinned = false;   // clique = não fixa
+      openNote(S.drag);
+    }
+    S.drag = null; panning = false; last = null; cv.style.cursor = "grab"; S._settled = false;
+  });
+  cv.addEventListener("dblclick", (e) => {
+    const [wx, wy] = toWorld(e.offsetX, e.offsetY);
+    const n = pick(wx, wy);
+    if (n) { n.pinned = false; S._settled = false; }   // solta o nó fixado
   });
   cv.addEventListener("wheel", (e) => {
     e.preventDefault();
@@ -299,9 +333,9 @@ window.jarvisAtlas = (() => {
     if (!S.active) return;
     if (cv.width !== Math.round(host.clientWidth * (devicePixelRatio || 1))) resize();
     if (S._centerFrames > 0 && S.nodes.length && host.clientWidth > 50) {
-      layout(); fitView(); S._centerFrames--; S._everCentered = true;
+      layout(); fitView(); S._centerFrames--; S._everCentered = true; S._settled = false;
     }
-    layout();
+    if (!S._settled || S.drag) layout();   // esfria quando assenta
     draw();
   }
 

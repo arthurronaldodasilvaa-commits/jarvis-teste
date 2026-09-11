@@ -87,6 +87,17 @@ window.jarvisBoard = (() => {
     S.nodes.forEach(mkCell);
     drawEdges();
     applyCam();
+    let hint = document.getElementById("b2-empty");
+    if (!S.nodes.length) {
+      if (!hint) {
+        hint = document.createElement("div"); hint.id = "b2-empty";
+        hint.style.cssText = "position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);" +
+          "color:rgba(158,202,216,0.55);font:13px 'Segoe UI',monospace;text-align:center;pointer-events:none";
+        host.appendChild(hint);
+      }
+      hint.textContent = S.rel ? "quadro vazio — ＋ Texto, ou diga \"cria uma célula sobre…\""
+                               : "nenhum quadro ainda — diga \"novo quadro <nome>\"";
+    } else if (hint) { hint.remove(); }
   }
 
   function mkCell(n) {
